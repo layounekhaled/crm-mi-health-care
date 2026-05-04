@@ -1,6 +1,7 @@
 'use client'
 
 import { useCRMStore } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
 import { CRMSidebar } from '@/components/crm/sidebar'
 import Dashboard from '@/components/crm/dashboard'
 import ProspectsModule from '@/components/crm/prospects'
@@ -11,10 +12,29 @@ import TasksModule from '@/components/crm/tasks'
 import AfterSalesModule from '@/components/crm/after-sales'
 import EmployeesModule from '@/components/crm/employees'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { Loader2 } from 'lucide-react'
 
 export default function Home() {
   const { currentPage, sidebarOpen } = useCRMStore()
+  const { isAuthenticated, isLoading } = useAuth()
   const isMobile = useIsMobile()
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <p className="text-sm text-slate-500">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If not authenticated, middleware will redirect - show nothing
+  if (!isAuthenticated) {
+    return null
+  }
 
   const renderPage = () => {
     switch (currentPage) {

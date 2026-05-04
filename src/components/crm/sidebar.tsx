@@ -1,6 +1,7 @@
 'use client'
 
 import { useCRMStore, type Page } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
 import {
   LayoutDashboard,
   UserRound,
@@ -13,8 +14,21 @@ import {
   Menu,
   X,
   Heart,
+  LogOut,
+  Shield,
+  Headphones,
+  Stethoscope,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { NotificationsBell } from '@/components/crm/notifications-bell'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const navItems: { page: Page; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -28,8 +42,29 @@ const navItems: { page: Page; label: string; icon: React.ComponentType<{ classNa
   { page: 'employees', label: 'Employés', icon: Users },
 ]
 
+const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  admin: Shield,
+  commercial: Headphones,
+  technicien: Stethoscope,
+}
+
+const roleLabels: Record<string, string> = {
+  admin: 'Administrateur',
+  commercial: 'Commercial',
+  technicien: 'Technicien',
+}
+
+function getInitials(name: string | null, email: string): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/)
+    return parts.map((p) => p[0]).join('').toUpperCase().slice(0, 2)
+  }
+  return email.slice(0, 2).toUpperCase()
+}
+
 export function CRMSidebar() {
   const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, toggleSidebar } = useCRMStore()
+  const { user, logout } = useAuth()
 
   const handleNavClick = (page: Page) => {
     setCurrentPage(page)
@@ -38,6 +73,10 @@ export function CRMSidebar() {
       setSidebarOpen(false)
     }
   }
+
+  const displayName = user?.employeNom || user?.email || 'Utilisateur'
+  const displayRole = user?.role || 'commercial'
+  const RoleIcon = roleIcons[displayRole] || Shield
 
   const sidebarContent = (
     <div className="flex h-full flex-col bg-slate-900 text-white">
@@ -61,6 +100,14 @@ export function CRMSidebar() {
         >
           <X className="h-4 w-4" />
         </Button>
+      </div>
+
+      {/* Notifications Bar */}
+      <div className="flex items-center justify-between border-b border-slate-700/40 px-4 py-2">
+        <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+          Notifications
+        </span>
+        <NotificationsBell />
       </div>
 
       {/* Navigation Items */}
@@ -101,8 +148,52 @@ export function CRMSidebar() {
         </ul>
       </nav>
 
+      {/* User Profile & Logout */}
+      <div className="border-t border-slate-700/60 px-3 py-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-slate-800/80">
+              <Avatar className="h-8 w-8 border border-slate-600">
+                <AvatarFallback className="bg-emerald-700 text-xs font-semibold text-white">
+                  {getInitials(user?.employeNom || null, user?.email || '')}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="truncate text-sm font-medium text-slate-200">
+                  {displayName}
+                </p>
+                <div className="flex items-center gap-1">
+                  <RoleIcon className="h-3 w-3 text-emerald-400" />
+                  <span className="text-[11px] text-slate-500">
+                    {roleLabels[displayRole] || displayRole}
+                  </span>
+                </div>
+              </div>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            side="top"
+            className="w-56 border-slate-200"
+          >
+            <div className="px-2 py-1.5">
+              <p className="text-sm font-medium text-slate-900">{displayName}</p>
+              <p className="text-xs text-slate-500">{user?.email}</p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+              onClick={logout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Se déconnecter
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       {/* Developer Credit */}
-      <div className="border-t border-slate-700/60 px-5 py-4">
+      <div className="border-t border-slate-700/60 px-5 py-3">
         <div className="flex items-center gap-2">
           <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
           <span className="text-xs text-slate-500">

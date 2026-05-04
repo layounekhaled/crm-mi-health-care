@@ -163,6 +163,7 @@ model Employee {
   interactions   Interaction[]
   afterSales     AfterSale[]
   objectives     Objective[]
+  user           User?
 }
 
 model Objective {
@@ -178,4 +179,35 @@ model Objective {
   employe Employee @relation(fields: [employeId], references: [id], onDelete: Cascade)
 
   @@unique([employeId, mois])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  motDePasse   String
+  employeId    String?  @unique
+  role         String   @default("commercial")
+  actif        Boolean  @default(true)
+  derniereConnexion DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employe      Employee?  @relation(fields: [employeId], references: [id])
+  notifications Notification[]
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   @default("info")
+  titre       String
+  message     String
+  lue         Boolean  @default(false)
+  lien        String?
+  referenceId String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lue])
 }
