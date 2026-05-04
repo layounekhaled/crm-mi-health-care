@@ -544,18 +544,16 @@ export default function EventsModule() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
+        <div className="mx-auto max-w-[1600px] px-4 py-3 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25">
-                <Calendar className="size-5" />
-              </div>
+              <img src="/logo.png" alt="MI HEALTH CARE" className="h-9 w-auto shrink-0 object-contain" />
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                <h1 className="text-xl font-bold tracking-tight text-[#003366]">
                   Événements
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  CRM MI HEALTH CARE — Congrès, Expos & Formations
+                  Congrès, Expos & Formations
                 </p>
               </div>
             </div>

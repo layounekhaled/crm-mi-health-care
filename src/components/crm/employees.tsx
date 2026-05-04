@@ -529,15 +529,13 @@ export default function EmployeesModule() {
         <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25">
-                <Users className="size-5" />
-              </div>
+              <img src="/logo.png" alt="MI HEALTH CARE" className="h-9 w-auto shrink-0 object-contain" />
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <h1 className="text-xl font-bold tracking-tight text-[#003366] dark:text-white">
                   Employés & Objectifs
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  CRM MI HEALTH CARE — Gestion du personnel
+                  Gestion du personnel
                 </p>
               </div>
             </div>

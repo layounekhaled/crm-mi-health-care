@@ -92,14 +92,8 @@ export function CRMSidebar() {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-[#003366] text-white">
       {/* Logo / Brand Area */}
-      <div className="flex items-center gap-3 border-b border-[#002244] px-5 py-5">
-        <img src="/logo-small.png" alt="MI HEALTH CARE" className="h-10 w-10 shrink-0 rounded-lg object-contain" />
-        <div className="flex flex-col">
-          <span className="text-sm font-bold tracking-wide text-white">MI HEALTH CARE</span>
-          <span className="text-[10px] font-medium uppercase tracking-widest text-[#FF9900]/80">
-            CRM Platform
-          </span>
-        </div>
+      <div className="flex items-center gap-3 border-b border-[#002244] px-4 py-4">
+        <img src="/logo.png" alt="MI HEALTH CARE" className="h-11 w-auto shrink-0 object-contain" />
         {/* Close button on mobile */}
         <Button
           variant="ghost"

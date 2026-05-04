@@ -631,15 +631,16 @@ export default function ProspectsModule() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              <span className="bg-gradient-to-r from-[#003366] to-[#004080] bg-clip-text text-transparent">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="MI HEALTH CARE" className="h-9 w-auto shrink-0 object-contain" />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-[#003366]">
                 Prospects & Clients
-              </span>
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Gérez vos médecins et cliniques ({total} enregistrement{total !== 1 ? 's' : ''})
-            </p>
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Gérez vos médecins et cliniques ({total} enregistrement{total !== 1 ? 's' : ''})
+              </p>
+            </div>
           </div>
           <Button
             onClick={openAddForm}

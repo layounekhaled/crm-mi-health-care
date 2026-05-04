@@ -73,14 +73,11 @@ export default function LoginPage() {
               transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
               className="mx-auto"
             >
-              <img src="/logo.png" alt="MI HEALTH CARE" className="h-16 w-16 rounded-2xl object-contain" />
+              <img src="/logo.png" alt="MI HEALTH CARE" className="h-20 w-auto object-contain" />
             </motion.div>
             <div>
-              <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
-                MI HEALTH CARE
-              </CardTitle>
               <CardDescription className="mt-1 text-sm font-medium text-[#003366]/80">
-                CRM — Gestion Commerciale Matériel Médical
+                CRM — Solutions Santé
               </CardDescription>
             </div>
           </CardHeader>

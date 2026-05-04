@@ -98,24 +98,24 @@ interface DashboardData {
 const STATUT_ORDER = ['Nouveau', 'Contacté', 'Intéressé', 'Devis', 'Négociation', 'Gagnée', 'Perdu']
 
 const STATUT_COLORS: Record<string, string> = {
-  Nouveau: '#0d9488',
-  'Contacté': '#14b8a6',
-  'Intéressé': '#2dd4bf',
-  Devis: '#5eead4',
-  Négociation: '#99f6e4',
+  Nouveau: '#003366',
+  'Contacté': '#004080',
+  'Intéressé': '#336699',
+  Devis: '#FF9900',
+  Négociation: '#CC7A00',
   'Gagnée': '#059669',
-  'Perdu': '#f87171',
+  'Perdu': '#dc2626',
 }
 
 const MARQUE_COLORS: Record<string, string> = {
-  MIR: '#0d9488',
-  BOS: '#0ea5e9',
-  Löwenstein: '#8b5cf6',
-  Yuwell: '#f59e0b',
-  Gelenke: '#ec4899',
+  MIR: '#003366',
+  BOS: '#FF9900',
+  Löwenstein: '#336699',
+  Yuwell: '#004080',
+  Gelenke: '#CC7A00',
 }
 
-const SOURCE_COLORS = ['#0d9488', '#0ea5e9', '#8b5cf6', '#f59e0b', '#ec4899']
+const SOURCE_COLORS = ['#003366', '#FF9900', '#336699', '#004080', '#CC7A00']
 
 const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
   appel: <Phone className="h-4 w-4" />,
@@ -346,17 +346,15 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
       {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#003366] text-white">
-                <Activity className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
-                  CRM MI HEALTH CARE
+              <img src="/logo.png" alt="MI HEALTH CARE" className="h-10 w-auto object-contain" />
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold tracking-tight text-[#003366]">
+                  Tableau de bord
                 </h1>
-                <p className="text-xs text-muted-foreground sm:text-sm">Tableau de bord</p>
+                <p className="text-xs text-muted-foreground">Solutions Santé — Algérie</p>
               </div>
             </div>
             <Badge variant="outline" className="hidden sm:flex gap-1.5 border-[#003366]/20 bg-[#003366]/5 text-[#003366]">
@@ -751,9 +749,10 @@ export default function Dashboard() {
 
       {/* Footer */}
       <footer className="mt-auto border-t bg-white/60">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <p className="text-center text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} MI HEALTH CARE &mdash; Tous droits réservés
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8 flex items-center justify-center gap-3">
+          <img src="/logo.png" alt="MI HEALTH CARE" className="h-6 w-auto object-contain opacity-60" />
+          <p className="text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} — Tous droits réservés
           </p>
         </div>
       </footer>
