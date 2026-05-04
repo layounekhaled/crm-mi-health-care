@@ -203,7 +203,7 @@ export function NotificationsBell() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-1 px-2 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                className="h-7 gap-1 px-2 text-xs text-[#003366] hover:text-[#002244] hover:bg-[#003366]/5"
                 onClick={markAllAsRead}
                 disabled={loading}
               >
@@ -237,7 +237,7 @@ export function NotificationsBell() {
                     >
                       <div
                         className={`group flex cursor-pointer gap-3 px-4 py-3 transition-colors hover:bg-slate-50 ${
-                          !notification.lue ? 'bg-emerald-50/30' : ''
+                          !notification.lue ? 'bg-[#003366]/5' : ''
                         }`}
                         onClick={() => handleNotificationClick(notification)}
                       >
@@ -253,7 +253,7 @@ export function NotificationsBell() {
                               {notification.titre}
                             </p>
                             {!notification.lue && (
-                              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#FF9900]" />
                             )}
                           </div>
                           <p className="mt-0.5 text-xs leading-relaxed text-slate-500 line-clamp-2">

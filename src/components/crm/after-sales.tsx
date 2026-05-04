@@ -95,7 +95,7 @@ const TYPE_OPTIONS = [
   { value: 'installation', label: 'Installation', icon: Settings, color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300' },
   { value: 'formation', label: 'Formation', icon: GraduationCap, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' },
   { value: 'sav', label: 'SAV', icon: ShieldCheck, color: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' },
-  { value: 'maintenance', label: 'Maintenance', icon: Package, color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300' },
+  { value: 'maintenance', label: 'Maintenance', icon: Package, color: 'bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-[#FF9900]' },
   { value: 'satisfaction', label: 'Satisfaction', icon: Smile, color: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300' },
 ] as const
 
@@ -164,8 +164,8 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col items-center justify-center py-16 text-center"
     >
-      <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/50">
-        <Wrench className="size-8 text-emerald-400" />
+      <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/50">
+        <Wrench className="size-8 text-[#003366]/60" />
       </div>
       <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
         {hasFilters ? 'Aucune intervention trouvée' : 'Aucune intervention'}
@@ -368,13 +368,13 @@ export default function AfterSalesModule() {
   // ─── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950/20">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-emerald-100 bg-white/80 backdrop-blur-md dark:border-emerald-900/50 dark:bg-slate-950/80">
+      <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/80 backdrop-blur-md dark:border-blue-900/50 dark:bg-slate-950/80">
         <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25">
                 <Wrench className="size-5" />
               </div>
               <div>
@@ -415,7 +415,7 @@ export default function AfterSalesModule() {
               </Select>
               <Button
                 onClick={openCreateDialog}
-                className="gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700"
+                className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366]"
               >
                 <Plus className="size-4" />
                 <span className="hidden sm:inline">Nouvelle Intervention</span>
@@ -436,7 +436,7 @@ export default function AfterSalesModule() {
               <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Wrench className="size-3.5 text-emerald-500" />
+                    <Wrench className="size-3.5 text-[#003366]" />
                     Total
                   </div>
                   <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
@@ -472,7 +472,7 @@ export default function AfterSalesModule() {
                     <CheckCircle2 className="size-3.5 text-emerald-500" />
                     Terminées
                   </div>
-                  <p className="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                  <p className="mt-1 text-xl font-bold text-[#003366] dark:text-[#FF9900]">
                     {terminees}
                   </p>
                 </CardContent>
@@ -566,7 +566,7 @@ export default function AfterSalesModule() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 gap-1.5 px-2 text-xs text-slate-600 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400"
+                                className="h-7 gap-1.5 px-2 text-xs text-slate-600 hover:text-[#003366] dark:text-slate-400 dark:hover:text-[#FF9900]"
                                 onClick={() => openEditDialog(item)}
                               >
                                 <Edit3 className="size-3" />
@@ -602,8 +602,8 @@ export default function AfterSalesModule() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/50">
-                <Wrench className="size-4 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#003366]/10 dark:bg-[#003366]/20">
+                <Wrench className="size-4 text-[#003366] dark:text-[#FF9900]" />
               </div>
               {editingId ? 'Modifier l\'intervention' : 'Nouvelle intervention'}
             </DialogTitle>
@@ -769,7 +769,7 @@ export default function AfterSalesModule() {
             <Button
               onClick={handleSave}
               disabled={saving || !formData.clientId}
-              className="gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700"
+              className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white hover:from-[#002244] hover:to-[#003366]"
             >
               {saving ? (
                 <>

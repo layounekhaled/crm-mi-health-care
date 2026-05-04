@@ -208,7 +208,7 @@ function SourceBadge({ source }: { source: string | null }) {
 function StatusBadge({ isClient }: { isClient: boolean }) {
   if (isClient) {
     return (
-      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100 border">
+      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 border">
         Client
       </Badge>
     )
@@ -551,7 +551,7 @@ export default function ProspectsModule() {
 
   const MobileCard = ({ prospect }: { prospect: Prospect }) => (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-emerald-400"
+      className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-[#FF9900]"
       onClick={() => {
         fetchDetail(prospect.id)
         setDetailOpen(true)
@@ -627,13 +627,13 @@ export default function ProspectsModule() {
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              <span className="bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#003366] to-[#004080] bg-clip-text text-transparent">
                 Prospects & Clients
               </span>
             </h1>
@@ -643,7 +643,7 @@ export default function ProspectsModule() {
           </div>
           <Button
             onClick={openAddForm}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200 self-start sm:self-auto"
+            className="bg-[#003366] hover:bg-[#002244] text-white shadow-md shadow-[#003366]/20 self-start sm:self-auto"
           >
             <Plus className="size-4 mr-2" />
             Nouveau Prospect
@@ -737,8 +737,8 @@ export default function ProspectsModule() {
                 </div>
               ) : prospects.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="rounded-full bg-emerald-50 p-4 mb-4">
-                    <UserPlus className="size-8 text-emerald-400" />
+                  <div className="rounded-full bg-blue-50 p-4 mb-4">
+                    <UserPlus className="size-8 text-[#003366]/60" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">Aucun prospect trouvé</h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -746,7 +746,7 @@ export default function ProspectsModule() {
                   </p>
                   <Button
                     onClick={openAddForm}
-                    className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="mt-4 bg-[#003366] hover:bg-[#002244] text-white"
                     size="sm"
                   >
                     <Plus className="size-4 mr-2" />
@@ -771,7 +771,7 @@ export default function ProspectsModule() {
                     {prospects.map((prospect) => (
                       <TableRow
                         key={prospect.id}
-                        className="cursor-pointer hover:bg-emerald-50/40 transition-colors"
+                        className="cursor-pointer hover:bg-blue-50/40 transition-colors"
                         onClick={() => {
                           fetchDetail(prospect.id)
                           setDetailOpen(true)
@@ -781,7 +781,7 @@ export default function ProspectsModule() {
                         <TableCell>
                           {prospect.specialite ? (
                             <span className="flex items-center gap-1.5">
-                              <Stethoscope className="size-3.5 text-emerald-500" />
+                              <Stethoscope className="size-3.5 text-[#003366]" />
                               {prospect.specialite}
                             </span>
                           ) : (
@@ -791,7 +791,7 @@ export default function ProspectsModule() {
                         <TableCell>
                           {prospect.wilaya ? (
                             <span className="flex items-center gap-1.5">
-                              <MapPin className="size-3.5 text-teal-500" />
+                              <MapPin className="size-3.5 text-[#FF9900]" />
                               {prospect.wilaya}
                             </span>
                           ) : (
@@ -829,14 +829,14 @@ export default function ProspectsModule() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 hover:bg-emerald-50"
+                              className="h-8 w-8 p-0 hover:bg-blue-50"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 fetchDetail(prospect.id)
                                 setDetailOpen(true)
                               }}
                             >
-                              <Eye className="size-4 text-emerald-600" />
+                              <Eye className="size-4 text-[#003366]" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -880,8 +880,8 @@ export default function ProspectsModule() {
             ) : prospects.length === 0 ? (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="rounded-full bg-emerald-50 p-4 mb-4">
-                    <UserPlus className="size-8 text-emerald-400" />
+                  <div className="rounded-full bg-blue-50 p-4 mb-4">
+                    <UserPlus className="size-8 text-[#003366]/60" />
                   </div>
                   <h3 className="text-lg font-semibold">Aucun prospect trouvé</h3>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -889,7 +889,7 @@ export default function ProspectsModule() {
                   </p>
                   <Button
                     onClick={openAddForm}
-                    className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="mt-4 bg-[#003366] hover:bg-[#002244] text-white"
                     size="sm"
                   >
                     <Plus className="size-4 mr-2" />
@@ -912,12 +912,12 @@ export default function ProspectsModule() {
               <DialogTitle className="flex items-center gap-2">
                 {editingId ? (
                   <>
-                    <Pencil className="size-5 text-emerald-600" />
+                    <Pencil className="size-5 text-[#003366]" />
                     Modifier le prospect
                   </>
                 ) : (
                   <>
-                    <UserPlus className="size-5 text-emerald-600" />
+                    <UserPlus className="size-5 text-[#003366]" />
                     Nouveau prospect
                   </>
                 )}
@@ -1085,7 +1085,7 @@ export default function ProspectsModule() {
               <Button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#003366] hover:bg-[#002244] text-white"
               >
                 {submitting ? (
                   <span className="flex items-center gap-2">
@@ -1130,7 +1130,7 @@ export default function ProspectsModule() {
                     {!selectedProspect.isClient && (
                       <Button
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="bg-[#003366] hover:bg-[#002244] text-white"
                         onClick={() => convertToClient(selectedProspect.id)}
                       >
                         <UserPlus className="size-4 mr-1" />
@@ -1144,14 +1144,14 @@ export default function ProspectsModule() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2">
                   {selectedProspect.specialite && (
                     <div className="flex items-center gap-2 text-sm">
-                      <Stethoscope className="size-4 text-emerald-500 shrink-0" />
+                      <Stethoscope className="size-4 text-[#003366] shrink-0" />
                       <span className="text-muted-foreground">Spécialité:</span>
                       <span className="font-medium">{selectedProspect.specialite}</span>
                     </div>
                   )}
                   {selectedProspect.wilaya && (
                     <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="size-4 text-teal-500 shrink-0" />
+                      <MapPin className="size-4 text-[#FF9900] shrink-0" />
                       <span className="text-muted-foreground">Wilaya:</span>
                       <span className="font-medium">{selectedProspect.wilaya}</span>
                     </div>
@@ -1200,7 +1200,7 @@ export default function ProspectsModule() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold flex items-center gap-2">
-                      <Phone className="size-4 text-emerald-600" />
+                      <Phone className="size-4 text-[#003366]" />
                       Historique des interactions
                       {selectedProspect.interactions?.length > 0 && (
                         <Badge variant="secondary" className="text-xs">
@@ -1211,7 +1211,7 @@ export default function ProspectsModule() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      className="h-7 text-xs border-[#003366]/20 text-[#003366] hover:bg-[#003366]/5"
                       onClick={() => setAddInteractionOpen(true)}
                     >
                       <Plus className="size-3 mr-1" />
@@ -1267,7 +1267,7 @@ export default function ProspectsModule() {
                 <Separator />
                 <div>
                   <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <ChevronRight className="size-4 text-emerald-600" />
+                    <ChevronRight className="size-4 text-[#003366]" />
                     Opportunités liées
                     {selectedProspect.opportunities?.length > 0 && (
                       <Badge variant="secondary" className="text-xs">
@@ -1296,7 +1296,7 @@ export default function ProspectsModule() {
                             </div>
                             <div className="flex items-center gap-2">
                               {opp.montantEstime && (
-                                <span className="text-xs font-medium text-emerald-700">
+                                <span className="text-xs font-medium text-[#003366]">
                                   {opp.montantEstime.toLocaleString('fr-FR')} DA
                                 </span>
                               )}
@@ -1304,7 +1304,7 @@ export default function ProspectsModule() {
                                 variant="outline"
                                 className={
                                   opp.statut === 'Gagné'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    ? 'bg-[#003366]/5 text-[#003366] border-[#003366]/20'
                                     : opp.statut === 'Perdu'
                                       ? 'bg-red-50 text-red-700 border-red-200'
                                       : 'bg-blue-50 text-blue-700 border-blue-200'
@@ -1361,7 +1361,7 @@ export default function ProspectsModule() {
           <DialogContent className="sm:max-w-[450px]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Phone className="size-5 text-emerald-600" />
+                <Phone className="size-5 text-[#003366]" />
                 Ajouter une interaction
               </DialogTitle>
               <DialogDescription>
@@ -1414,7 +1414,7 @@ export default function ProspectsModule() {
               <Button
                 onClick={handleAddInteraction}
                 disabled={interactionSubmitting}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#003366] hover:bg-[#002244] text-white"
               >
                 {interactionSubmitting ? (
                   <span className="flex items-center gap-2">
@@ -1478,7 +1478,7 @@ export default function ProspectsModule() {
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={viewExistingDuplicate}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#003366] hover:bg-[#002244] text-white"
               >
                 Voir l&apos;existant
               </AlertDialogAction>

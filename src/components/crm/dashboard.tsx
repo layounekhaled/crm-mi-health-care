@@ -129,10 +129,10 @@ const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
 }
 
 const ACTIVITY_COLORS: Record<string, string> = {
-  appel: 'bg-teal-100 text-teal-700',
+  appel: 'bg-blue-100 text-blue-700',
   email: 'bg-sky-100 text-sky-700',
   reunion: 'bg-amber-100 text-amber-700',
-  visite: 'bg-emerald-100 text-emerald-700',
+  visite: 'bg-[#003366]/10 text-[#003366]',
   commerciale: 'bg-violet-100 text-violet-700',
   suivi: 'bg-rose-100 text-rose-700',
   administrative: 'bg-slate-100 text-slate-700',
@@ -343,13 +343,13 @@ export default function Dashboard() {
   // ─── Render ────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-emerald-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
       {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#003366] text-white">
                 <Activity className="h-5 w-5" />
               </div>
               <div>
@@ -359,8 +359,8 @@ export default function Dashboard() {
                 <p className="text-xs text-muted-foreground sm:text-sm">Tableau de bord</p>
               </div>
             </div>
-            <Badge variant="outline" className="hidden sm:flex gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <Badge variant="outline" className="hidden sm:flex gap-1.5 border-[#003366]/20 bg-[#003366]/5 text-[#003366]">
+              <div className="h-2 w-2 rounded-full bg-[#FF9900] animate-pulse" />
               En direct
             </Badge>
           </div>
@@ -404,8 +404,8 @@ export default function Dashboard() {
                   icon={<DollarSign className="h-5 w-5" />}
                   value={formatCurrency(data?.opportunities.caEstime ?? 0)}
                   label="CA Estimé"
-                  iconBgColor="bg-emerald-100"
-                  iconTextColor="text-emerald-600"
+                  iconBgColor="bg-[#003366]/10"
+                  iconTextColor="text-[#003366]"
                 />
                 <KpiCard
                   icon={<TrendingUp className="h-5 w-5" />}
@@ -590,21 +590,21 @@ export default function Dashboard() {
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
                       />
                       <Legend verticalAlign="top" height={36} />
-                      <Bar dataKey="Estimé" fill="#14b8a6" radius={[4, 4, 0, 0]} maxBarSize={64} />
-                      <Bar dataKey="Réel" fill="#059669" radius={[4, 4, 0, 0]} maxBarSize={64} />
+                      <Bar dataKey="Estimé" fill="#003366" radius={[4, 4, 0, 0]} maxBarSize={64} />
+                      <Bar dataKey="Réel" fill="#004080" radius={[4, 4, 0, 0]} maxBarSize={64} />
                     </BarChart>
                   </ResponsiveContainer>
                   {/* Summary below chart */}
                   <div className="mt-4 grid grid-cols-2 gap-4">
-                    <div className="rounded-lg bg-teal-50 p-3 text-center">
+                    <div className="rounded-lg bg-[#003366]/5 p-3 text-center">
                       <p className="text-xs text-muted-foreground">Estimé</p>
-                      <p className="text-lg font-bold text-teal-700">
+                      <p className="text-lg font-bold text-[#003366]">
                         {formatCurrency(data?.opportunities.caEstime ?? 0)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-emerald-50 p-3 text-center">
+                    <div className="rounded-lg bg-[#004080]/5 p-3 text-center">
                       <p className="text-xs text-muted-foreground">Réel</p>
-                      <p className="text-lg font-bold text-emerald-700">
+                      <p className="text-lg font-bold text-[#004080]">
                         {formatCurrency(data?.opportunities.caReel ?? 0)}
                       </p>
                     </div>
@@ -667,7 +667,7 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <CheckCircle2 className="mb-2 h-10 w-10 text-emerald-400" />
+                      <CheckCircle2 className="mb-2 h-10 w-10 text-green-400" />
                       <p className="text-sm text-muted-foreground">Aucune tâche en retard</p>
                     </div>
                   )}

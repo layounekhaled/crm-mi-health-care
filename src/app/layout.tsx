@@ -20,7 +20,11 @@ export const metadata: Metadata = {
   keywords: ["CRM", "MI HEALTH CARE", "matériel médical", "Algérie", "gestion commerciale", "prospection"],
   authors: [{ name: "layounekhaled" }],
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-64.png", sizes: "64x64", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
 };
 

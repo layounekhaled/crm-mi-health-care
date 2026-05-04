@@ -132,13 +132,13 @@ function formatMonth(mois: string): string {
 }
 
 function getProgressColor(pct: number): string {
-  if (pct >= 80) return 'bg-emerald-500'
+  if (pct >= 80) return 'bg-[#003366]'
   if (pct >= 50) return 'bg-amber-500'
   return 'bg-red-500'
 }
 
 function getProgressTrackColor(pct: number): string {
-  if (pct >= 80) return 'text-emerald-600 dark:text-emerald-400'
+  if (pct >= 80) return 'text-[#003366] dark:text-[#FF9900]'
   if (pct >= 50) return 'text-amber-600 dark:text-amber-400'
   return 'text-red-600 dark:text-red-400'
 }
@@ -181,8 +181,8 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col items-center justify-center py-16 text-center"
     >
-      <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/50">
-        <Users className="size-8 text-emerald-400" />
+      <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/50">
+        <Users className="size-8 text-[#003366]/60" />
       </div>
       <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
         {hasFilters ? 'Aucun employé trouvé' : 'Aucun employé'}
@@ -523,13 +523,13 @@ export default function EmployeesModule() {
   // ─── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950/20">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-emerald-100 bg-white/80 backdrop-blur-md dark:border-emerald-900/50 dark:bg-slate-950/80">
+      <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/80 backdrop-blur-md dark:border-blue-900/50 dark:bg-slate-950/80">
         <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25">
                 <Users className="size-5" />
               </div>
               <div>
@@ -556,7 +556,7 @@ export default function EmployeesModule() {
               </Select>
               <Button
                 onClick={openCreateDialog}
-                className="gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700"
+                className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366]"
               >
                 <Plus className="size-4" />
                 <span className="hidden sm:inline">Nouvel Employé</span>
@@ -593,8 +593,8 @@ export default function EmployeesModule() {
                         {/* Header: Name + Role Badge */}
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${emp.actif ? 'bg-emerald-100 dark:bg-emerald-900/50' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                              <span className={`text-sm font-bold ${emp.actif ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400'}`}>
+                            <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${emp.actif ? 'bg-[#003366]/10 dark:bg-[#003366]/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                              <span className={`text-sm font-bold ${emp.actif ? 'text-[#003366] dark:text-[#FF9900]' : 'text-slate-400'}`}>
                                 {emp.nom.charAt(0).toUpperCase()}
                               </span>
                             </div>
@@ -644,11 +644,11 @@ export default function EmployeesModule() {
                             <p className="text-[10px] text-muted-foreground">Opérations</p>
                           </div>
                           <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-2 text-center">
-                            <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">{emp.tachesRealisees}</p>
+                            <p className="text-base font-bold text-[#003366] dark:text-[#FF9900]">{emp.tachesRealisees}</p>
                             <p className="text-[10px] text-muted-foreground">Tâches réalisées</p>
                           </div>
-                          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-2 text-center">
-                            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{formatDZD(emp.caGenere)}</p>
+                          <div className="rounded-lg bg-[#003366]/5 dark:bg-[#003366]/10 p-2 text-center">
+                            <p className="text-sm font-bold text-[#003366] dark:text-[#FF9900]">{formatDZD(emp.caGenere)}</p>
                             <p className="text-[10px] text-muted-foreground">CA généré</p>
                           </div>
                         </div>
@@ -658,7 +658,7 @@ export default function EmployeesModule() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 gap-1 px-2 text-xs text-teal-600 hover:text-teal-700 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-950/50"
+                            className="h-7 gap-1 px-2 text-xs text-[#003366] hover:text-[#002244] hover:bg-[#003366]/5 dark:text-[#FF9900] dark:hover:bg-[#003366]/10"
                             onClick={() => openObjectivesDialog(emp)}
                           >
                             <Target className="size-3" />
@@ -667,7 +667,7 @@ export default function EmployeesModule() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 gap-1 px-2 text-xs text-slate-600 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400"
+                            className="h-7 gap-1 px-2 text-xs text-slate-600 hover:text-[#003366] dark:text-slate-400 dark:hover:text-[#FF9900]"
                             onClick={() => openEditDialog(emp)}
                           >
                             <Edit3 className="size-3" />
@@ -687,7 +687,7 @@ export default function EmployeesModule() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={`h-7 gap-1 px-2 text-xs ${emp.actif ? 'text-amber-600 hover:text-amber-700' : 'text-emerald-600 hover:text-emerald-700'}`}
+                            className={`h-7 gap-1 px-2 text-xs ${emp.actif ? 'text-amber-600 hover:text-amber-700' : 'text-[#003366] hover:text-[#002244]'}`}
                             onClick={() => toggleActif(emp)}
                             title={emp.actif ? 'Désactiver' : 'Activer'}
                           >
@@ -709,8 +709,8 @@ export default function EmployeesModule() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/50">
-                <Users className="size-4 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#003366]/10 dark:bg-[#003366]/20">
+                <Users className="size-4 text-[#003366] dark:text-[#FF9900]" />
               </div>
               {editingId ? 'Modifier l\'employé' : 'Nouvel employé'}
             </DialogTitle>
@@ -801,7 +801,7 @@ export default function EmployeesModule() {
             <Button
               onClick={handleSave}
               disabled={saving || !formData.nom.trim()}
-              className="gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700"
+              className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white hover:from-[#002244] hover:to-[#003366]"
             >
               {saving ? (
                 <>
@@ -845,8 +845,8 @@ export default function EmployeesModule() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/50">
-                <Target className="size-4 text-teal-600 dark:text-teal-400" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#FF9900]/10 dark:bg-[#FF9900]/20">
+                <Target className="size-4 text-[#FF9900] dark:text-[#FF9900]" />
               </div>
               Objectifs — {selectedEmployee?.nom}
             </DialogTitle>
@@ -856,8 +856,8 @@ export default function EmployeesModule() {
           </DialogHeader>
 
           {/* Objective Form */}
-          <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 p-4 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+          <div className="rounded-lg border border-[#003366]/20 dark:border-[#003366]/30 bg-[#003366]/5 dark:bg-[#003366]/10 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[#003366] dark:text-[#FF9900]">
               <BarChart3 className="size-4" />
               {editingObjectiveId ? 'Modifier l\'objectif' : 'Nouvel objectif'}
             </div>
@@ -912,7 +912,7 @@ export default function EmployeesModule() {
                 size="sm"
                 onClick={handleSaveObjective}
                 disabled={savingObjective || !objectiveForm.mois}
-                className="gap-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700"
+                className="gap-1 bg-gradient-to-r from-[#003366] to-[#004080] text-white hover:from-[#002244] hover:to-[#003366]"
               >
                 {savingObjective ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -978,7 +978,7 @@ export default function EmployeesModule() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <Calendar className="size-4 text-emerald-500" />
+                        <Calendar className="size-4 text-[#FF9900]" />
                         <span className="text-sm font-semibold text-slate-900 dark:text-white capitalize">
                           {formatMonth(obj.mois)}
                         </span>
@@ -987,7 +987,7 @@ export default function EmployeesModule() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 text-slate-400 hover:text-emerald-600"
+                          className="h-6 w-6 p-0 text-slate-400 hover:text-[#003366]"
                           onClick={() => selectObjectiveForEdit(obj)}
                         >
                           <Edit3 className="size-3" />

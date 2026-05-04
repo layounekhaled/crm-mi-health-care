@@ -108,7 +108,7 @@ interface Employee {
 
 const MARQUES = [
   { value: 'MIR', label: 'MIR', color: 'blue' },
-  { value: 'BOS', label: 'BOS', color: 'emerald' },
+  { value: 'BOS', label: 'BOS', color: 'blue' },
   { value: 'Löwenstein', label: 'Löwenstein', color: 'purple' },
   { value: 'Yuwell', label: 'Yuwell', color: 'amber' },
   { value: 'Gelenke', label: 'Gelenke', color: 'rose' },
@@ -136,10 +136,10 @@ const BRAND_COLORS: Record<string, { bg: string; text: string; border: string; d
     dot: 'bg-blue-500',
   },
   BOS: {
-    bg: 'bg-emerald-100 dark:bg-emerald-900/40',
-    text: 'text-emerald-700 dark:text-emerald-300',
-    border: 'border-emerald-200 dark:border-emerald-800',
-    dot: 'bg-emerald-500',
+    bg: 'bg-[#003366]/10 dark:bg-[#003366]/20',
+    text: 'text-[#003366] dark:text-[#FF9900]',
+    border: 'border-[#003366]/20 dark:border-[#003366]/30',
+    dot: 'bg-[#003366]',
   },
   Löwenstein: {
     bg: 'bg-purple-100 dark:bg-purple-900/40',
@@ -691,7 +691,7 @@ export default function OperationsModule() {
           </div>
 
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+            <span className="text-sm font-semibold text-[#003366] dark:text-[#FF9900]">
               {formatDZD(op.prixEstime)}
             </span>
             {op.marge != null && (
@@ -774,13 +774,13 @@ export default function OperationsModule() {
   // ─── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950/20">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-emerald-100 bg-white/80 backdrop-blur-md dark:border-emerald-900/50 dark:bg-slate-950/80">
+      <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/80 backdrop-blur-md dark:border-blue-900/50 dark:bg-slate-950/80">
         <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25">
                 <Package className="size-5" />
               </div>
               <div>
@@ -812,7 +812,7 @@ export default function OperationsModule() {
               </div>
               <Button
                 onClick={openCreateDialog}
-                className="gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700"
+                className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366]"
               >
                 <Plus className="size-4" />
                 <span className="hidden sm:inline">Nouvelle Opération</span>
@@ -896,7 +896,7 @@ export default function OperationsModule() {
             <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Package className="size-3.5 text-teal-500" />
+                  <Package className="size-3.5 text-[#FF9900]" />
                   Total
                 </div>
                 <p className="mt-1 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
@@ -944,10 +944,10 @@ export default function OperationsModule() {
             <Card className="col-span-2 sm:col-span-1 border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <BarChart3 className="size-3.5 text-emerald-500" />
+                  <BarChart3 className="size-3.5 text-[#003366]" />
                   Marge moyenne
                 </div>
-                <p className="mt-1 text-base font-bold text-emerald-600 dark:text-emerald-400 sm:text-lg">
+                <p className="mt-1 text-base font-bold text-[#003366] dark:text-[#FF9900] sm:text-lg">
                   {formatDZD(margeMoyenne)}
                 </p>
               </CardContent>
@@ -985,8 +985,8 @@ export default function OperationsModule() {
                 <TableSkeleton />
               ) : filteredOperations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="rounded-full bg-emerald-50 p-4 mb-4 dark:bg-emerald-950/30">
-                    <Package className="size-8 text-emerald-400" />
+                  <div className="rounded-full bg-blue-50 p-4 mb-4 dark:bg-blue-950/30">
+                    <Package className="size-8 text-[#003366]/60" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">Aucune opération trouvée</h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -1006,7 +1006,7 @@ export default function OperationsModule() {
                   ) : (
                     <Button
                       onClick={openCreateDialog}
-                      className="mt-4 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="mt-4 gap-1.5 bg-[#003366] hover:bg-[#002244] text-white"
                       size="sm"
                     >
                       <Plus className="size-4" />
@@ -1038,7 +1038,7 @@ export default function OperationsModule() {
                           <>
                             <TableRow
                               key={op.id}
-                              className={`cursor-pointer transition-colors hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 ${isExpanded ? 'bg-emerald-50/30 dark:bg-emerald-950/10' : ''}`}
+                              className={`cursor-pointer transition-colors hover:bg-blue-50/50 dark:hover:bg-blue-950/20 ${isExpanded ? "bg-blue-50/30 dark:bg-blue-950/10" : ''}`}
                               onClick={() => setExpandedId(isExpanded ? null : op.id)}
                             >
                               <TableCell className="font-medium">
@@ -1079,13 +1079,13 @@ export default function OperationsModule() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="size-8 p-0 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                    className="size-8 p-0 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       openEditDialog(op)
                                     }}
                                   >
-                                    <Pencil className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                                    <Pencil className="size-3.5 text-[#003366] dark:text-[#FF9900]" />
                                   </Button>
                                   <Button
                                     variant="ghost"
@@ -1177,8 +1177,8 @@ export default function OperationsModule() {
             ) : filteredOperations.length === 0 ? (
               <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
                 <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="rounded-full bg-emerald-50 p-4 mb-4 dark:bg-emerald-950/30">
-                    <Package className="size-8 text-emerald-400" />
+                  <div className="rounded-full bg-blue-50 p-4 mb-4 dark:bg-blue-950/30">
+                    <Package className="size-8 text-[#003366]/60" />
                   </div>
                   <h3 className="text-lg font-semibold">Aucune opération trouvée</h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -1198,7 +1198,7 @@ export default function OperationsModule() {
                   ) : (
                     <Button
                       onClick={openCreateDialog}
-                      className="mt-4 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="mt-4 gap-1.5 bg-[#003366] hover:bg-[#002244] text-white"
                       size="sm"
                     >
                       <Plus className="size-4" />
@@ -1221,8 +1221,8 @@ export default function OperationsModule() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/50">
-                <Package className="size-4 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#003366]/10 dark:bg-[#003366]/20">
+                <Package className="size-4 text-[#003366] dark:text-[#FF9900]" />
               </div>
               {editingId ? "Modifier l'opération" : 'Nouvelle opération'}
             </DialogTitle>
@@ -1452,7 +1452,7 @@ export default function OperationsModule() {
             <Button
               onClick={handleSubmit}
               disabled={submitting}
-              className="gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700"
+              className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white hover:from-[#002244] hover:to-[#003366]"
             >
               {submitting ? (
                 <>
@@ -1497,7 +1497,7 @@ export default function OperationsModule() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <CheckCircle2 className="h-5 w-5 text-[#FF9900]" />
               Toutes les opérations sont terminées !
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -1525,7 +1525,7 @@ export default function OperationsModule() {
                   setOpportunityCompleteDialog({ open: false, opportunityId: '', opportunityName: '' })
                 }
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#003366] hover:bg-[#002244] text-white"
             >
               Oui, passer en Gagné
             </AlertDialogAction>

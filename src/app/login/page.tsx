@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Mail, Lock, Eye, EyeOff, Heart, Loader2 } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -50,12 +50,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/20 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-orange-50/20 p-4">
       {/* Background decoration */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -right-40 -top-40 h-96 w-96 rounded-full bg-emerald-100/40 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-teal-100/40 blur-3xl" />
-        <div className="absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 rounded-full bg-emerald-50/50 blur-2xl" />
+        <div className="absolute -right-40 -top-40 h-96 w-96 rounded-full bg-blue-100/40 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-orange-100/40 blur-3xl" />
+        <div className="absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 rounded-full bg-blue-50/50 blur-2xl" />
       </div>
 
       <motion.div
@@ -71,15 +71,15 @@ export default function LoginPage() {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-              className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30"
+              className="mx-auto"
             >
-              <Heart className="h-8 w-8 fill-white text-white" />
+              <img src="/logo.png" alt="MI HEALTH CARE" className="h-16 w-16 rounded-2xl object-contain" />
             </motion.div>
             <div>
               <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
                 MI HEALTH CARE
               </CardTitle>
-              <CardDescription className="mt-1 text-sm font-medium text-emerald-600/80">
+              <CardDescription className="mt-1 text-sm font-medium text-[#003366]/80">
                 CRM — Gestion Commerciale Matériel Médical
               </CardDescription>
             </div>
@@ -111,7 +111,7 @@ export default function LoginPage() {
                     placeholder="nom@mihealthcare.dz"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-11 border-slate-200 bg-white focus:border-emerald-500 focus:ring-emerald-500/20"
+                    className="pl-10 h-11 border-slate-200 bg-white focus:border-[#003366] focus:ring-[#003366]/20"
                     required
                     autoComplete="email"
                   />
@@ -131,7 +131,7 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10 h-11 border-slate-200 bg-white focus:border-emerald-500 focus:ring-emerald-500/20"
+                    className="pl-10 pr-10 h-11 border-slate-200 bg-white focus:border-[#003366] focus:ring-[#003366]/20"
                     required
                     autoComplete="current-password"
                   />
@@ -155,7 +155,7 @@ export default function LoginPage() {
                   id="remember"
                   checked={rememberMe}
                   onCheckedChange={(checked) => setRememberMe(checked === true)}
-                  className="border-slate-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                  className="border-slate-300 data-[state=checked]:bg-[#003366] data-[state=checked]:border-[#003366]"
                 />
                 <Label
                   htmlFor="remember"
@@ -169,7 +169,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="h-11 w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold shadow-lg shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700 transition-all duration-200"
+                className="h-11 w-full bg-gradient-to-r from-[#003366] to-[#004080] text-white font-semibold shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366] transition-all duration-200"
               >
                 {loading ? (
                   <>

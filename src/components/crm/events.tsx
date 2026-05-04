@@ -118,7 +118,7 @@ const EVENT_TYPES = [
 const MARQUES = ['MIR', 'BOS', 'Löwenstein', 'Yuwell', 'Gelenke']
 
 const MARQUE_COLORS: Record<string, string> = {
-  MIR: 'bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-100',
+  MIR: 'bg-[#003366]/10 text-[#003366] border-[#003366]/20 hover:bg-[#003366]/10',
   BOS: 'bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100',
   Löwenstein: 'bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100',
   Yuwell: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100',
@@ -541,13 +541,13 @@ export default function EventsModule() {
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-emerald-100 bg-white/80 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25">
                 <Calendar className="size-5" />
               </div>
               <div>
@@ -561,7 +561,7 @@ export default function EventsModule() {
             </div>
             <Button
               onClick={openAddForm}
-              className="gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700 self-start sm:self-auto"
+              className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366] self-start sm:self-auto"
             >
               <Plus className="size-4" />
               <span className="hidden sm:inline">Nouvel Événement</span>
@@ -577,7 +577,7 @@ export default function EventsModule() {
           <Card className="border-0 bg-white/70 shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Calendar className="size-3.5 text-emerald-500" />
+                <Calendar className="size-3.5 text-[#003366]" />
                 Total
               </div>
               <p className="mt-1 text-base font-bold text-slate-900 sm:text-lg">
@@ -588,10 +588,10 @@ export default function EventsModule() {
           <Card className="border-0 bg-white/70 shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Clock className="size-3.5 text-teal-500" />
+                <Clock className="size-3.5 text-[#FF9900]" />
                 À venir
               </div>
-              <p className="mt-1 text-base font-bold text-teal-600 sm:text-lg">
+              <p className="mt-1 text-base font-bold text-[#004080] sm:text-lg">
                 {upcomingEvents}
               </p>
             </CardContent>
@@ -669,8 +669,8 @@ export default function EventsModule() {
         {!loading && !error && events.length === 0 && (
           <Card className="shadow-sm">
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="rounded-full bg-emerald-50 p-4 mb-4">
-                <Calendar className="size-8 text-emerald-400" />
+              <div className="rounded-full bg-blue-50 p-4 mb-4">
+                <Calendar className="size-8 text-[#003366]/60" />
               </div>
               <h3 className="text-lg font-semibold text-foreground">Aucun événement trouvé</h3>
               <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -678,7 +678,7 @@ export default function EventsModule() {
               </p>
               <Button
                 onClick={openAddForm}
-                className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="mt-4 bg-[#003366] hover:bg-[#002244] text-white"
                 size="sm"
               >
                 <Plus className="size-4 mr-2" />
@@ -702,7 +702,7 @@ export default function EventsModule() {
                   key={event.id}
                   className={`shadow-sm hover:shadow-md transition-all duration-200 border-l-4 ${
                     isUpcoming
-                      ? 'border-l-emerald-400 hover:border-l-emerald-500'
+                      ? 'border-l-[#FF9900] hover:border-l-[#FF9900]'
                       : 'border-l-slate-300 hover:border-l-slate-400'
                   }`}
                 >
@@ -715,7 +715,7 @@ export default function EventsModule() {
                       <div className="flex items-center gap-1.5 shrink-0">
                         <TypeBadge type={event.type} />
                         {isUpcoming && (
-                          <span className="inline-block size-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="inline-block size-2 rounded-full bg-[#FF9900] animate-pulse" />
                         )}
                       </div>
                     </div>
@@ -763,7 +763,7 @@ export default function EventsModule() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 gap-1 text-xs hover:bg-emerald-50 hover:text-emerald-700"
+                        className="h-8 gap-1 text-xs hover:bg-[#003366]/5 hover:text-[#003366]"
                         onClick={() => openProspectsDialog(event.id)}
                       >
                         <Users className="size-3.5" />
@@ -802,8 +802,8 @@ export default function EventsModule() {
         <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100">
-                <Calendar className="size-4 text-emerald-600" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#003366]/10">
+                <Calendar className="size-4 text-[#003366]" />
               </div>
               {editingId ? "Modifier l'événement" : 'Nouvel événement'}
             </DialogTitle>
@@ -954,7 +954,7 @@ export default function EventsModule() {
             <Button
               onClick={handleSubmit}
               disabled={submitting}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#003366] hover:bg-[#002244] text-white"
             >
               {submitting && <Loader2 className="size-4 mr-2 animate-spin" />}
               {editingId ? 'Mettre à jour' : 'Créer l\'événement'}
@@ -1053,7 +1053,7 @@ export default function EventsModule() {
                       key={ep.id}
                       className="flex items-center gap-3 rounded-lg border p-2.5 hover:bg-slate-50 transition-colors"
                     >
-                      <div className="flex size-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 shrink-0">
+                      <div className="flex size-8 items-center justify-center rounded-full bg-[#003366]/10 text-[#003366] shrink-0">
                         <span className="text-xs font-bold">
                           {ep.prospect.nom.charAt(0).toUpperCase()}
                         </span>
@@ -1122,7 +1122,7 @@ export default function EventsModule() {
                 <div className="rounded-lg border bg-white shadow-lg max-h-48 overflow-y-auto">
                   {searching ? (
                     <div className="flex items-center justify-center py-6">
-                      <Loader2 className="size-5 animate-spin text-emerald-500" />
+                      <Loader2 className="size-5 animate-spin text-[#003366]" />
                     </div>
                   ) : searchResults.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-6 text-center">
@@ -1158,7 +1158,7 @@ export default function EventsModule() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-6 text-[10px] px-2 shrink-0 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
+                              className="h-6 text-[10px] px-2 shrink-0 hover:bg-[#003366]/5 hover:text-[#003366] hover:border-[#003366]/20"
                               onClick={() => addProspectToEvent(prospect.id)}
                             >
                               <Plus className="size-2.5 mr-0.5" />
@@ -1187,8 +1187,8 @@ export default function EventsModule() {
         <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100">
-                <UserPlus className="size-4 text-emerald-600" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#003366]/10">
+                <UserPlus className="size-4 text-[#003366]" />
               </div>
               Nouveau prospect
             </DialogTitle>
@@ -1266,7 +1266,7 @@ export default function EventsModule() {
             <Button
               onClick={handleQuickAddProspect}
               disabled={quickAddSubmitting}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#003366] hover:bg-[#002244] text-white"
             >
               {quickAddSubmitting && <Loader2 className="size-4 mr-2 animate-spin" />}
               Créer et ajouter
