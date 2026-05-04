@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, ensureDbInitialized } from '@/lib/db';
 
 // GET: List prospects linked to an event
 export async function GET(
@@ -7,6 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDbInitialized();
     const { id } = await params;
 
     const event = await db.event.findUnique({ where: { id } });
@@ -34,6 +35,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDbInitialized();
     const { id } = await params;
     const body = await request.json();
     const { prospectIds } = body as { prospectIds?: string[] };
@@ -84,6 +86,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDbInitialized();
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const prospectIdsParam = searchParams.get('prospectIds');

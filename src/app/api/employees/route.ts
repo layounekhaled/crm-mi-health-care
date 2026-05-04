@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, ensureDbInitialized } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDbInitialized();
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
     const actif = searchParams.get('actif');
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDbInitialized();
     const body = await request.json();
     const { nom, email, telephone, role, actif } = body;
 

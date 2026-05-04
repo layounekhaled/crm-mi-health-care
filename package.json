@@ -10,7 +10,9 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma db push && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, ensureDbInitialized } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDbInitialized();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const source = searchParams.get('source');
@@ -68,6 +69,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDbInitialized();
     const body = await request.json();
     const { nom, specialite, wilaya, telephone, whatsapp, etablissement, source, isClient, notes } = body;
 

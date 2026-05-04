@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, ensureDbInitialized } from '@/lib/db';
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDbInitialized();
     const { id } = await params;
     const body = await request.json();
     const { caObjectif, nbVentesObjectif, tachesObjectif, mois } = body;
@@ -40,6 +41,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDbInitialized();
     const { id } = await params;
 
     const existing = await db.objective.findUnique({ where: { id } });

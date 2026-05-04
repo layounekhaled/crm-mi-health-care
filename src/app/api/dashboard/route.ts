@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, ensureDbInitialized } from '@/lib/db';
 
 export async function GET() {
   try {
+    await ensureDbInitialized();
     // 1. Total prospects and clients
     const [totalProspects, totalClients] = await Promise.all([
       db.prospect.count(),
@@ -18,7 +19,7 @@ export async function GET() {
 
     // 3. CA estimé vs réel (opportunities gagnées)
     const wonOpportunities = await db.opportunity.findMany({
-      where: { statut: 'Gagnée' },
+      where: { statut: 'Gagné' },
       include: {
         operations: {
           select: { prixEstime: true, marge: true },
