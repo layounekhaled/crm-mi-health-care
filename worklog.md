@@ -1,59 +1,95 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Fix "erreur de chargement des prospects" - investigate and fix prospects loading error
+Task: Fix operation status inconsistencies + create Users with hashed passwords in seed
 
 Work Log:
-- Investigated the CRM project structure at /home/z/my-project/
-- Discovered the root cause: DATABASE_URL was set to SQLite (`file:/tmp/crm-mi-healthcare.db`) which is ephemeral on Vercel
-- Found that Vercel already had a Neon PostgreSQL database configured (POSTGRES_PRISMA_URL env var)
-- Switched Prisma from SQLite to PostgreSQL (Neon)
-- Removed the SQLite auto-initialization hack (ensureDbInitialized) from db.ts and all 17 API route files
-- Fixed typo: "propection" → "prospection" in schema.prisma and API route
-- Fixed duplicate "Tlemcen" in WILAYAS array (prospects.tsx)
-- Added cascade delete logic for prospects (delete related records before deleting prospect)
-- Pushed Prisma schema to Neon PostgreSQL database
-- Seeded the Neon database with demo data (10 prospects, 5 employees, 10 opportunities, etc.)
-- Updated Vercel environment variables: DATABASE_URL and DIRECT_URL for all environments
-- Deployed to Vercel production
-- Verified API endpoints work correctly on production
+- Changed operations.tsx STATUTS constant from `terminé` to `termine` (without accent) to match seed data and other modules
+- Changed STATUT_COLORS key from `terminé` to `termine`
+- Changed filter comparison from `o.statut === 'terminé'` to `o.statut === 'termine'`
+- Added bcrypt import and User creation to prisma/seed.ts with hashed passwords
+- Fixed notifications detect route to use `notIn: ['terminee', 'terminé', 'termine']` for robust matching
+- Upserted users in production database with correct passwords and employee links
 
 Stage Summary:
-- Root cause: SQLite database at /tmp/ was ephemeral on Vercel, causing data loss on cold starts
-- Solution: Switched to persistent Neon PostgreSQL database
-- All 23 files modified, tested, and deployed successfully
-- Production URL: https://my-project-gilt-six-41.vercel.app
-- API verified: /api/prospects returns all 10 prospects correctly
+- Status values now consistent: Operations=`termine`, Tasks=`terminee`, After-sales=`termine`
+- All 5 users created in DB: khaled/admin123 (admin), amine/com123 (commercial), sara/com123 (commercial), youcef/tech123 (technicien), nadia/tech123 (technicien)
 
 ---
 Task ID: 2
-Agent: Main Agent
-Task: Add Authentication and Notifications system to CRM
+Agent: Main Agent + Subagent
+Task: Implement Role-Based Access Control (RBAC)
 
 Work Log:
-- Added User and Notification models to Prisma schema
-- Added User relation to Employee model
-- Pushed schema to Neon PostgreSQL (2 new tables created)
-- Created 5 demo users with bcrypt hashed passwords
-- Configured NextAuth.js with CredentialsProvider (JWT strategy, 24h sessions)
-- Created login page with MI HEALTH CARE branding (emerald/teal gradient)
-- Created auth middleware that protects all routes except /login and /api/auth/*
-- Created AuthProvider and useAuth hook for client-side auth state
-- Updated layout.tsx to wrap with AuthProvider
-- Updated page.tsx with auth loading state
-- Created notifications API routes: GET, POST, PATCH, DELETE, mark-all-read
-- Created auto-detection service (POST /api/notifications/detect)
-  - Detects overdue tasks, tasks due soon, stagnant opportunities, quotes without follow-up
-- Created NotificationsBell component with popover, badge, type-specific icons
-- Updated sidebar with notifications bell, user avatar, role badge, logout button
-- Updated Zustand store with currentUser state
-- Seeded 6 demo notifications
-- Added NEXTAUTH_SECRET and NEXTAUTH_URL to Vercel environment variables
-- Deployed to Vercel production
-- Verified: 307 redirect for unauthenticated, 200 for login page, CSRF token works
+- Created `/src/lib/auth-helpers.ts` with getAuthUser(), canAccess(), isAdmin(), isCommercial(), isTechnicien()
+- Updated sidebar.tsx with roles field on navItems and filtering by user role
+- Added auto-redirect to dashboard if current page is not accessible to user's role
+- Updated ALL API routes with auth checks and role-based data filtering:
+  - Prospects: admin + commercial only
+  - Opportunities: admin sees all, commercial sees own, technicien gets 403
+  - Operations: admin sees all, commercial sees from their opportunities, technicien sees own
+  - Tasks: admin all, commercial own + related, technicien own only (can only update statut)
+  - After-sales: admin all, commercial for their clients, technicien own (can only update statut)
+  - Employees: admin only
+  - Events: admin + commercial
+  - Dashboard: all authenticated, filtered by role
+  - Notifications: JWT-based auth with header fallback
+  - Interactions: admin + commercial
+  - Objectives: admin only
 
 Stage Summary:
-- Authentication system fully functional with NextAuth.js
-- Notifications system with auto-detection and bell icon
-- Production URL: https://my-project-gilt-six-41.vercel.app
-- Login credentials: khaled@mihealthcare.dz / admin123
+- Full RBAC implemented across all API routes
+- Navigation filtered by role in sidebar
+- Technicien restricted to own tasks and after-sales (statut updates only)
+
+---
+Task ID: 3
+Agent: Main Agent + Subagent
+Task: Add quick status change + transition guards for operations
+
+Work Log:
+- Added VALID_TRANSITIONS constant: en_attente → en_cours → termine (forward only)
+- Created QuickStatusButtons component for inline status changes
+- Added handleQuickStatusChange function with toast feedback
+- Desktop table and mobile cards now show quick status buttons next to StatutBadge
+- Added currentStatut state tracking for edit dialog
+- Edit form Select now disables invalid status transitions with "(non autorisé)" label
+- Server-side validation added in PUT /api/operations/[id] returning 400 for invalid transitions
+
+Stage Summary:
+- Operations can advance status with one click (no need to open edit dialog)
+- Forward-only transitions enforced at both UI and API level
+- terminé operations cannot go backward
+
+---
+Task ID: 4
+Agent: Main Agent + Subagent
+Task: Add auto-complete opportunity when all operations are terminated
+
+Work Log:
+- Modified PUT /api/operations/[id] to check if all sibling operations are `termine`
+- Returns `allOperationsComplete: true` in response when all operations complete
+- Added `opportunityCompleteDialog` state in operations.tsx
+- Both handleQuickStatusChange and handleSubmit check for completion
+- AlertDialog prompts user to move opportunity to "Gagné" status
+- "Oui, passer en Gagné" button calls PUT /api/opportunities/{id} with statut='Gagné'
+
+Stage Summary:
+- When last operation is marked `termine`, a dialog appears asking to mark the opportunity as "Gagné"
+- User can accept or dismiss ("Plus tard")
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix TypeScript types and build verification
+
+Work Log:
+- Fixed store.ts CurrentUser interface: `nom` → `employeNom` for consistency
+- Added NextAuth type declarations in auth.ts (User, Session, JWT interfaces)
+- Removed unsafe type casts in auth.ts callbacks
+- Refactored auth-context.tsx with mapSessionUser helper function
+- Build passes successfully with no errors
+
+Stage Summary:
+- Clean TypeScript with proper NextAuth type augmentation
+- Build compiles successfully
