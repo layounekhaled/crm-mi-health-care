@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Prospect {
+  id            String   @id @default(cuid())
+  nom           String
+  specialite    String?
+  wilaya        String?
+  telephone     String?
+  whatsapp      String?
+  etablissement String?
+  source        String?   @default("propection")
+  isClient      Boolean   @default(false)
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  interactions  Interaction[]
+  opportunities Opportunity[]
+  afterSales    AfterSale[]
+  eventLinks    EventProspect[]
+  tasks         Task[]
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  nom       String
+  ville     String?
+  date      DateTime
+  type      String    @default("congres")
+  marques   String?
+  equipe    String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  prospects EventProspect[]
+  tasks     Task[]
+}
+
+model EventProspect {
+  id         String   @id @default(cuid())
+  eventId    String
+  prospectId String
+  createdAt  DateTime @default(now())
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, prospectId])
+}
+
+model Opportunity {
+  id            String    @id @default(cuid())
+  clientId      String?
+  nomProjet     String
+  statut        String    @default("Nouveau")
+  montantEstime Float?
+  commercialId  String?
+  motifPerte    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  client       Prospect?  @relation(fields: [clientId], references: [id])
+  commercial   Employee?  @relation(fields: [commercialId], references: [id])
+  operations   Operation[]
+  tasks        Task[]
+  interactions Interaction[]
+}
+
+model Operation {
+  id            String   @id @default(cuid())
+  opportunityId String
+  produit       String
+  marque        String
+  responsableId String?
+  prixEstime    Float?
+  marge         Float?
+  statut        String   @default("en_attente")
+  datePrevue    DateTime?
+  priorite      String   @default("moyenne")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  responsable Employee?  @relation(fields: [responsableId], references: [id])
+  tasks       Task[]
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  titre         String
+  type          String    @default("commerciale")
+  assigneAId    String?
+  prospectId    String?
+  opportunityId String?
+  operationId   String?
+  eventId       String?
+  description   String?
+  dateEcheance  DateTime?
+  priorite      String    @default("moyenne")
+  statut        String    @default("en_attente")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  assigneA    Employee?    @relation(fields: [assigneAId], references: [id])
+  prospect    Prospect?    @relation(fields: [prospectId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  operation   Operation?   @relation(fields: [operationId], references: [id])
+  event       Event?       @relation(fields: [eventId], references: [id])
+}
+
+model Interaction {
+  id            String   @id @default(cuid())
+  type          String   @default("appel")
+  prospectId    String?
+  opportunityId String?
+  notes         String?
+  date          DateTime @default(now())
+  employeId     String?
+  createdAt     DateTime @default(now())
+
+  prospect    Prospect?    @relation(fields: [prospectId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  employe     Employee?    @relation(fields: [employeId], references: [id])
+}
+
+model AfterSale {
+  id        String   @id @default(cuid())
+  clientId  String
+  type      String   @default("livraison")
+  statut    String   @default("en_attente")
+  notes     String?
+  date      DateTime?
+  employeId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client  Prospect @relation(fields: [clientId], references: [id])
+  employe Employee? @relation(fields: [employeId], references: [id])
+}
+
+model Employee {
+  id        String   @id @default(cuid())
+  nom       String
+  email     String?
+  telephone String?
+  role      String   @default("commercial")
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  opportunities  Opportunity[]
+  operations     Operation[]
+  tasksAssigned  Task[]
+  interactions   Interaction[]
+  afterSales     AfterSale[]
+  objectives     Objective[]
+}
+
+model Objective {
+  id              String   @id @default(cuid())
+  employeId       String
+  mois            String
+  caObjectif      Float?   @default(0)
+  nbVentesObjectif Int?    @default(0)
+  tachesObjectif  Int?     @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employe Employee @relation(fields: [employeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeId, mois])
+}
