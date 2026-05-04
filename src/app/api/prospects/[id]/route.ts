@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, ensureDbInitialized } from '@/lib/db';
+import { db } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await ensureDbInitialized();
     const { id } = await params;
 
     const prospect = await db.prospect.findUnique({
@@ -53,7 +52,6 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await ensureDbInitialized();
     const { id } = await params;
     const body = await request.json();
     const { nom, specialite, wilaya, telephone, whatsapp, etablissement, source, isClient, notes } = body;
@@ -104,13 +102,26 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await ensureDbInitialized();
     const { id } = await params;
 
     const existing = await db.prospect.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Prospect not found' }, { status: 404 });
     }
+
+    // Delete related records first to avoid foreign key constraint errors
+    await db.interaction.deleteMany({ where: { prospectId: id } });
+    await db.eventProspect.deleteMany({ where: { prospectId: id } });
+    await db.task.deleteMany({ where: { prospectId: id } });
+    await db.afterSale.deleteMany({ where: { clientId: id } });
+    // Delete opportunities and their related records
+    const opps = await db.opportunity.findMany({ where: { clientId: id }, select: { id: true } });
+    for (const opp of opps) {
+      await db.operation.deleteMany({ where: { opportunityId: opp.id } });
+      await db.task.deleteMany({ where: { opportunityId: opp.id } });
+      await db.interaction.deleteMany({ where: { opportunityId: opp.id } });
+    }
+    await db.opportunity.deleteMany({ where: { clientId: id } });
 
     await db.prospect.delete({ where: { id } });
 

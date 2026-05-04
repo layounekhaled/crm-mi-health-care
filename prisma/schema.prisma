@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Prospect {
@@ -15,7 +16,7 @@ model Prospect {
   telephone     String?
   whatsapp      String?
   etablissement String?
-  source        String?   @default("propection")
+  source        String?   @default("prospection")
   isClient      Boolean   @default(false)
   notes         String?
   createdAt     DateTime  @default(now())

@@ -134,6 +134,7 @@ const SPECIALITES = [
 
 const WILAYAS = [
   'Adrar',
+  'Aïn Defla',
   'Alger',
   'Annaba',
   'Batna',
@@ -148,21 +149,19 @@ const WILAYAS = [
   'Médéa',
   'Mostaganem',
   'M\'Sila',
+  'Naâma',
   'Oran',
   'Ouargla',
+  'Saïda',
   'Sétif',
   'Sidi Bel Abbès',
   'Skikda',
   'Tamanrasset',
-  'Tlemcen',
-  'Tizi Ouzou',
-  'Tlemcen',
   'Tiaret',
   'Tébessa',
   'Tipaza',
-  'Saïda',
-  'Naâma',
-  'Aïn Defla',
+  'Tizi Ouzou',
+  'Tlemcen',
 ]
 
 const SOURCES = [

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, ensureDbInitialized } from '@/lib/db';
+import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    await ensureDbInitialized();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const source = searchParams.get('source');
@@ -69,7 +68,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await ensureDbInitialized();
     const body = await request.json();
     const { nom, specialite, wilaya, telephone, whatsapp, etablissement, source, isClient, notes } = body;
 
@@ -98,7 +96,7 @@ export async function POST(request: NextRequest) {
         telephone: telephone || null,
         whatsapp: whatsapp || null,
         etablissement: etablissement || null,
-        source: source || 'propection',
+        source: source || 'prospection',
         isClient: isClient ?? false,
         notes: notes || null,
       },

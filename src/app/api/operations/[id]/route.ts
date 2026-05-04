@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, ensureDbInitialized } from '@/lib/db';
+import { db } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await ensureDbInitialized();
     const { id } = await params;
 
     const operation = await db.operation.findUnique({
@@ -41,7 +40,6 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await ensureDbInitialized();
     const { id } = await params;
     const body = await request.json();
     const { produit, marque, responsableId, prixEstime, marge, statut, datePrevue, priorite } = body;
@@ -81,7 +79,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await ensureDbInitialized();
     const { id } = await params;
 
     const existing = await db.operation.findUnique({ where: { id } });
