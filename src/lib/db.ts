@@ -17,21 +17,183 @@ let dbInitialized = false
 
 export async function ensureDbInitialized() {
   if (dbInitialized) return
-  
+
   try {
-    // Check if database has data by counting prospects
+    // Try to check if database has data
     const count = await db.prospect.count()
     if (count === 0) {
       console.log('[DB] Empty database detected, running seed...')
       await seedDatabase()
     }
     dbInitialized = true
-  } catch (error) {
-    console.error('[DB] Initialization check failed:', error)
-    // If the table doesn't exist, the database needs to be created
-    // On Vercel with SQLite, this will fail - we need a persistent DB
-    dbInitialized = true
+  } catch (error: any) {
+    // If tables don't exist, we need to create them
+    if (error?.message?.includes('does not exist') || error?.code === 'P2021') {
+      console.log('[DB] Tables not found, creating schema and seeding...')
+      try {
+        await createSchemaAndSeed()
+        dbInitialized = true
+      } catch (seedError) {
+        console.error('[DB] Failed to create schema:', seedError)
+        dbInitialized = true // Don't retry on every request
+      }
+    } else {
+      console.error('[DB] Initialization check failed:', error?.message || error)
+      dbInitialized = true // Don't retry on every request
+    }
   }
+}
+
+async function createSchemaAndSeed() {
+  // Execute raw SQL to create tables (SQLite)
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS Prospect (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      nom TEXT NOT NULL,
+      specialite TEXT,
+      wilaya TEXT,
+      telephone TEXT,
+      whatsapp TEXT,
+      etablissement TEXT,
+      source TEXT DEFAULT 'prospection',
+      isClient BOOLEAN DEFAULT 0,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS Employee (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      nom TEXT NOT NULL,
+      email TEXT,
+      telephone TEXT,
+      role TEXT DEFAULT 'commercial',
+      actif BOOLEAN DEFAULT 1,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS Event (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      nom TEXT NOT NULL,
+      ville TEXT,
+      date DATETIME,
+      type TEXT DEFAULT 'congres',
+      marques TEXT,
+      equipe TEXT,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS EventProspect (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      eventId TEXT NOT NULL REFERENCES Event(id) ON DELETE CASCADE,
+      prospectId TEXT NOT NULL REFERENCES Prospect(id) ON DELETE CASCADE,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(eventId, prospectId)
+    );
+  `)
+
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS Opportunity (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      clientId TEXT REFERENCES Prospect(id),
+      nomProjet TEXT NOT NULL,
+      statut TEXT DEFAULT 'Nouveau',
+      montantEstime REAL,
+      commercialId TEXT REFERENCES Employee(id),
+      motifPerte TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS Operation (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      opportunityId TEXT NOT NULL REFERENCES Opportunity(id) ON DELETE CASCADE,
+      produit TEXT NOT NULL,
+      marque TEXT NOT NULL,
+      responsableId TEXT REFERENCES Employee(id),
+      prixEstime REAL,
+      marge REAL,
+      statut TEXT DEFAULT 'en_attente',
+      datePrevue DATETIME,
+      priorite TEXT DEFAULT 'moyenne',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS Task (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      titre TEXT NOT NULL,
+      type TEXT DEFAULT 'commerciale',
+      assigneAId TEXT REFERENCES Employee(id),
+      prospectId TEXT REFERENCES Prospect(id),
+      opportunityId TEXT REFERENCES Opportunity(id),
+      operationId TEXT REFERENCES Operation(id),
+      eventId TEXT REFERENCES Event(id),
+      description TEXT,
+      dateEcheance DATETIME,
+      priorite TEXT DEFAULT 'moyenne',
+      statut TEXT DEFAULT 'en_attente',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS Interaction (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      type TEXT DEFAULT 'appel',
+      prospectId TEXT REFERENCES Prospect(id),
+      opportunityId TEXT REFERENCES Opportunity(id),
+      notes TEXT,
+      date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      employeId TEXT REFERENCES Employee(id),
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS AfterSale (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      clientId TEXT NOT NULL REFERENCES Prospect(id),
+      type TEXT DEFAULT 'livraison',
+      statut TEXT DEFAULT 'en_attente',
+      notes TEXT,
+      date DATETIME,
+      employeId TEXT REFERENCES Employee(id),
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS Objective (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(12)))),
+      employeId TEXT NOT NULL REFERENCES Employee(id) ON DELETE CASCADE,
+      mois TEXT NOT NULL,
+      caObjectif REAL DEFAULT 0,
+      nbVentesObjectif INTEGER DEFAULT 0,
+      tachesObjectif INTEGER DEFAULT 0,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(employeId, mois)
+    );
+  `)
+
+  console.log('[DB] Schema created successfully, seeding data...')
+  await seedDatabase()
 }
 
 async function seedDatabase() {
@@ -45,14 +207,14 @@ async function seedDatabase() {
   // Create prospects
   const drBenahmed = await db.prospect.create({ data: { nom: 'Dr. Benahmed Mohamed', specialite: 'Cardiologie', wilaya: 'Alger', telephone: '0661234567', whatsapp: '0661234567', etablissement: 'CHU Mustapha Pacha', source: 'evenement', isClient: true } })
   const drZerhouni = await db.prospect.create({ data: { nom: 'Dr. Zerhouni Fatima', specialite: 'Radiologie', wilaya: 'Oran', telephone: '0662345678', whatsapp: '0662345678', etablissement: 'CHU Oran', source: 'recommandation', isClient: true } })
-  const drBouzid = await db.prospect.create({ data: { nom: 'Dr. Bouzid Karim', specialite: 'Orthopédie', wilaya: 'Constantine', telephone: '0663456789', whatsapp: '0663456789', etablissement: 'CHU Constantine', source: 'prospection', isClient: false } })
+  const drBouzid = await db.prospect.create({ data: { nom: 'Dr. Bouzid Karim', specialite: 'Orthopédie', wilaya: 'Constantine', telephone: '0663456789', whatsapp: '0663456789', etablissement: 'CHU Constantine', source: 'prospection' } })
   const drMebarki = await db.prospect.create({ data: { nom: 'Dr. Mebarki Amina', specialite: 'Chirurgie', wilaya: 'Annaba', telephone: '0664567890', whatsapp: '0664567890', etablissement: 'CHU Annaba', source: 'evenement', isClient: true } })
-  const drTaleb = await db.prospect.create({ data: { nom: 'Dr. Taleb Nouredine', specialite: 'Anesthésie', wilaya: 'Sétif', telephone: '0665678901', whatsapp: '0665678901', etablissement: 'Hôpital Sétif', source: 'prospection', isClient: false } })
+  const drTaleb = await db.prospect.create({ data: { nom: 'Dr. Taleb Nouredine', specialite: 'Anesthésie', wilaya: 'Sétif', telephone: '0665678901', whatsapp: '0665678901', etablissement: 'Hôpital Sétif', source: 'prospection' } })
   const drHamidi = await db.prospect.create({ data: { nom: 'Dr. Hamidi Leila', specialite: 'Cardiologie', wilaya: 'Blida', telephone: '0666789012', whatsapp: '0666789012', etablissement: 'CHU Blida', source: 'recommandation', isClient: true } })
-  const drBenmoussa = await db.prospect.create({ data: { nom: 'Dr. Benmoussa Rachid', specialite: 'Médecine générale', wilaya: 'Tlemcen', telephone: '0667890123', etablissement: 'Clinique El Amel Tlemcen', source: 'evenement', isClient: false } })
-  const drKaci = await db.prospect.create({ data: { nom: 'Dr. Kaci Samira', specialite: 'Radiologie', wilaya: 'Béjaïa', telephone: '0668901234', whatsapp: '0668901234', etablissement: 'CHU Béjaïa', source: 'prospection', isClient: false } })
+  const drBenmoussa = await db.prospect.create({ data: { nom: 'Dr. Benmoussa Rachid', specialite: 'Médecine générale', wilaya: 'Tlemcen', telephone: '0667890123', etablissement: 'Clinique El Amel Tlemcen', source: 'evenement' } })
+  const drKaci = await db.prospect.create({ data: { nom: 'Dr. Kaci Samira', specialite: 'Radiologie', wilaya: 'Béjaïa', telephone: '0668901234', whatsapp: '0668901234', etablissement: 'CHU Béjaïa', source: 'prospection' } })
   const cliniqueAlger = await db.prospect.create({ data: { nom: 'Clinique Les Deux Bassins', specialite: 'Chirurgie', wilaya: 'Alger', telephone: '0669012345', etablissement: 'Clinique Les Deux Bassins', source: 'prospection', isClient: true } })
-  const drOuali = await db.prospect.create({ data: { nom: 'Dr. Ouali Mustapha', specialite: 'Orthopédie', wilaya: 'Batna', telephone: '0660123456', whatsapp: '0660123456', etablissement: 'CHU Batna', source: 'recommandation', isClient: false } })
+  const drOuali = await db.prospect.create({ data: { nom: 'Dr. Ouali Mustapha', specialite: 'Orthopédie', wilaya: 'Batna', telephone: '0660123456', whatsapp: '0660123456', etablissement: 'CHU Batna', source: 'recommandation' } })
 
   // Create events
   const medExpo = await db.event.create({ data: { nom: 'MedExpo Algérie 2025', ville: 'Alger', date: new Date('2025-10-15'), type: 'expo', marques: 'MIR,BOS,Yuwell', equipe: 'Amine, Sara' } })
@@ -102,17 +264,17 @@ async function seedDatabase() {
   await db.task.create({ data: { titre: 'Préparation démonstration ventilateurs', type: 'technique', assigneAId: youcef.id, dateEcheance: new Date('2026-01-12'), priorite: 'moyenne', statut: 'en_attente' } })
 
   // Create interactions
-  await db.interaction.create({ data: { type: 'appel', prospectId: drBenahmed.id, opportunityId: opp1.id, notes: 'Discussion sur les spécifications du moniteur patient. Très intéressé.', employeId: amine.id, date: new Date('2025-12-15') } })
+  await db.interaction.create({ data: { type: 'appel', prospectId: drBenahmed.id, opportunityId: opp1.id, notes: 'Discussion sur les spécifications du moniteur patient.', employeId: amine.id, date: new Date('2025-12-15') } })
   await db.interaction.create({ data: { type: 'visite', prospectId: drZerhouni.id, opportunityId: opp2.id, notes: 'Visite du site, mesures pour installation échographe.', employeId: sara.id, date: new Date('2025-12-18') } })
   await db.interaction.create({ data: { type: 'whatsapp', prospectId: drHamidi.id, opportunityId: opp4.id, notes: 'Envoi documentation moniteurs cardiaques MIR.', employeId: sara.id, date: new Date('2025-12-20') } })
   await db.interaction.create({ data: { type: 'email', prospectId: drBouzid.id, opportunityId: opp6.id, notes: 'Envoi devis préliminaire équipement orthopédie.', employeId: sara.id, date: new Date('2025-12-22') } })
   await db.interaction.create({ data: { type: 'appel', prospectId: drKaci.id, opportunityId: opp9.id, notes: 'Premier contact, très intéressée par IRM Yuwell.', employeId: amine.id, date: new Date('2025-12-28') } })
 
   // Create after-sales
-  await db.afterSale.create({ data: { clientId: drMebarki.id, type: 'installation', statut: 'termine', date: new Date('2025-12-10'), employeId: youcef.id, notes: 'Installation lampe et table opératoire terminée avec succès.' } })
+  await db.afterSale.create({ data: { clientId: drMebarki.id, type: 'installation', statut: 'termine', date: new Date('2025-12-10'), employeId: youcef.id, notes: 'Installation lampe et table opératoire terminée.' } })
   await db.afterSale.create({ data: { clientId: drMebarki.id, type: 'formation', statut: 'termine', date: new Date('2025-12-15'), employeId: nadia.id, notes: 'Formation équipe chirurgicale sur table Gelenke.' } })
   await db.afterSale.create({ data: { clientId: cliniqueAlger.id, type: 'installation', statut: 'en_cours', date: new Date('2026-01-10'), employeId: youcef.id, notes: 'Installation ventilateurs Löwenstein en cours.' } })
-  await db.afterSale.create({ data: { clientId: cliniqueAlger.id, type: 'sav', statut: 'en_attente', employeId: youcef.id, notes: 'Demande maintenance moniteur MIR - écran défectueux.' } })
+  await db.afterSale.create({ data: { clientId: cliniqueAlger.id, type: 'sav', statut: 'en_attente', employeId: youcef.id, notes: 'Demande maintenance moniteur MIR.' } })
 
   // Create objectives
   await db.objective.create({ data: { employeId: amine.id, mois: '2026-01', caObjectif: 5000000, nbVentesObjectif: 3, tachesObjectif: 15 } })
