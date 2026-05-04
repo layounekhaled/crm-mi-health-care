@@ -15,7 +15,7 @@ interface CurrentUser {
   email: string
   role: string
   employeId: string | null
-  nom: string | null
+  employeNom: string | null
 }
 
 interface CRMStore {

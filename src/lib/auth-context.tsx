@@ -4,14 +4,16 @@ import { createContext, useContext, useEffect } from 'react'
 import { SessionProvider, useSession, signOut } from 'next-auth/react'
 import { useCRMStore } from '@/lib/store'
 
+interface AuthUser {
+  id: string
+  email: string
+  role: string
+  employeId: string | null
+  employeNom: string | null
+}
+
 interface AuthContextType {
-  user: {
-    id: string
-    email: string
-    role: string
-    employeId: string | null
-    employeNom: string | null
-  } | null
+  user: AuthUser | null
   isAuthenticated: boolean
   isLoading: boolean
   role: string | null
@@ -26,34 +28,36 @@ const AuthContext = createContext<AuthContextType>({
   logout: () => {},
 })
 
+function mapSessionUser(sessionUser: {
+  id?: string
+  email?: string | null
+  role?: string
+  employeId?: string | null
+  employeNom?: string | null
+}): AuthUser {
+  return {
+    id: sessionUser.id || '',
+    email: sessionUser.email || '',
+    role: sessionUser.role || 'commercial',
+    employeId: sessionUser.employeId || null,
+    employeNom: sessionUser.employeNom || null,
+  }
+}
+
 function AuthInner({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
   const { setCurrentUser, clearCurrentUser } = useCRMStore()
 
   useEffect(() => {
     if (session?.user) {
-      const userData = {
-        id: session.user.id,
-        email: session.user.email || '',
-        role: (session.user as { role?: string }).role || 'commercial',
-        employeId: (session.user as { employeId?: string | null }).employeId || null,
-        employeNom: (session.user as { employeNom?: string | null }).employeNom || null,
-      }
+      const userData = mapSessionUser(session.user)
       setCurrentUser(userData)
     } else if (status !== 'loading') {
       clearCurrentUser()
     }
   }, [session, status, setCurrentUser, clearCurrentUser])
 
-  const user = session?.user
-    ? {
-        id: session.user.id,
-        email: session.user.email || '',
-        role: (session.user as { role?: string }).role || 'commercial',
-        employeId: (session.user as { employeId?: string | null }).employeId || null,
-        employeNom: (session.user as { employeNom?: string | null }).employeNom || null,
-      }
-    : null
+  const user = session?.user ? mapSessionUser(session.user) : null
 
   const logout = () => {
     clearCurrentUser()

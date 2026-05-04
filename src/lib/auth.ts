@@ -3,6 +3,32 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 
+declare module 'next-auth' {
+  interface User {
+    role?: string
+    employeId?: string | null
+    employeNom?: string | null
+  }
+  interface Session {
+    user: {
+      id: string
+      email: string
+      role?: string
+      employeId?: string | null
+      employeNom?: string | null
+    }
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id?: string
+    role?: string
+    employeId?: string | null
+    employeNom?: string | null
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -61,18 +87,18 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
-        token.role = (user as { role: string }).role
-        token.employeId = (user as { employeId: string | null }).employeId
-        token.employeNom = (user as { employeNom: string | null }).employeNom
+        token.role = user.role
+        token.employeId = user.employeId
+        token.employeNom = user.employeNom
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        ;(session.user as { role?: string }).role = token.role as string
-        ;(session.user as { employeId?: string | null }).employeId = token.employeId as string | null
-        ;(session.user as { employeNom?: string | null }).employeNom = token.employeNom as string | null
+        session.user.role = token.role
+        session.user.employeId = token.employeId
+        session.user.employeNom = token.employeNom
       }
       return session
     },
