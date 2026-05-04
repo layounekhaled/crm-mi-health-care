@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthUser, canAccess } from '@/lib/auth-helpers';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const { id } = await params;
 
     const employee = await db.employee.findUnique({
@@ -50,6 +55,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const { id } = await params;
     const body = await request.json();
     const { nom, email, telephone, role, actif } = body;
@@ -95,6 +104,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const { id } = await params;
 
     const existing = await db.employee.findUnique({ where: { id } });

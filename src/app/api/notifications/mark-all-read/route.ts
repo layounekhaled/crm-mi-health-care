@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getAuthUser } from '@/lib/auth-helpers'
 
 // PUT /api/notifications/mark-all-read - Mark all as read for a user
 export async function PUT(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request)
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
+    const queryUserId = searchParams.get('userId')
 
+    const userId = authUser?.id || queryUserId
     if (!userId) {
       return NextResponse.json(
-        { error: 'userId est requis' },
-        { status: 400 }
+        { error: 'Non authentifié' },
+        { status: 401 }
       )
     }
 

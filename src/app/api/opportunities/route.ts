@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthUser, canAccess, isAdmin } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     const { searchParams } = new URL(request.url);
     const statut = searchParams.get('statut');
     const clientId = searchParams.get('clientId');
     const commercialId = searchParams.get('commercialId');
 
     const where: Record<string, unknown> = {};
+
+    // Filter by commercial for commercial role
+    if (!isAdmin(authUser) && authUser.employeId) {
+      where.commercialId = authUser.employeId;
+    }
 
     if (statut) {
       where.statut = statut;
@@ -49,6 +58,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const body = await request.json();
     const { clientId, nomProjet, statut, montantEstime, commercialId, motifPerte } = body;
 

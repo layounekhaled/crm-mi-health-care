@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthUser, canAccess, isAdmin } from '@/lib/auth-helpers';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const { id } = await params;
 
     const opportunity = await db.opportunity.findUnique({
@@ -33,6 +38,11 @@ export async function GET(
       return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 });
     }
 
+    // Commercial can only see their own opportunities
+    if (!isAdmin(authUser) && authUser.employeId && opportunity.commercialId !== authUser.employeId) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    }
+
     return NextResponse.json(opportunity);
   } catch (error) {
     console.error('[OPPORTUNITY_GET_BY_ID]', error);
@@ -45,6 +55,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const { id } = await params;
     const body = await request.json();
     const { nomProjet, clientId, statut, montantEstime, commercialId, motifPerte } = body;
@@ -82,6 +96,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const { id } = await params;
 
     const existing = await db.opportunity.findUnique({ where: { id } });

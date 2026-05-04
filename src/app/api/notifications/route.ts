@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getAuthUser } from '@/lib/auth-helpers'
 
 // GET /api/notifications - List notifications for current user
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id')
+    const authUser = await getAuthUser(request)
+    const headerUserId = request.headers.get('x-user-id')
+    const userId = authUser?.id || headerUserId
     if (!userId) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
@@ -51,9 +54,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/notifications - Create notification
 export async function POST(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+    // Only admin can create notifications for other users
     const body = await request.json()
     const { userId, type, titre, message, lien, referenceId } = body
 

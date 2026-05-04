@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthUser, canAccess, isAdmin } from '@/lib/auth-helpers';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
     const { id } = await params;
 
     const afterSale = await db.afterSale.findUnique({
@@ -20,6 +24,11 @@ export async function GET(
       return NextResponse.json({ error: 'After-sale not found' }, { status: 404 });
     }
 
+    // Role-based access check
+    if (authUser.role === 'technicien' && authUser.employeId && afterSale.employeId !== authUser.employeId) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    }
+
     return NextResponse.json(afterSale);
   } catch (error) {
     console.error('[AFTER_SALE_GET_BY_ID]', error);
@@ -32,6 +41,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
     const { id } = await params;
     const body = await request.json();
     const { clientId, type, statut, notes, date, employeId } = body;
@@ -39,6 +51,27 @@ export async function PUT(
     const existing = await db.afterSale.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'After-sale not found' }, { status: 404 });
+    }
+
+    // Technicien can only update statut and only for after-sales assigned to them
+    if (authUser.role === 'technicien') {
+      if (authUser.employeId && existing.employeId !== authUser.employeId) {
+        return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+      }
+      const afterSale = await db.afterSale.update({
+        where: { id },
+        data: { ...(statut !== undefined && { statut }) },
+        include: {
+          client: { select: { id: true, nom: true } },
+          employe: { select: { id: true, nom: true } },
+        },
+      });
+      return NextResponse.json(afterSale);
+    }
+
+    // Admin and commercial can update all fields
+    if (!canAccess(authUser, ['admin', 'commercial'])) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
     const afterSale = await db.afterSale.update({
@@ -69,6 +102,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const { id } = await params;
 
     const existing = await db.afterSale.findUnique({ where: { id } });

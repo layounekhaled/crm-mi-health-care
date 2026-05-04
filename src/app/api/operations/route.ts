@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthUser, canAccess } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     const { searchParams } = new URL(request.url);
     const statut = searchParams.get('statut');
     const marque = searchParams.get('marque');
     const opportunityId = searchParams.get('opportunityId');
 
     const where: Record<string, unknown> = {};
+
+    // Role-based filtering for operations
+    if (authUser.role === 'commercial' && authUser.employeId) {
+      // Get operations from opportunities where user is commercial
+      where.opportunity = { commercialId: authUser.employeId };
+    } else if (authUser.role === 'technicien' && authUser.employeId) {
+      where.responsableId = authUser.employeId;
+    }
+    // admin sees everything (no filter)
 
     if (statut) {
       where.statut = statut;
@@ -49,6 +61,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const body = await request.json();
     const { opportunityId, produit, marque, responsableId, prixEstime, marge, statut, datePrevue, priorite } = body;
 

@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import bcrypt from 'bcryptjs'
 
 async function main() {
   console.log('🌱 Seeding database...')
@@ -93,8 +94,21 @@ async function main() {
   await db.objective.create({ data: { employeId: youcef.id, mois: '2026-01', tachesObjectif: 8 } })
   await db.objective.create({ data: { employeId: nadia.id, mois: '2026-01', tachesObjectif: 6 } })
 
+  // Create users with hashed passwords
+  const salt = await bcrypt.genSalt(10)
+  const hashAdmin = await bcrypt.hash('admin123', salt)
+  const hashCom = await bcrypt.hash('com123', salt)
+  const hashTech = await bcrypt.hash('tech123', salt)
+
+  await db.user.create({ data: { email: 'khaled@mihealthcare.dz', motDePasse: hashAdmin, employeId: khaled.id, role: 'admin' } })
+  await db.user.create({ data: { email: 'amine@mihealthcare.dz', motDePasse: hashCom, employeId: amine.id, role: 'commercial' } })
+  await db.user.create({ data: { email: 'sara@mihealthcare.dz', motDePasse: hashCom, employeId: sara.id, role: 'commercial' } })
+  await db.user.create({ data: { email: 'youcef@mihealthcare.dz', motDePasse: hashTech, employeId: youcef.id, role: 'technicien' } })
+  await db.user.create({ data: { email: 'nadia@mihealthcare.dz', motDePasse: hashTech, employeId: nadia.id, role: 'technicien' } })
+
   console.log('✅ Seed completed successfully!')
   console.log(`  - 5 employees`)
+  console.log(`  - 5 users`)
   console.log(`  - 10 prospects (4 clients)`)
   console.log(`  - 4 events`)
   console.log(`  - 10 opportunities`)

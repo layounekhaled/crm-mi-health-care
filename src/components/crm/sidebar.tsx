@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useCRMStore, type Page } from '@/lib/store'
 import { useAuth } from '@/lib/auth-context'
 import {
@@ -31,15 +32,15 @@ import {
 import { NotificationsBell } from '@/components/crm/notifications-bell'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const navItems: { page: Page; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { page: 'prospects', label: 'Prospects', icon: UserRound },
-  { page: 'events', label: 'Événements', icon: Calendar },
-  { page: 'opportunities', label: 'Opportunités', icon: Briefcase },
-  { page: 'operations', label: 'Opérations', icon: Package },
-  { page: 'tasks', label: 'Tâches', icon: CheckSquare },
-  { page: 'after-sales', label: 'Après-vente', icon: Wrench },
-  { page: 'employees', label: 'Employés', icon: Users },
+const navItems: { page: Page; label: string; icon: React.ComponentType<{ className?: string }>; roles: string[] }[] = [
+  { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'commercial', 'technicien'] },
+  { page: 'prospects', label: 'Prospects', icon: UserRound, roles: ['admin', 'commercial'] },
+  { page: 'events', label: 'Événements', icon: Calendar, roles: ['admin', 'commercial'] },
+  { page: 'opportunities', label: 'Opportunités', icon: Briefcase, roles: ['admin', 'commercial'] },
+  { page: 'operations', label: 'Opérations', icon: Package, roles: ['admin', 'commercial', 'technicien'] },
+  { page: 'tasks', label: 'Tâches', icon: CheckSquare, roles: ['admin', 'commercial', 'technicien'] },
+  { page: 'after-sales', label: 'Après-vente', icon: Wrench, roles: ['admin', 'commercial', 'technicien'] },
+  { page: 'employees', label: 'Employés', icon: Users, roles: ['admin'] },
 ]
 
 const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -65,6 +66,17 @@ function getInitials(name: string | null, email: string): string {
 export function CRMSidebar() {
   const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, toggleSidebar } = useCRMStore()
   const { user, logout } = useAuth()
+
+  // Redirect to dashboard if current page is not accessible to user's role
+  useEffect(() => {
+    if (user?.role) {
+      const accessiblePages = navItems.filter(item => item.roles.includes(user.role!))
+      const currentPageAccessible = accessiblePages.some(item => item.page === currentPage)
+      if (!currentPageAccessible && currentPage !== 'dashboard') {
+        setCurrentPage('dashboard')
+      }
+    }
+  }, [user?.role, currentPage, setCurrentPage])
 
   const handleNavClick = (page: Page) => {
     setCurrentPage(page)
@@ -113,7 +125,7 @@ export function CRMSidebar() {
       {/* Navigation Items */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
-          {navItems.map((item) => {
+          {navItems.filter(item => item.roles.includes(user?.role || 'commercial')).map((item) => {
             const isActive = currentPage === item.page
             const Icon = item.icon
             return (

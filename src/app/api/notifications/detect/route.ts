@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getAuthUser, canAccess } from '@/lib/auth-helpers'
 
 // POST /api/notifications/detect - Auto-detect and create notifications
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request)
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+
     const now = new Date()
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -15,7 +20,7 @@ export async function POST() {
     const overdueTasks = await db.task.findMany({
       where: {
         dateEcheance: { lt: now },
-        statut: { not: 'terminee' },
+        statut: { notIn: ['terminee', 'terminé', 'termine'] },
         assigneAId: { not: null },
       },
       include: {
@@ -53,7 +58,7 @@ export async function POST() {
     const soonDueTasks = await db.task.findMany({
       where: {
         dateEcheance: { gte: now, lte: in24h },
-        statut: { not: 'terminee' },
+        statut: { notIn: ['terminee', 'terminé', 'termine'] },
         assigneAId: { not: null },
       },
       include: {

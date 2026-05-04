@@ -1,12 +1,39 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthUser } from '@/lib/auth-helpers';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
+    // Build base filters based on user role
+    const prospectWhere: Record<string, unknown> = {};
+    const opportunityWhere: Record<string, unknown> = {};
+    const operationWhere: Record<string, unknown> = {};
+    const taskWhere: Record<string, unknown> = {};
+    const afterSaleWhere: Record<string, unknown> = {};
+    const interactionWhere: Record<string, unknown> = {};
+
+    if (authUser.role === 'commercial' && authUser.employeId) {
+      opportunityWhere.commercialId = authUser.employeId;
+      operationWhere.opportunity = { commercialId: authUser.employeId };
+      taskWhere.OR = [
+        { assigneAId: authUser.employeId },
+        { opportunity: { commercialId: authUser.employeId } },
+      ];
+      afterSaleWhere.client = { opportunities: { some: { commercialId: authUser.employeId } } };
+      interactionWhere.employeId = authUser.employeId;
+    } else if (authUser.role === 'technicien' && authUser.employeId) {
+      operationWhere.responsableId = authUser.employeId;
+      taskWhere.assigneAId = authUser.employeId;
+      afterSaleWhere.employeId = authUser.employeId;
+    }
+    // admin sees everything (no filters)
     // 1. Total prospects and clients
     const [totalProspects, totalClients] = await Promise.all([
-      db.prospect.count(),
-      db.prospect.count({ where: { isClient: true } }),
+      db.prospect.count({ where: prospectWhere }),
+      db.prospect.count({ where: { ...prospectWhere, isClient: true } }),
     ]);
 
     // 2. Opportunities by statut
@@ -14,11 +41,12 @@ export async function GET() {
       by: ['statut'],
       _count: { statut: true },
       _sum: { montantEstime: true },
+      where: opportunityWhere,
     });
 
     // 3. CA estimé vs réel (opportunities gagnées)
     const wonOpportunities = await db.opportunity.findMany({
-      where: { statut: 'Gagné' },
+      where: { ...opportunityWhere, statut: 'Gagné' },
       include: {
         operations: {
           select: { prixEstime: true, marge: true },
@@ -42,12 +70,14 @@ export async function GET() {
       by: ['marque'],
       _count: { id: true },
       _sum: { prixEstime: true, marge: true },
+      where: operationWhere,
     });
 
     // 5. Performance by source (prospects group by source)
     const performanceBySource = await db.prospect.groupBy({
       by: ['source'],
       _count: { id: true },
+      where: prospectWhere,
     });
 
     // 6. Taux de conversion (prospects devenus clients / total prospects)
@@ -58,6 +88,7 @@ export async function GET() {
     // 7. Tâches en retard (tasks where dateEcheance < now and statut != terminee)
     const tasksEnRetard = await db.task.count({
       where: {
+        ...taskWhere,
         dateEcheance: { lt: new Date() },
         statut: { not: 'terminee' },
       },
@@ -65,6 +96,7 @@ export async function GET() {
 
     const tasksEnRetardDetails = await db.task.findMany({
       where: {
+        ...taskWhere,
         dateEcheance: { lt: new Date() },
         statut: { not: 'terminee' },
       },
@@ -79,6 +111,7 @@ export async function GET() {
     // 8. Recent activities (last 10 interactions + tasks)
     const [recentInteractions, recentTasks] = await Promise.all([
       db.interaction.findMany({
+        where: interactionWhere,
         take: 10,
         orderBy: { date: 'desc' },
         include: {
@@ -88,6 +121,7 @@ export async function GET() {
         },
       }),
       db.task.findMany({
+        where: taskWhere,
         take: 10,
         orderBy: { createdAt: 'desc' },
         include: {
@@ -101,22 +135,24 @@ export async function GET() {
     // 9. Additional stats
     const [totalOpportunities, totalOperations, totalTasks, pendingAfterSales] =
       await Promise.all([
-        db.opportunity.count(),
-        db.operation.count(),
-        db.task.count(),
-        db.afterSale.count({ where: { statut: 'en_attente' } }),
+        db.opportunity.count({ where: opportunityWhere }),
+        db.operation.count({ where: operationWhere }),
+        db.task.count({ where: taskWhere }),
+        db.afterSale.count({ where: { ...afterSaleWhere, statut: 'en_attente' } }),
       ]);
 
     // 10. Tasks by statut
     const tasksByStatut = await db.task.groupBy({
       by: ['statut'],
       _count: { statut: true },
+      where: taskWhere,
     });
 
     // 11. Tasks by priorite
     const tasksByPriorite = await db.task.groupBy({
       by: ['priorite'],
       _count: { priorite: true },
+      where: taskWhere,
     });
 
     return NextResponse.json({

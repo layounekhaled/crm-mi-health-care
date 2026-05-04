@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthUser, canAccess } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     const statut = searchParams.get('statut');
     const clientId = searchParams.get('clientId');
 
     const where: Record<string, unknown> = {};
+
+    // Role-based filtering for after-sales
+    if (authUser.role === 'commercial' && authUser.employeId) {
+      // Get after-sales for clients that have opportunities assigned to this commercial
+      where.client = { opportunities: { some: { commercialId: authUser.employeId } } };
+    } else if (authUser.role === 'technicien' && authUser.employeId) {
+      where.employeId = authUser.employeId;
+    }
+    // admin sees everything
 
     if (type) {
       where.type = type;
@@ -40,6 +52,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
     const body = await request.json();
     const { clientId, type, statut, notes, date, employeId } = body;
 

@@ -117,7 +117,7 @@ const MARQUES = [
 const STATUTS = [
   { value: 'en_attente', label: 'En attente', color: 'amber' },
   { value: 'en_cours', label: 'En cours', color: 'blue' },
-  { value: 'terminé', label: 'Terminé', color: 'green' },
+  { value: 'termine', label: 'Terminé', color: 'green' },
 ] as const
 
 const PRIORITES = [
@@ -174,12 +174,20 @@ const STATUT_COLORS: Record<string, { bg: string; text: string; border: string; 
     border: 'border-blue-200 dark:border-blue-800',
     icon: <TrendingUp className="size-3" />,
   },
-  terminé: {
+  termine: {
     bg: 'bg-green-100 dark:bg-green-900/40',
     text: 'text-green-700 dark:text-green-300',
     border: 'border-green-200 dark:border-green-800',
     icon: <CheckCircle2 className="size-3" />,
   },
+}
+
+// ─── Valid Status Transitions ────────────────────────────────────
+
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  en_attente: ['en_cours'],
+  en_cours: ['termine'],
+  termine: [], // No backward transition
 }
 
 const PRIORITE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -259,6 +267,36 @@ function PrioriteBadge({ priorite }: { priorite: string }) {
     <Badge variant="outline" className={`font-medium ${colors.bg} ${colors.text} ${colors.border} hover:${colors.bg}`}>
       {getPrioriteLabel(priorite)}
     </Badge>
+  )
+}
+
+// ─── Quick Status Buttons ─────────────────────────────────────────
+
+function QuickStatusButtons({ statut, operationId, onChange }: { statut: string; operationId: string; onChange: (id: string, newStatut: string) => void }) {
+  const transitions = VALID_TRANSITIONS[statut] || []
+  if (transitions.length === 0) return null
+
+  return (
+    <div className="flex items-center gap-1 ml-1">
+      {transitions.map(nextStatut => {
+        const nextConfig = STATUT_COLORS[nextStatut]
+        if (!nextConfig) return null
+        return (
+          <button
+            key={nextStatut}
+            onClick={(e) => {
+              e.stopPropagation()
+              onChange(operationId, nextStatut)
+            }}
+            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors hover:opacity-80 ${nextConfig.bg} ${nextConfig.text} border ${nextConfig.border}`}
+            title={`Passer à "${getStatutLabel(nextStatut)}"`}
+          >
+            {nextConfig.icon}
+            {getStatutLabel(nextStatut)}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -379,6 +417,16 @@ export default function OperationsModule() {
   // Expanded row state
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
+  // Track current status for transition guards in edit form
+  const [currentStatut, setCurrentStatut] = useState<string>('')
+
+  // Opportunity auto-complete dialog state
+  const [opportunityCompleteDialog, setOpportunityCompleteDialog] = useState<{ open: boolean; opportunityId: string; opportunityName: string }>({
+    open: false,
+    opportunityId: '',
+    opportunityName: '',
+  })
+
   // ─── Data Fetching ─────────────────────────────────────────────
 
   const fetchOperations = useCallback(async () => {
@@ -456,7 +504,7 @@ export default function OperationsModule() {
   const totalOperations = filteredOperations.length
   const enAttente = filteredOperations.filter(o => o.statut === 'en_attente').length
   const enCours = filteredOperations.filter(o => o.statut === 'en_cours').length
-  const terminees = filteredOperations.filter(o => o.statut === 'terminé').length
+  const terminees = filteredOperations.filter(o => o.statut === 'termine').length
 
   const marges = filteredOperations.filter(o => o.marge != null).map(o => o.marge!)
   const margeMoyenne = marges.length > 0 ? marges.reduce((sum, m) => sum + m, 0) / marges.length : 0
@@ -474,6 +522,7 @@ export default function OperationsModule() {
 
   const openEditDialog = (op: Operation) => {
     setEditingId(op.id)
+    setCurrentStatut(op.statut)  // Track current status for transition guards
     setFormData({
       opportunityId: op.opportunityId,
       produit: op.produit,
@@ -522,7 +571,17 @@ export default function OperationsModule() {
           body: JSON.stringify(payload),
         })
         if (!res.ok) throw new Error('Échec de la mise à jour')
+        const data = await res.json()
         toast.success('Opération mise à jour avec succès')
+
+        // Check if all operations are complete
+        if (data.allOperationsComplete && data.opportunity) {
+          setOpportunityCompleteDialog({
+            open: true,
+            opportunityId: data.opportunity.id || data.opportunityId,
+            opportunityName: data.opportunity.nomProjet || 'Opportunité',
+          })
+        }
       } else {
         const res = await fetch('/api/operations', {
           method: 'POST',
@@ -556,6 +615,32 @@ export default function OperationsModule() {
     } finally {
       setDeleteOpen(false)
       setDeleteId(null)
+    }
+  }
+
+  const handleQuickStatusChange = async (opId: string, newStatut: string) => {
+    try {
+      const res = await fetch(`/api/operations/${opId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut: newStatut }),
+      })
+      if (!res.ok) throw new Error('Échec de la mise à jour')
+      const data = await res.json()
+      toast.success(`Statut changé en "${getStatutLabel(newStatut)}"`)
+      await fetchOperations()
+
+      // Check if all operations of the parent opportunity are complete
+      if (data.allOperationsComplete && data.opportunity) {
+        setOpportunityCompleteDialog({
+          open: true,
+          opportunityId: data.opportunity.id || data.opportunityId,
+          opportunityName: data.opportunity.nomProjet || 'Opportunité',
+        })
+      }
+    } catch (err) {
+      console.error('Status change failed:', err)
+      toast.error('Erreur lors du changement de statut')
     }
   }
 
@@ -601,6 +686,7 @@ export default function OperationsModule() {
 
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             <StatutBadge statut={op.statut} />
+            <QuickStatusButtons statut={op.statut} operationId={op.id} onChange={handleQuickStatusChange} />
             <PrioriteBadge priorite={op.priorite} />
           </div>
 
@@ -980,7 +1066,12 @@ export default function OperationsModule() {
                               <TableCell className="font-mono text-sm">
                                 {op.marge != null ? formatDZD(op.marge) : '—'}
                               </TableCell>
-                              <TableCell><StatutBadge statut={op.statut} /></TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <StatutBadge statut={op.statut} />
+                                  <QuickStatusButtons statut={op.statut} operationId={op.id} onChange={handleQuickStatusChange} />
+                                </div>
+                              </TableCell>
                               <TableCell><PrioriteBadge priorite={op.priorite} /></TableCell>
                               <TableCell className="text-sm">{formatDate(op.datePrevue)}</TableCell>
                               <TableCell className="text-right">
@@ -1285,20 +1376,35 @@ export default function OperationsModule() {
                 <Label className="text-sm">Statut</Label>
                 <Select
                   value={formData.statut}
-                  onValueChange={v => setFormData(f => ({ ...f, statut: v }))}
+                  onValueChange={v => {
+                    if (editingId) {
+                      const allowed = VALID_TRANSITIONS[currentStatut] || []
+                      // Allow staying on same status or transitioning forward
+                      if (v !== currentStatut && !allowed.includes(v)) {
+                        toast.error('Transition non autorisée : vous ne pouvez pas revenir en arrière')
+                        return
+                      }
+                    }
+                    setFormData(f => ({ ...f, statut: v }))
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUTS.map(s => (
-                      <SelectItem key={s.value} value={s.value}>
-                        <span className="flex items-center gap-2">
-                          {STATUT_COLORS[s.value]?.icon}
-                          {s.label}
-                        </span>
-                      </SelectItem>
-                    ))}
+                    {STATUTS.map(s => {
+                      // In edit mode, show all statuses but disable invalid ones
+                      const isDisabled = editingId ? (s.value !== currentStatut && !(VALID_TRANSITIONS[currentStatut] || []).includes(s.value)) : false
+                      return (
+                        <SelectItem key={s.value} value={s.value} disabled={isDisabled}>
+                          <span className="flex items-center gap-2">
+                            {STATUT_COLORS[s.value]?.icon}
+                            {s.label}
+                            {isDisabled && <span className="text-xs text-muted-foreground">(non autorisé)</span>}
+                          </span>
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -1381,6 +1487,47 @@ export default function OperationsModule() {
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Opportunity Auto-Complete Dialog */}
+      <AlertDialog open={opportunityCompleteDialog.open} onOpenChange={(open) => setOpportunityCompleteDialog(prev => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              Toutes les opérations sont terminées !
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Toutes les opérations de l&apos;opportunité <strong>&quot;{opportunityCompleteDialog.opportunityName}&quot;</strong> sont terminées.
+              Voulez-vous passer cette opportunité en statut <strong>Gagné</strong> ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOpportunityCompleteDialog({ open: false, opportunityId: '', opportunityName: '' })}>
+              Plus tard
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                try {
+                  const res = await fetch(`/api/opportunities/${opportunityCompleteDialog.opportunityId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ statut: 'Gagné' }),
+                  })
+                  if (!res.ok) throw new Error('Échec')
+                  toast.success('Opportunité passée en "Gagné" !')
+                } catch {
+                  toast.error('Erreur lors de la mise à jour de l\'opportunité')
+                } finally {
+                  setOpportunityCompleteDialog({ open: false, opportunityId: '', opportunityName: '' })
+                }
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Oui, passer en Gagné
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

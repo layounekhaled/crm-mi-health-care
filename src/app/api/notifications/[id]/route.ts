@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getAuthUser } from '@/lib/auth-helpers'
 
 // PATCH /api/notifications/[id] - Mark as read/unread
 export async function PATCH(
@@ -8,7 +9,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const userId = request.headers.get('x-user-id')
+    const authUser = await getAuthUser(request)
+    const headerUserId = request.headers.get('x-user-id')
+    const userId = authUser?.id || headerUserId
     if (!userId) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
@@ -40,14 +43,15 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/notifications/[id]
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
-    const userId = request.headers.get('x-user-id')
+    const authUser = await getAuthUser(request)
+    const headerUserId = request.headers.get('x-user-id')
+    const userId = authUser?.id || headerUserId
     if (!userId) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
