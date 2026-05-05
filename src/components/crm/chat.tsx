@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { toast } from 'sonner'
 import {
   MessageCircle,
   X,
@@ -20,6 +21,8 @@ import {
   Loader2,
   CheckCheck,
   AlertCircle,
+  Bell,
+  BellOff,
 } from 'lucide-react'
 
 interface Conversation {
@@ -47,6 +50,15 @@ interface Employee {
   id: string
   nom: string
   role: string
+}
+
+interface ChatMessage {
+  id: string
+  conversationId: string
+  contenu: string
+  createdAt: string
+  expediteurId: string
+  expediteur: { id: string; nom: string }
 }
 
 const roleColors: Record<string, string> = {
@@ -85,6 +97,26 @@ function formatTime(dateStr: string) {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }
 
+// Son de notification léger
+function playNotificationSound() {
+  try {
+    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+    oscillator.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
+    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1)
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2)
+    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.35)
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(audioContext.currentTime + 0.35)
+  } catch {
+    // Audio non supporté, on ignore
+  }
+}
+
 export default function ChatWidget() {
   const { user } = useAuth()
   const { currentUser } = useCRMStore()
@@ -100,10 +132,14 @@ export default function ChatWidget() {
   const [isSending, setIsSending] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
   const [employeesLoading, setEmployeesLoading] = useState(false)
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [lastSeenUnread, setLastSeenUnread] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const lastPollTimeRef = useRef<string>(new Date().toISOString())
+  const previousConversationsRef = useRef<Map<string, { unreadCount: number; lastMessageId: string }>>(new Map())
+  const hasInitializedRef = useRef(false)
 
   const employeId = user?.employeId || currentUser?.employeId
 
@@ -144,9 +180,15 @@ export default function ChatWidget() {
     }
   }, [])
 
-  // Poll for new messages
+  // Get conversation name helper (used for notifications)
+  const getConvNameHelper = useCallback((conv: Conversation) => {
+    if (conv.type === 'group' && conv.nom) return conv.nom
+    const other = conv.participants.find((p) => p.employeId !== employeId)
+    return other?.employe?.nom || 'Conversation'
+  }, [employeId])
+
+  // Poll for new messages (works when chat is open OR closed)
   const pollNewMessages = useCallback(async () => {
-    if (!isOpen || !selectedConversation) return
     try {
       const res = await fetch(
         `/api/chat/messages/latest?since=${encodeURIComponent(lastPollTimeRef.current)}`,
@@ -154,35 +196,166 @@ export default function ChatWidget() {
       )
       if (res.ok) {
         const data = await res.json()
-        const newMsgs = data.messages || data
+        const newMsgs: ChatMessage[] = data.messages || data
         if (Array.isArray(newMsgs) && newMsgs.length > 0) {
-          const relevantMsgs = newMsgs.filter(
-            (m: { conversationId: string }) => m.conversationId === selectedConversation.id
-          )
-          if (relevantMsgs.length > 0) {
-            setMessages((prev) => {
-              const existingIds = new Set(prev.map((m) => m.id))
-              const filtered = relevantMsgs.filter((m: { id: string }) => !existingIds.has(m.id))
-              return [...prev, ...filtered]
-            })
+          // Filtrer les messages des autres (pas les nôtres)
+          const otherMsgs = newMsgs.filter((m) => m.expediteurId !== employeId)
+
+          if (otherMsgs.length > 0) {
+            // Mettre à jour les messages si une conversation est ouverte
+            if (isOpen && selectedConversation) {
+              const relevantMsgs = otherMsgs.filter(
+                (m) => m.conversationId === selectedConversation.id
+              )
+              if (relevantMsgs.length > 0) {
+                setMessages((prev) => {
+                  const existingIds = new Set(prev.map((m) => m.id))
+                  const filtered = relevantMsgs.filter((m) => !existingIds.has(m.id))
+                  return [...prev, ...filtered]
+                })
+              }
+            }
+
+            // Notification pour les messages dans d'autres conversations ou si le chat est fermé
+            if (notificationsEnabled) {
+              // Grouper les messages par conversation
+              const msgsByConv = new Map<string, ChatMessage[]>()
+              otherMsgs.forEach((msg) => {
+                const existing = msgsByConv.get(msg.conversationId) || []
+                existing.push(msg)
+                msgsByConv.set(msg.conversationId, existing)
+              })
+
+              for (const [convId, convMsgs] of msgsByConv) {
+                // Ne pas notifier si on a la conversation ouverte et sélectionnée
+                const isCurrentConv = isOpen && selectedConversation?.id === convId
+                if (isCurrentConv) continue
+
+                // Trouver le nom de la conversation
+                const conv = conversations.find((c) => c.id === convId)
+                const convName = conv
+                  ? getConvNameHelper(conv)
+                  : 'Nouvelle conversation'
+
+                const lastMsg = convMsgs[convMsgs.length - 1]
+                const senderName = lastMsg.expediteur?.nom || 'Quelqu\'un'
+                const preview = lastMsg.contenu.length > 50
+                  ? lastMsg.contenu.slice(0, 50) + '...'
+                  : lastMsg.contenu
+
+                // Toast notification
+                toast.info(`${senderName} - ${convName}`, {
+                  description: preview,
+                  duration: 4000,
+                  action: {
+                    label: 'Voir',
+                    onClick: () => {
+                      setIsOpen(true)
+                      if (conv) {
+                        selectConversation(conv)
+                      }
+                    },
+                  },
+                })
+
+                // Son de notification
+                playNotificationSound()
+              }
+            }
           }
+
           lastPollTimeRef.current = new Date().toISOString()
+          // Rafraîchir les conversations pour mettre à jour les unreadCount
           fetchConversations()
         }
       }
     } catch {
       // silent fail for polling
     }
-  }, [isOpen, selectedConversation, fetchConversations])
+  }, [isOpen, selectedConversation, employeId, conversations, getConvNameHelper, fetchConversations, notificationsEnabled])
 
-  // Start/stop polling
+  // Détecter les changements de unreadCount pour les notifications (quand le chat est fermé)
   useEffect(() => {
-    if (isOpen) {
-      fetchConversations()
-      pollingRef.current = setInterval(pollNewMessages, 5000)
+    const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
+
+    if (hasInitializedRef.current && totalUnread > lastSeenUnread && !isOpen) {
+      // Il y a de nouveaux messages non lus et le chat est fermé
+      const increasedConv = conversations.find((conv) => {
+        const prev = previousConversationsRef.current.get(conv.id)
+        return prev && conv.unreadCount > prev.unreadCount
+      })
+
+      if (increasedConv && notificationsEnabled) {
+        const convName = getConvNameHelper(increasedConv)
+        const lastMsg = increasedConv.messages?.[0]
+        const senderName = lastMsg?.expediteur?.nom || 'Quelqu\'un'
+        const preview = lastMsg?.contenu
+          ? lastMsg.contenu.length > 50
+            ? lastMsg.contenu.slice(0, 50) + '...'
+            : lastMsg.contenu
+          : 'Nouveau message'
+
+        playNotificationSound()
+
+        toast.info(`💬 ${senderName} - ${convName}`, {
+          description: preview,
+          duration: 4000,
+          action: {
+            label: 'Ouvrir',
+            onClick: () => {
+              setIsOpen(true)
+            },
+          },
+        })
+      }
     }
+
+    // Mettre à jour la référence précédente
+    const newMap = new Map<string, { unreadCount: number; lastMessageId: string }>()
+    conversations.forEach((conv) => {
+      newMap.set(conv.id, {
+        unreadCount: conv.unreadCount,
+        lastMessageId: conv.messages?.[0]?.id || '',
+      })
+    })
+    previousConversationsRef.current = newMap
+    setLastSeenUnread(totalUnread)
+    hasInitializedRef.current = true
+  }, [conversations, isOpen, lastSeenUnread, getConvNameHelper, notificationsEnabled])
+
+  // Marquer comme lu quand on sélectionne une conversation
+  useEffect(() => {
+    if (selectedConversation && isOpen) {
+      // Appeler l'API pour marquer comme lu
+      fetch(`/api/chat/conversations/${selectedConversation.id}/read`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      }).catch(() => {})
+    }
+  }, [selectedConversation, isOpen])
+
+  // Start/stop polling - always poll even when chat is closed
+  useEffect(() => {
+    // Premier fetch
+    fetchConversations()
+
+    // Polling toutes les 5s (même quand le chat est fermé)
+    pollingRef.current = setInterval(() => {
+      pollNewMessages()
+      // Rafraîchir les conversations moins souvent quand le chat est fermé
+      if (isOpen) {
+        fetchConversations()
+      }
+    }, 5000)
+
+    // Rafraîchir les conversations toutes les 15s quand le chat est fermé
+    const convPollRef = setInterval(() => {
+      if (!isOpen) fetchConversations()
+    }, 15000)
+
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current)
+      clearInterval(convPollRef)
     }
   }, [isOpen, fetchConversations, pollNewMessages])
 
@@ -326,10 +499,8 @@ export default function ChatWidget() {
 
   // Trier les conversations : Général en premier, puis par date
   const sortedConversations = [...conversations].sort((a, b) => {
-    // Canal Général toujours en premier
     if (a.type === 'group' && a.nom === 'Général') return -1
     if (b.type === 'group' && b.nom === 'Général') return 1
-    // Ensuite par date de mise à jour
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   })
 
@@ -348,7 +519,7 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* Floating Chat Button */}
+      {/* Floating Chat Button with notification badge */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -362,9 +533,17 @@ export default function ChatWidget() {
           >
             <MessageCircle className="h-6 w-6" />
             {totalUnread > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F6852A] px-1 text-[10px] font-bold text-white">
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F6852A] px-1 text-[10px] font-bold text-white"
+              >
                 {totalUnread > 99 ? '99+' : totalUnread}
-              </span>
+              </motion.span>
+            )}
+            {/* Pulse animation when there are unread messages */}
+            {totalUnread > 0 && (
+              <span className="absolute inset-0 rounded-full animate-ping bg-[#F6852A]/30" />
             )}
           </motion.button>
         )}
@@ -434,18 +613,32 @@ export default function ChatWidget() {
                   )}
                 </div>
               )}
-              <button
-                onClick={() => {
-                  setIsOpen(false)
-                  setSelectedConversation(null)
-                  setShowNewChat(false)
-                  setChatError(null)
-                  setSearchQuery('')
-                }}
-                className="shrink-0 rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* Toggle notifications */}
+                <button
+                  onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                  className="shrink-0 rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                  title={notificationsEnabled ? 'Désactiver les notifications' : 'Activer les notifications'}
+                >
+                  {notificationsEnabled ? (
+                    <Bell className="h-3.5 w-3.5" />
+                  ) : (
+                    <BellOff className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    setSelectedConversation(null)
+                    setShowNewChat(false)
+                    setChatError(null)
+                    setSearchQuery('')
+                  }}
+                  className="shrink-0 rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {/* Error Banner */}
