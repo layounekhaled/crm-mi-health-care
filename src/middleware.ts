@@ -30,12 +30,27 @@ export async function middleware(request: NextRequest) {
     })
 
     if (!token) {
+      // For API routes, return 401 JSON instead of redirecting
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Non autorisé', message: 'Authentification requise' },
+          { status: 401 }
+        )
+      }
+      // For page routes, redirect to login
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('callbackUrl', request.url)
       return NextResponse.redirect(loginUrl)
     }
   } catch {
-    // If token verification fails, redirect to login
+    // For API routes, return 401 JSON instead of redirecting
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Non autorisé', message: 'Authentification requise' },
+        { status: 401 }
+      )
+    }
+    // For page routes, redirect to login
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }

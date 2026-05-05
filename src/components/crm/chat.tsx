@@ -18,6 +18,7 @@ import {
   Users,
   Loader2,
   CheckCheck,
+  AlertCircle,
 } from 'lucide-react'
 
 interface Conversation {
@@ -96,6 +97,8 @@ export default function ChatWidget() {
   const [showNewChat, setShowNewChat] = useState(false)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [isSending, setIsSending] = useState(false)
+  const [chatError, setChatError] = useState<string | null>(null)
+  const [employeesLoading, setEmployeesLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
@@ -106,22 +109,24 @@ export default function ChatWidget() {
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await fetch('/api/chat/conversations')
+      const res = await fetch('/api/chat/conversations', { credentials: 'same-origin' })
       if (res.ok) {
         const data = await res.json()
         if (Array.isArray(data)) {
           setConversations(data)
         }
+      } else if (res.status === 401) {
+        console.warn('[CHAT] Session expirée, reconnexion nécessaire')
       }
-    } catch {
-      // silent fail
+    } catch (err) {
+      console.error('[CHAT] Erreur fetch conversations:', err)
     }
   }, [])
 
   // Fetch messages for a conversation
   const fetchMessages = useCallback(async (conversationId: string) => {
     try {
-      const res = await fetch(`/api/chat/conversations/${conversationId}`)
+      const res = await fetch(`/api/chat/conversations/${conversationId}`, { credentials: 'same-origin' })
       if (res.ok) {
         const data = await res.json()
         if (data && Array.isArray(data.messages)) {
@@ -129,8 +134,8 @@ export default function ChatWidget() {
           lastPollTimeRef.current = new Date().toISOString()
         }
       }
-    } catch {
-      // silent fail
+    } catch (err) {
+      console.error('[CHAT] Erreur fetch messages:', err)
     }
   }, [])
 
@@ -139,7 +144,8 @@ export default function ChatWidget() {
     if (!isOpen || !selectedConversation) return
     try {
       const res = await fetch(
-        `/api/chat/messages/latest?since=${encodeURIComponent(lastPollTimeRef.current)}`
+        `/api/chat/messages/latest?since=${encodeURIComponent(lastPollTimeRef.current)}`,
+        { credentials: 'same-origin' }
       )
       if (res.ok) {
         const data = await res.json()
@@ -156,12 +162,11 @@ export default function ChatWidget() {
             })
           }
           lastPollTimeRef.current = new Date().toISOString()
-          // Also refresh conversations list to update last message preview
           fetchConversations()
         }
       }
     } catch {
-      // silent fail
+      // silent fail for polling
     }
   }, [isOpen, selectedConversation, fetchConversations])
 
@@ -169,7 +174,7 @@ export default function ChatWidget() {
   useEffect(() => {
     if (isOpen) {
       fetchConversations()
-      pollingRef.current = setInterval(pollNewMessages, 5000) // Poll every 5s
+      pollingRef.current = setInterval(pollNewMessages, 5000)
     }
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current)
@@ -196,6 +201,7 @@ export default function ChatWidget() {
       const res = await fetch('/api/chat/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({
           conversationId: selectedConversation.id,
           contenu: newMessage.trim(),
@@ -206,9 +212,12 @@ export default function ChatWidget() {
         setMessages((prev) => [...prev, msg])
         setNewMessage('')
         fetchConversations()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        console.error('[CHAT] Erreur envoi message:', err)
       }
-    } catch {
-      // silent fail
+    } catch (err) {
+      console.error('[CHAT] Erreur réseau envoi:', err)
     } finally {
       setIsSending(false)
     }
@@ -217,27 +226,40 @@ export default function ChatWidget() {
   // Start new conversation
   const startConversation = async (targetEmployeId: string) => {
     setIsLoading(true)
+    setChatError(null)
     try {
+      console.log('[CHAT] Démarrage conversation avec:', targetEmployeId)
       const res = await fetch('/api/chat/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({
           type: 'direct',
           participantIds: [targetEmployeId],
         }),
       })
+      
+      console.log('[CHAT] Réponse statut:', res.status, res.statusText)
+      
       if (res.ok) {
         const conv = await res.json()
+        console.log('[CHAT] Conversation créée/récupérée:', conv.id)
         setSelectedConversation(conv)
         setMessages(conv.messages || [])
         setShowNewChat(false)
+        setSearchQuery('')
         fetchConversations()
+      } else if (res.status === 401) {
+        setChatError('Session expirée. Veuillez vous reconnecter.')
+        console.error('[CHAT] 401 Non autorisé')
       } else {
         const err = await res.json().catch(() => ({ error: 'Erreur inconnue' }))
-        console.error('[CHAT] Error starting conversation:', err)
+        setChatError(err.error || 'Erreur lors de la création de la conversation')
+        console.error('[CHAT] Erreur création conversation:', err)
       }
     } catch (error) {
-      console.error('[CHAT] Network error:', error)
+      setChatError('Erreur réseau. Vérifiez votre connexion.')
+      console.error('[CHAT] Erreur réseau:', error)
     } finally {
       setIsLoading(false)
     }
@@ -252,9 +274,15 @@ export default function ChatWidget() {
   // Fetch employees for new chat
   useEffect(() => {
     if (showNewChat) {
-      fetch('/api/employees/list')
+      setEmployeesLoading(true)
+      setChatError(null)
+      fetch('/api/employees/list', { credentials: 'same-origin' })
         .then((res) => {
           if (res.ok) return res.json()
+          if (res.status === 401) {
+            setChatError('Session expirée. Veuillez vous reconnecter.')
+            return []
+          }
           return []
         })
         .then((data) => {
@@ -265,6 +293,7 @@ export default function ChatWidget() {
           }
         })
         .catch(() => setEmployees([]))
+        .finally(() => setEmployeesLoading(false))
     }
   }, [showNewChat])
 
@@ -367,7 +396,7 @@ export default function ChatWidget() {
               ) : showNewChat ? (
                 <div className="flex items-center gap-3 flex-1">
                   <button
-                    onClick={() => setShowNewChat(false)}
+                    onClick={() => { setShowNewChat(false); setSearchQuery(''); setChatError(null) }}
                     className="shrink-0 rounded-full p-1 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -390,6 +419,8 @@ export default function ChatWidget() {
                   setIsOpen(false)
                   setSelectedConversation(null)
                   setShowNewChat(false)
+                  setChatError(null)
+                  setSearchQuery('')
                 }}
                 className="shrink-0 rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
               >
@@ -397,12 +428,29 @@ export default function ChatWidget() {
               </button>
             </div>
 
+            {/* Error Banner */}
+            {chatError && (
+              <div className="flex items-center gap-2 bg-red-50 border-b border-red-100 px-4 py-2 text-xs text-red-700">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                <span className="flex-1">{chatError}</span>
+                <button onClick={() => setChatError(null)} className="shrink-0 text-red-400 hover:text-red-600">
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+
             {/* Content */}
             {selectedConversation && !showNewChat ? (
               /* Messages View */
               <div className="flex flex-1 flex-col min-h-0">
                 <ScrollArea className="flex-1 px-4 py-3">
                   <div className="space-y-3">
+                    {messages.length === 0 && (
+                      <div className="flex flex-col items-center gap-2 py-8">
+                        <MessageCircle className="h-8 w-8 text-slate-300" />
+                        <p className="text-sm text-slate-400">Commencez la conversation</p>
+                      </div>
+                    )}
                     {messages.map((msg) => {
                       const isOwn = msg.expediteurId === employeId
                       return (
@@ -493,7 +541,7 @@ export default function ChatWidget() {
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="py-2">
-                    {isLoading ? (
+                    {employeesLoading ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
                       </div>
@@ -506,14 +554,15 @@ export default function ChatWidget() {
                         <button
                           key={emp.id}
                           onClick={() => startConversation(emp.id)}
-                          className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors"
+                          disabled={isLoading}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
                         >
                           <Avatar className="h-9 w-9">
                             <AvatarFallback className="bg-[#134885]/10 text-xs text-[#134885]">
                               {getInitials(emp.nom)}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="text-left">
+                          <div className="text-left flex-1">
                             <p className="text-sm font-medium text-slate-800">{emp.nom}</p>
                             <span
                               className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
@@ -523,6 +572,9 @@ export default function ChatWidget() {
                               {roleLabels[emp.role] || emp.role}
                             </span>
                           </div>
+                          {isLoading && (
+                            <Loader2 className="h-4 w-4 animate-spin text-[#134885]" />
+                          )}
                         </button>
                       ))
                     )}
