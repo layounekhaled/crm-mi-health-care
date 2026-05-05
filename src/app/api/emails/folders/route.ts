@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
         pass: emailConfig.emailPassword,
       },
       logger: false as unknown as undefined,
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
     })
 
     try {
@@ -83,8 +86,21 @@ export async function GET(request: NextRequest) {
     } catch (imapError: unknown) {
       const errorMsg = imapError instanceof Error ? imapError.message : 'Erreur de connexion IMAP'
       console.error('[EMAIL_FOLDERS_IMAP]', errorMsg)
+
+      // Messages d'erreur plus clairs
+      let userMessage = 'Impossible de se connecter au serveur email'
+      if (errorMsg.includes('AUTHENTICATE FAILED') || errorMsg.includes('Invalid credentials')) {
+        userMessage = 'Identifiants incorrects. Vérifiez votre email et mot de passe d\'application dans les paramètres.'
+      } else if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo')) {
+        userMessage = `Serveur IMAP "${emailConfig.imapHost}" introuvable. Vérifiez la configuration.`
+      } else if (errorMsg.includes('ECONNREFUSED')) {
+        userMessage = `Connexion IMAP refusée par ${emailConfig.imapHost}:${emailConfig.imapPort}. Vérifiez le port.`
+      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout')) {
+        userMessage = `Le serveur IMAP ${emailConfig.imapHost} ne répond pas. Réessayez plus tard.`
+      }
+
       return NextResponse.json(
-        { error: 'Impossible de se connecter au serveur email', details: errorMsg },
+        { error: userMessage, details: errorMsg },
         { status: 400 }
       )
     }

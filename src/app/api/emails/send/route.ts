@@ -51,6 +51,9 @@ export async function POST(request: NextRequest) {
         user: emailConfig.email,
         pass: emailConfig.emailPassword,
       },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
     })
 
     // Envoyer l'email
@@ -65,6 +68,8 @@ export async function POST(request: NextRequest) {
       replyTo: replyTo || undefined,
     })
 
+    transporter.close()
+
     return NextResponse.json({
       success: true,
       messageId: info.messageId,
@@ -72,8 +77,18 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[EMAIL_SEND_POST]', error)
     const message = error instanceof Error ? error.message : 'Erreur inconnue'
+
+    let userMessage = "Impossible d'envoyer l'email"
+    if (message.includes('Invalid login') || message.includes('AUTH') || message.includes('credentials')) {
+      userMessage = 'Identifiants SMTP incorrects. Vérifiez votre configuration email.'
+    } else if (message.includes('ENOTFOUND') || message.includes('getaddrinfo')) {
+      userMessage = `Serveur SMTP introuvable. Vérifiez la configuration.`
+    } else if (message.includes('ECONNREFUSED')) {
+      userMessage = 'Connexion SMTP refusée. Vérifiez le port et le serveur.'
+    }
+
     return NextResponse.json(
-      { error: "Impossible d'envoyer l'email", details: message },
+      { error: userMessage, details: message },
       { status: 500 }
     )
   }

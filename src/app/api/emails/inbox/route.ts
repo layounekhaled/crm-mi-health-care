@@ -34,6 +34,9 @@ export async function GET(request: NextRequest) {
         pass: emailConfig.emailPassword,
       },
       logger: false as unknown as undefined,
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
     })
 
     try {
@@ -52,8 +55,9 @@ export async function GET(request: NextRequest) {
 
         // Fetch messages for the page
         const messages: Record<string, unknown>[] = []
-        const startSeq = Math.max(1, (totalMessages.length || 0) - (page * limit) + 1)
-        const endSeq = (totalMessages.length || 0) - ((page - 1) * limit)
+        const total = totalMessages.length || 0
+        const startSeq = Math.max(1, total - (page * limit) + 1)
+        const endSeq = total - ((page - 1) * limit)
 
         if (endSeq < 1) {
           lock.release()
@@ -63,7 +67,7 @@ export async function GET(request: NextRequest) {
 
         // Utiliser fetch pour récupérer les en-têtes
         const range = `${Math.max(1, startSeq)}:${Math.max(1, endSeq)}`
-        
+
         for await (const msg of client.fetch(range, {
           envelope: true,
           flags: true,
@@ -84,7 +88,6 @@ export async function GET(request: NextRequest) {
         lock.release()
         await client.logout()
 
-        const total = totalMessages.length || 0
         const totalPages = Math.ceil(total / limit)
 
         return NextResponse.json({
@@ -93,14 +96,28 @@ export async function GET(request: NextRequest) {
           page,
           totalPages,
         })
-      } finally {
-        lock.release()
+      } catch (innerError) {
+        // S'assurer que le lock est libéré en cas d'erreur
+        try { lock.release() } catch { /* déjà libéré */ }
+        throw innerError
       }
     } catch (imapError: unknown) {
       const errorMsg = imapError instanceof Error ? imapError.message : 'Erreur de connexion IMAP'
       console.error('[EMAIL_INBOX_IMAP]', errorMsg)
+
+      let userMessage = 'Impossible de se connecter au serveur email'
+      if (errorMsg.includes('AUTHENTICATE FAILED') || errorMsg.includes('Invalid credentials')) {
+        userMessage = 'Identifiants incorrects. Vérifiez votre configuration email.'
+      } else if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo')) {
+        userMessage = `Serveur IMAP "${emailConfig.imapHost}" introuvable.`
+      } else if (errorMsg.includes('ECONNREFUSED')) {
+        userMessage = `Connexion IMAP refusée par ${emailConfig.imapHost}:${emailConfig.imapPort}.`
+      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout')) {
+        userMessage = `Le serveur IMAP ${emailConfig.imapHost} ne répond pas.`
+      }
+
       return NextResponse.json(
-        { error: 'Impossible de se connecter au serveur email', details: errorMsg },
+        { error: userMessage, details: errorMsg },
         { status: 400 }
       )
     }

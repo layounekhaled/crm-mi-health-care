@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import {
   Mail,
@@ -33,14 +32,16 @@ import {
   Reply,
   Forward,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
   FolderOpen,
   AlertCircle,
   Check,
   X,
   Eye,
+  Shield,
+  Wifi,
+  WifiOff,
 } from 'lucide-react'
+import DOMPurify from 'isomorphic-dompurify'
 
 interface EmailConfig {
   employeId: string
@@ -88,10 +89,22 @@ interface EmailDetail {
 }
 
 // Presets de configuration pour les fournisseurs courants
-const emailPresets: Record<string, Partial<EmailConfig>> = {
-  gmail: { imapHost: 'imap.gmail.com', imapPort: 993, imapTls: true, smtpHost: 'smtp.gmail.com', smtpPort: 587, smtpTls: true },
-  outlook: { imapHost: 'outlook.office365.com', imapPort: 993, imapTls: true, smtpHost: 'smtp.office365.com', smtpPort: 587, smtpTls: true },
-  yahoo: { imapHost: 'imap.mail.yahoo.com', imapPort: 993, imapTls: true, smtpHost: 'smtp.mail.yahoo.com', smtpPort: 587, smtpTls: true },
+const emailPresets: Record<string, Partial<EmailConfig> & { helpUrl?: string; helpText?: string }> = {
+  gmail: {
+    imapHost: 'imap.gmail.com', imapPort: 993, imapTls: true,
+    smtpHost: 'smtp.gmail.com', smtpPort: 587, smtpTls: true,
+    helpText: 'Gmail nécessite un "Mot de passe d\'application". Allez dans : Paramètres Google → Sécurité → Validation en deux étapes (activée) → Mots de passe d\'application → Créez-en un pour "Mail".',
+  },
+  outlook: {
+    imapHost: 'outlook.office365.com', imapPort: 993, imapTls: true,
+    smtpHost: 'smtp.office365.com', smtpPort: 587, smtpTls: true,
+    helpText: 'Outlook/Office 365 : Utilisez votre mot de passe habituel. Si l\'authentification à deux facteurs est activée, créez un mot de passe d\'application.',
+  },
+  yahoo: {
+    imapHost: 'imap.mail.yahoo.com', imapPort: 993, imapTls: true,
+    smtpHost: 'smtp.mail.yahoo.com', smtpPort: 587, smtpTls: true,
+    helpText: 'Yahoo nécessite un "Mot de passe d\'application". Allez dans : Paramètres du compte → Sécurité → Mots de passe d\'application.',
+  },
   custom: {},
 }
 
@@ -141,6 +154,29 @@ function extractEmailAddress(from: { name: string; address: string }[]) {
   return from.map((f) => f.name ? `${f.name} <${f.address}>` : f.address).join(', ')
 }
 
+// Sanitizer HTML pour les emails - retire les scripts et contenus dangereux
+function sanitizeHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'hr', 'div', 'span',
+      'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption',
+      'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+      'a', 'img', 'figure', 'figcaption',
+      'b', 'i', 'u', 's', 'em', 'strong', 'small', 'sub', 'sup',
+      'blockquote', 'pre', 'code',
+      'font', 'center',
+    ],
+    ALLOWED_ATTR: [
+      'href', 'src', 'alt', 'title', 'width', 'height', 'style',
+      'class', 'id', 'colspan', 'rowspan', 'cellpadding', 'cellspacing',
+      'border', 'align', 'valign', 'bgcolor', 'color', 'size', 'face',
+      'target', 'rel',
+    ],
+    ALLOW_DATA_ATTR: false,
+    ADD_ATTR: ['target'],
+  })
+}
+
 export default function EmailsModule() {
   const { user } = useAuth()
   const { currentUser } = useCRMStore()
@@ -155,9 +191,11 @@ export default function EmailsModule() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [isLoadingMessage, setIsLoadingMessage] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showConfig, setShowConfig] = useState(false)
   const [showCompose, setShowCompose] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
 
   // Config form state
   const [configForm, setConfigForm] = useState({
@@ -171,6 +209,15 @@ export default function EmailsModule() {
     emailPassword: '',
     preset: 'custom',
   })
+
+  // Test result state
+  const [testResult, setTestResult] = useState<{
+    success: boolean
+    results?: {
+      imap: { success: boolean; message: string }
+      smtp: { success: boolean; message: string }
+    }
+  } | null>(null)
 
   // Compose form state
   const [composeForm, setComposeForm] = useState({
@@ -209,6 +256,7 @@ export default function EmailsModule() {
   const fetchFolders = useCallback(async () => {
     if (!config?.isConfigured) return
     setIsLoadingFolders(true)
+    setConnectionError(null)
     try {
       const res = await fetch('/api/emails/folders', { credentials: 'same-origin' })
       if (res.ok) {
@@ -216,10 +264,16 @@ export default function EmailsModule() {
         setFolders(data.folders || [])
       } else {
         const err = await res.json().catch(() => ({}))
-        toast.error('Erreur', { description: err.error || 'Impossible de charger les dossiers' })
+        const errorMessage = err.error || 'Impossible de charger les dossiers'
+        setConnectionError(errorMessage)
+        toast.error('Erreur de connexion', {
+          description: errorMessage,
+          duration: 8000,
+        })
       }
     } catch (err) {
       console.error('[EMAILS] Erreur fetch folders:', err)
+      setConnectionError('Erreur réseau')
     } finally {
       setIsLoadingFolders(false)
     }
@@ -238,7 +292,12 @@ export default function EmailsModule() {
         setMessages(data.messages || [])
       } else {
         const err = await res.json().catch(() => ({}))
-        toast.error('Erreur', { description: err.error || 'Impossible de charger les emails' })
+        const errorMessage = err.error || 'Impossible de charger les emails'
+        setConnectionError(errorMessage)
+        toast.error('Erreur de connexion', {
+          description: errorMessage,
+          duration: 8000,
+        })
       }
     } catch (err) {
       console.error('[EMAILS] Erreur fetch messages:', err)
@@ -269,8 +328,92 @@ export default function EmailsModule() {
     }
   }
 
-  // Save config
+  // Test connection
+  const testConnection = async () => {
+    if (!configForm.email || !configForm.imapHost || !configForm.smtpHost || !configForm.emailPassword) {
+      toast.error('Champs manquants', { description: 'Remplissez tous les champs avant de tester la connexion.' })
+      return
+    }
+
+    setIsTesting(true)
+    setTestResult(null)
+    try {
+      const res = await fetch('/api/emails/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(configForm),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setTestResult(data)
+        if (data.success) {
+          toast.success('Connexion réussie', { description: 'IMAP et SMTP fonctionnent correctement' })
+        } else {
+          const failedParts: string[] = []
+          if (!data.results.imap.success) failedParts.push(`IMAP: ${data.results.imap.message}`)
+          if (!data.results.smtp.success) failedParts.push(`SMTP: ${data.results.smtp.message}`)
+          toast.error('Échec de connexion', {
+            description: failedParts.join(' | '),
+            duration: 10000,
+          })
+        }
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error('Erreur de test', { description: err.error || 'Impossible de tester la connexion' })
+      }
+    } catch (err) {
+      toast.error('Erreur réseau', { description: 'Impossible de joindre le serveur' })
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  // Save config (with test first)
   const saveConfig = async () => {
+    if (!configForm.email || !configForm.imapHost || !configForm.smtpHost) {
+      toast.error('Champs requis', { description: 'Email, serveur IMAP et SMTP sont obligatoires' })
+      return
+    }
+    if (!configForm.emailPassword && !config?.isConfigured) {
+      toast.error('Mot de passe requis', { description: 'Le mot de passe d\'application est obligatoire pour la première configuration' })
+      return
+    }
+
+    // Test la connexion d'abord
+    setIsTesting(true)
+    try {
+      const testRes = await fetch('/api/emails/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(configForm),
+      })
+
+      if (testRes.ok) {
+        const testData = await testRes.json()
+        setTestResult(testData)
+
+        if (!testData.success) {
+          setIsTesting(false)
+          const failedParts: string[] = []
+          if (!testData.results.imap.success) failedParts.push(`IMAP: ${testData.results.imap.message}`)
+          if (!testData.results.smtp.success) failedParts.push(`SMTP: ${testData.results.smtp.message}`)
+          toast.error('Échec de connexion', {
+            description: failedParts.join(' | '),
+            duration: 10000,
+          })
+          return
+        }
+      }
+    } catch {
+      setIsTesting(false)
+      toast.error('Erreur réseau lors du test')
+      return
+    }
+    setIsTesting(false)
+
+    // Si le test est OK, sauvegarder
     try {
       const res = await fetch('/api/emails/config', {
         method: 'POST',
@@ -399,6 +542,7 @@ export default function EmailsModule() {
       smtpPort: p.smtpPort || 587,
       smtpTls: p.smtpTls !== false,
     }))
+    setTestResult(null)
   }
 
   // Configuration setup screen
@@ -415,7 +559,6 @@ export default function EmailsModule() {
               <h2 className="text-xl font-bold text-slate-900">Configurez votre email</h2>
               <p className="mt-2 text-sm text-slate-500 max-w-md">
                 Connectez votre boîte email professionnelle pour lire et envoyer des messages directement depuis le CRM.
-                Vos identifiants sont chiffrés et sécurisés.
               </p>
             </div>
 
@@ -445,27 +588,41 @@ export default function EmailsModule() {
                 </div>
               </div>
 
+              {/* Help text for selected provider */}
+              {configForm.preset !== 'custom' && emailPresets[configForm.preset]?.helpText && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <div className="flex items-start gap-2">
+                    <Shield className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      {emailPresets[configForm.preset].helpText}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <Label className="text-sm font-medium text-slate-700">Adresse email</Label>
                 <Input
                   value={configForm.email}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => { setConfigForm((prev) => ({ ...prev, email: e.target.value })); setTestResult(null) }}
                   placeholder="votre@email.com"
                   className="mt-1"
                 />
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-slate-700">Mot de passe de l'application</Label>
+                <Label className="text-sm font-medium text-slate-700">Mot de passe de l&apos;application</Label>
                 <Input
                   type="password"
                   value={configForm.emailPassword}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, emailPassword: e.target.value }))}
+                  onChange={(e) => { setConfigForm((prev) => ({ ...prev, emailPassword: e.target.value })); setTestResult(null) }}
                   placeholder="Mot de passe d'application"
                   className="mt-1"
                 />
                 <p className="mt-1 text-[11px] text-slate-400">
-                  Utilisez un mot de passe d&apos;application (pas votre mot de passe habituel). Gmail : Paramètres &gt; Sécurité &gt; Mots de passe d&apos;application.
+                  {configForm.preset === 'custom'
+                    ? 'Utilisez un mot de passe d\'application si votre fournisseur le requiert.'
+                    : 'Collez ici le mot de passe d\'application généré ci-dessus.'}
                 </p>
               </div>
 
@@ -474,7 +631,7 @@ export default function EmailsModule() {
                   <Label className="text-sm font-medium text-slate-700">Serveur IMAP</Label>
                   <Input
                     value={configForm.imapHost}
-                    onChange={(e) => setConfigForm((prev) => ({ ...prev, imapHost: e.target.value }))}
+                    onChange={(e) => { setConfigForm((prev) => ({ ...prev, imapHost: e.target.value })); setTestResult(null) }}
                     placeholder="imap.example.com"
                     className="mt-1"
                   />
@@ -495,7 +652,7 @@ export default function EmailsModule() {
                   <Label className="text-sm font-medium text-slate-700">Serveur SMTP</Label>
                   <Input
                     value={configForm.smtpHost}
-                    onChange={(e) => setConfigForm((prev) => ({ ...prev, smtpHost: e.target.value }))}
+                    onChange={(e) => { setConfigForm((prev) => ({ ...prev, smtpHost: e.target.value })); setTestResult(null) }}
                     placeholder="smtp.example.com"
                     className="mt-1"
                   />
@@ -511,14 +668,77 @@ export default function EmailsModule() {
                 </div>
               </div>
 
-              <Button
-                onClick={saveConfig}
-                className="w-full bg-[#134885] hover:bg-[#0D3A6E]"
-                disabled={!configForm.email || !configForm.imapHost || !configForm.smtpHost}
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                Connecter ma boîte email
-              </Button>
+              {/* Test result */}
+              {testResult && (
+                <div className={`rounded-lg border p-3 ${
+                  testResult.success
+                    ? 'border-green-200 bg-green-50'
+                    : 'border-red-200 bg-red-50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    {testResult.success ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <X className="h-4 w-4 text-red-600" />
+                    )}
+                    <span className={`text-sm font-medium ${testResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                      {testResult.success ? 'Connexion réussie' : 'Échec de connexion'}
+                    </span>
+                  </div>
+                  {testResult.results && (
+                    <div className="space-y-1.5 ml-6">
+                      <div className="flex items-center gap-2">
+                        {testResult.results.imap.success ? (
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <X className="h-3.5 w-3.5 text-red-500" />
+                        )}
+                        <span className="text-xs text-slate-700">
+                          IMAP : {testResult.results.imap.message}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {testResult.results.smtp.success ? (
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <X className="h-3.5 w-3.5 text-red-500" />
+                        )}
+                        <span className="text-xs text-slate-700">
+                          SMTP : {testResult.results.smtp.message}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={testConnection}
+                  variant="outline"
+                  className="flex-1 border-slate-200"
+                  disabled={isTesting || !configForm.email || !configForm.imapHost || !configForm.smtpHost || !configForm.emailPassword}
+                >
+                  {isTesting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wifi className="mr-2 h-4 w-4" />
+                  )}
+                  Tester la connexion
+                </Button>
+                <Button
+                  onClick={saveConfig}
+                  className="flex-1 bg-[#134885] hover:bg-[#0D3A6E]"
+                  disabled={isTesting || !configForm.email || !configForm.imapHost || !configForm.smtpHost}
+                >
+                  {isTesting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mail className="mr-2 h-4 w-4" />
+                  )}
+                  Connecter
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -632,7 +852,37 @@ export default function EmailsModule() {
         }
       />
 
-      <div className="flex h-[calc(100vh-80px)]">
+      {/* Connection error banner */}
+      {connectionError && (
+        <div className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <WifiOff className="h-4 w-4 text-red-500 shrink-0" />
+            <span className="text-sm text-red-700">{connectionError}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-600 hover:text-red-700 h-7 text-xs"
+              onClick={() => { fetchFolders(); fetchMessages(selectedFolder) }}
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Réessayer
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-600 hover:text-red-700 h-7 text-xs"
+              onClick={() => setShowConfig(true)}
+            >
+              <Settings className="h-3 w-3 mr-1" />
+              Config
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className={`flex ${connectionError ? 'h-[calc(100vh-130px)]' : 'h-[calc(100vh-80px)]'}`}>
         {/* Sidebar: Folders */}
         <div className="w-56 shrink-0 border-r border-slate-200 bg-white">
           <div className="p-3">
@@ -823,7 +1073,7 @@ export default function EmailsModule() {
                   {selectedMessage.isHtml && selectedMessage.htmlContent ? (
                     <div
                       className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: selectedMessage.htmlContent }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedMessage.htmlContent) }}
                     />
                   ) : (
                     <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed">
@@ -876,16 +1126,53 @@ export default function EmailsModule() {
 
       {/* Config Dialog */}
       <Dialog open={showConfig} onOpenChange={setShowConfig}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Configuration email</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
+            {/* Preset selector */}
+            <div>
+              <Label className="text-sm font-medium">Fournisseur</Label>
+              <div className="mt-1 grid grid-cols-4 gap-2">
+                {[
+                  { id: 'gmail', label: 'Gmail' },
+                  { id: 'outlook', label: 'Outlook' },
+                  { id: 'yahoo', label: 'Yahoo' },
+                  { id: 'custom', label: 'Autre' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handlePresetChange(p.id)}
+                    className={`rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
+                      configForm.preset === p.id
+                        ? 'border-[#134885] bg-[#134885]/5 text-[#134885]'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Help text */}
+            {configForm.preset !== 'custom' && emailPresets[configForm.preset]?.helpText && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+                <div className="flex items-start gap-2">
+                  <Shield className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    {emailPresets[configForm.preset].helpText}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div>
               <Label className="text-sm font-medium">Adresse email</Label>
               <Input
                 value={configForm.email}
-                onChange={(e) => setConfigForm((prev) => ({ ...prev, email: e.target.value }))}
+                onChange={(e) => { setConfigForm((prev) => ({ ...prev, email: e.target.value })); setTestResult(null) }}
               />
             </div>
             <div>
@@ -893,7 +1180,7 @@ export default function EmailsModule() {
               <Input
                 type="password"
                 value={configForm.emailPassword}
-                onChange={(e) => setConfigForm((prev) => ({ ...prev, emailPassword: e.target.value }))}
+                onChange={(e) => { setConfigForm((prev) => ({ ...prev, emailPassword: e.target.value })); setTestResult(null) }}
                 placeholder="Laisser vide pour ne pas changer"
               />
             </div>
@@ -902,7 +1189,7 @@ export default function EmailsModule() {
                 <Label className="text-sm font-medium">Serveur IMAP</Label>
                 <Input
                   value={configForm.imapHost}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, imapHost: e.target.value }))}
+                  onChange={(e) => { setConfigForm((prev) => ({ ...prev, imapHost: e.target.value })); setTestResult(null) }}
                 />
               </div>
               <div>
@@ -919,7 +1206,7 @@ export default function EmailsModule() {
                 <Label className="text-sm font-medium">Serveur SMTP</Label>
                 <Input
                   value={configForm.smtpHost}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, smtpHost: e.target.value }))}
+                  onChange={(e) => { setConfigForm((prev) => ({ ...prev, smtpHost: e.target.value })); setTestResult(null) }}
                 />
               </div>
               <div>
@@ -931,6 +1218,51 @@ export default function EmailsModule() {
                 />
               </div>
             </div>
+
+            {/* Test result in dialog */}
+            {testResult && (
+              <div className={`rounded-lg border p-3 ${
+                testResult.success
+                  ? 'border-green-200 bg-green-50'
+                  : 'border-red-200 bg-red-50'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {testResult.success ? (
+                    <Check className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <X className="h-4 w-4 text-red-600" />
+                  )}
+                  <span className={`text-sm font-medium ${testResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                    {testResult.success ? 'Connexion réussie' : 'Échec de connexion'}
+                  </span>
+                </div>
+                {testResult.results && (
+                  <div className="space-y-1.5 ml-6">
+                    <div className="flex items-center gap-2">
+                      {testResult.results.imap.success ? (
+                        <Check className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <X className="h-3.5 w-3.5 text-red-500" />
+                      )}
+                      <span className="text-xs text-slate-700">
+                        IMAP : {testResult.results.imap.message}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {testResult.results.smtp.success ? (
+                        <Check className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <X className="h-3.5 w-3.5 text-red-500" />
+                      )}
+                      <span className="text-xs text-slate-700">
+                        SMTP : {testResult.results.smtp.message}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center justify-between pt-2">
               <Button
                 variant="destructive"
@@ -945,8 +1277,22 @@ export default function EmailsModule() {
                 Supprimer la config
               </Button>
               <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={testConnection}
+                  disabled={isTesting}
+                >
+                  {isTesting ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wifi className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Tester
+                </Button>
                 <Button variant="outline" onClick={() => setShowConfig(false)}>Annuler</Button>
-                <Button onClick={saveConfig} className="bg-[#134885] hover:bg-[#0D3A6E]">
+                <Button onClick={saveConfig} className="bg-[#134885] hover:bg-[#0D3A6E]" disabled={isTesting}>
+                  {isTesting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
                   Sauvegarder
                 </Button>
               </div>

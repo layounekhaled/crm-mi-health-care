@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 import { ImapFlow } from 'imapflow'
+import { simpleParser } from 'mailparser'
 
 // GET /api/emails/message - Lire un email spécifique
 export async function GET(request: NextRequest) {
@@ -36,6 +37,9 @@ export async function GET(request: NextRequest) {
         pass: emailConfig.emailPassword,
       },
       logger: false as unknown as undefined,
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
     })
 
     try {
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
       const lock = await client.getMailboxLock(folder)
 
       try {
-        // Récupérer le message complet
+        // Récupérer le message complet avec le source brut
         const msgData = await client.fetchOne(uid, {
           envelope: true,
           flags: true,
@@ -58,31 +62,22 @@ export async function GET(request: NextRequest) {
         lock.release()
         await client.logout()
 
-        // Parser le source pour extraire le texte et HTML
+        // Parser le source avec mailparser pour une extraction fiable
         const source = msgData.source?.toString('utf-8') || ''
-        
-        // Extraire les parties texte et HTML du source
         let textContent = ''
         let htmlContent = ''
-        
-        // Simple extraction : chercher les boundaries et les parties
-        const textMatch = source.match(/Content-Type:\s*text\/plain[\s\S]*?\r\n\r\n([\s\S]*?)(?=\r\n--|$)/i)
-        const htmlMatch = source.match(/Content-Type:\s*text\/html[\s\S]*?\r\n\r\n([\s\S]*?)(?=\r\n--|$)/i)
-        
-        if (htmlMatch) {
-          htmlContent = htmlMatch[1]
-          // Nettoyer les encodages quoted-printable
-          htmlContent = htmlContent.replace(/=\r?\n/g, '')
-          htmlContent = htmlContent.replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-        } else if (textMatch) {
-          textContent = textMatch[1]
-          textContent = textContent.replace(/=\r?\n/g, '')
-          textContent = textContent.replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-        } else {
-          // Pas de multipart, essayer de prendre tout le contenu
+
+        try {
+          const parsed = await simpleParser(source)
+          textContent = parsed.text || ''
+          htmlContent = parsed.html || ''
+        } catch (parseError) {
+          console.error('[EMAIL_MESSAGE_PARSE]', parseError)
+          // Fallback: extraire le texte brut du source
           const bodyStart = source.indexOf('\r\n\r\n')
           if (bodyStart > -1) {
             textContent = source.substring(bodyStart + 4)
+            // Nettoyer les encodages quoted-printable
             textContent = textContent.replace(/=\r?\n/g, '')
             textContent = textContent.replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
           }
@@ -96,14 +91,21 @@ export async function GET(request: NextRequest) {
           htmlContent,
           isHtml: !!htmlContent,
         })
-      } finally {
-        lock.release()
+      } catch (innerError) {
+        try { lock.release() } catch { /* déjà libéré */ }
+        throw innerError
       }
     } catch (imapError: unknown) {
       const errorMsg = imapError instanceof Error ? imapError.message : 'Erreur de connexion IMAP'
       console.error('[EMAIL_MESSAGE_IMAP]', errorMsg)
+
+      let userMessage = 'Impossible de lire le message'
+      if (errorMsg.includes('AUTHENTICATE FAILED') || errorMsg.includes('Invalid credentials')) {
+        userMessage = 'Identifiants incorrects. Vérifiez votre configuration email.'
+      }
+
       return NextResponse.json(
-        { error: 'Impossible de lire le message', details: errorMsg },
+        { error: userMessage, details: errorMsg },
         { status: 400 }
       )
     }
@@ -150,6 +152,9 @@ export async function DELETE(request: NextRequest) {
         pass: emailConfig.emailPassword,
       },
       logger: false as unknown as undefined,
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
     })
 
     try {
@@ -161,9 +166,8 @@ export async function DELETE(request: NextRequest) {
         await client.messageFlagsAdd(uid, ['\\Deleted'], { uid: true })
         // Expunger
         await client.expunge()
-        lock.release()
       } finally {
-        lock.release()
+        try { lock.release() } catch { /* déjà libéré */ }
       }
 
       await client.logout()
