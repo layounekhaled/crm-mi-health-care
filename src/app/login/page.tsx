@@ -74,7 +74,7 @@ export default function LoginPage() {
             />
           </div>
           <p className="text-white/80 text-lg font-light max-w-sm mx-auto">
-            DALIA le système qui centralise toute votre activité :
+            &quot;DALIA&quot; le système qui centralise toute votre activité
             <br />
             prospects, ventes, opérations et suivi des clients
           </p>
