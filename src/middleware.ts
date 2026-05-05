@@ -10,8 +10,14 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon.ico')
+    pathname.startsWith('/favicon') ||
+    pathname.startsWith('/logo')
   ) {
+    return NextResponse.next()
+  }
+
+  // Allow static files (images, fonts, etc.)
+  if (pathname.match(/\.(png|jpe?g|svg|ico|webp|gif|woff2?|ttf|eot)$/i)) {
     return NextResponse.next()
   }
 
@@ -37,6 +43,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!login|api/auth|_next/static|_next/image|favicon.ico).*)',
+    '/((?!login|api/auth|_next/static|_next/image|favicon|logo|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.svg|.*\\.ico|.*\\.webp|.*\\.gif|.*\\.woff2?|.*\\.ttf|.*\\.eot).*)',
   ],
 }
