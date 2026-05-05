@@ -13,6 +13,7 @@ import AfterSalesModule from '@/components/crm/after-sales'
 import EmployeesModule from '@/components/crm/employees'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Loader2 } from 'lucide-react'
+import ChatWidget from '@/components/crm/chat'
 
 export default function Home() {
   const { currentPage, sidebarOpen } = useCRMStore()
@@ -72,6 +73,7 @@ export default function Home() {
           {renderPage()}
         </main>
       </div>
+      <ChatWidget />
     </div>
   )
 }
