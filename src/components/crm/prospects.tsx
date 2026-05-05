@@ -551,7 +551,7 @@ export default function ProspectsModule() {
 
   const MobileCard = ({ prospect }: { prospect: Prospect }) => (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-[#FF9900]"
+      className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-[#F6852A]"
       onClick={() => {
         fetchDetail(prospect.id)
         setDetailOpen(true)
@@ -634,7 +634,7 @@ export default function ProspectsModule() {
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="MI HEALTH CARE" className="h-9 w-auto shrink-0 object-contain" />
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-[#003366]">
+              <h1 className="text-xl font-bold tracking-tight text-[#134885]">
                 Prospects & Clients
               </h1>
               <p className="text-xs text-muted-foreground">
@@ -644,7 +644,7 @@ export default function ProspectsModule() {
           </div>
           <Button
             onClick={openAddForm}
-            className="bg-[#003366] hover:bg-[#002244] text-white shadow-md shadow-[#003366]/20 self-start sm:self-auto"
+            className="bg-[#134885] hover:bg-[#0D3A6E] text-white shadow-md shadow-[#134885]/20 self-start sm:self-auto"
           >
             <Plus className="size-4 mr-2" />
             Nouveau Prospect
@@ -739,7 +739,7 @@ export default function ProspectsModule() {
               ) : prospects.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="rounded-full bg-blue-50 p-4 mb-4">
-                    <UserPlus className="size-8 text-[#003366]/60" />
+                    <UserPlus className="size-8 text-[#134885]/60" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">Aucun prospect trouvé</h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -747,7 +747,7 @@ export default function ProspectsModule() {
                   </p>
                   <Button
                     onClick={openAddForm}
-                    className="mt-4 bg-[#003366] hover:bg-[#002244] text-white"
+                    className="mt-4 bg-[#134885] hover:bg-[#0D3A6E] text-white"
                     size="sm"
                   >
                     <Plus className="size-4 mr-2" />
@@ -782,7 +782,7 @@ export default function ProspectsModule() {
                         <TableCell>
                           {prospect.specialite ? (
                             <span className="flex items-center gap-1.5">
-                              <Stethoscope className="size-3.5 text-[#003366]" />
+                              <Stethoscope className="size-3.5 text-[#134885]" />
                               {prospect.specialite}
                             </span>
                           ) : (
@@ -792,7 +792,7 @@ export default function ProspectsModule() {
                         <TableCell>
                           {prospect.wilaya ? (
                             <span className="flex items-center gap-1.5">
-                              <MapPin className="size-3.5 text-[#FF9900]" />
+                              <MapPin className="size-3.5 text-[#F6852A]" />
                               {prospect.wilaya}
                             </span>
                           ) : (
@@ -837,7 +837,7 @@ export default function ProspectsModule() {
                                 setDetailOpen(true)
                               }}
                             >
-                              <Eye className="size-4 text-[#003366]" />
+                              <Eye className="size-4 text-[#134885]" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -882,7 +882,7 @@ export default function ProspectsModule() {
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="rounded-full bg-blue-50 p-4 mb-4">
-                    <UserPlus className="size-8 text-[#003366]/60" />
+                    <UserPlus className="size-8 text-[#134885]/60" />
                   </div>
                   <h3 className="text-lg font-semibold">Aucun prospect trouvé</h3>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -890,7 +890,7 @@ export default function ProspectsModule() {
                   </p>
                   <Button
                     onClick={openAddForm}
-                    className="mt-4 bg-[#003366] hover:bg-[#002244] text-white"
+                    className="mt-4 bg-[#134885] hover:bg-[#0D3A6E] text-white"
                     size="sm"
                   >
                     <Plus className="size-4 mr-2" />
@@ -913,12 +913,12 @@ export default function ProspectsModule() {
               <DialogTitle className="flex items-center gap-2">
                 {editingId ? (
                   <>
-                    <Pencil className="size-5 text-[#003366]" />
+                    <Pencil className="size-5 text-[#134885]" />
                     Modifier le prospect
                   </>
                 ) : (
                   <>
-                    <UserPlus className="size-5 text-[#003366]" />
+                    <UserPlus className="size-5 text-[#134885]" />
                     Nouveau prospect
                   </>
                 )}
@@ -1086,7 +1086,7 @@ export default function ProspectsModule() {
               <Button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="bg-[#003366] hover:bg-[#002244] text-white"
+                className="bg-[#134885] hover:bg-[#0D3A6E] text-white"
               >
                 {submitting ? (
                   <span className="flex items-center gap-2">
@@ -1131,7 +1131,7 @@ export default function ProspectsModule() {
                     {!selectedProspect.isClient && (
                       <Button
                         size="sm"
-                        className="bg-[#003366] hover:bg-[#002244] text-white"
+                        className="bg-[#134885] hover:bg-[#0D3A6E] text-white"
                         onClick={() => convertToClient(selectedProspect.id)}
                       >
                         <UserPlus className="size-4 mr-1" />
@@ -1145,14 +1145,14 @@ export default function ProspectsModule() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2">
                   {selectedProspect.specialite && (
                     <div className="flex items-center gap-2 text-sm">
-                      <Stethoscope className="size-4 text-[#003366] shrink-0" />
+                      <Stethoscope className="size-4 text-[#134885] shrink-0" />
                       <span className="text-muted-foreground">Spécialité:</span>
                       <span className="font-medium">{selectedProspect.specialite}</span>
                     </div>
                   )}
                   {selectedProspect.wilaya && (
                     <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="size-4 text-[#FF9900] shrink-0" />
+                      <MapPin className="size-4 text-[#F6852A] shrink-0" />
                       <span className="text-muted-foreground">Wilaya:</span>
                       <span className="font-medium">{selectedProspect.wilaya}</span>
                     </div>
@@ -1201,7 +1201,7 @@ export default function ProspectsModule() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold flex items-center gap-2">
-                      <Phone className="size-4 text-[#003366]" />
+                      <Phone className="size-4 text-[#134885]" />
                       Historique des interactions
                       {selectedProspect.interactions?.length > 0 && (
                         <Badge variant="secondary" className="text-xs">
@@ -1212,7 +1212,7 @@ export default function ProspectsModule() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs border-[#003366]/20 text-[#003366] hover:bg-[#003366]/5"
+                      className="h-7 text-xs border-[#134885]/20 text-[#134885] hover:bg-[#134885]/5"
                       onClick={() => setAddInteractionOpen(true)}
                     >
                       <Plus className="size-3 mr-1" />
@@ -1268,7 +1268,7 @@ export default function ProspectsModule() {
                 <Separator />
                 <div>
                   <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <ChevronRight className="size-4 text-[#003366]" />
+                    <ChevronRight className="size-4 text-[#134885]" />
                     Opportunités liées
                     {selectedProspect.opportunities?.length > 0 && (
                       <Badge variant="secondary" className="text-xs">
@@ -1297,7 +1297,7 @@ export default function ProspectsModule() {
                             </div>
                             <div className="flex items-center gap-2">
                               {opp.montantEstime && (
-                                <span className="text-xs font-medium text-[#003366]">
+                                <span className="text-xs font-medium text-[#134885]">
                                   {opp.montantEstime.toLocaleString('fr-FR')} DA
                                 </span>
                               )}
@@ -1305,7 +1305,7 @@ export default function ProspectsModule() {
                                 variant="outline"
                                 className={
                                   opp.statut === 'Gagné'
-                                    ? 'bg-[#003366]/5 text-[#003366] border-[#003366]/20'
+                                    ? 'bg-[#134885]/5 text-[#134885] border-[#134885]/20'
                                     : opp.statut === 'Perdu'
                                       ? 'bg-red-50 text-red-700 border-red-200'
                                       : 'bg-blue-50 text-blue-700 border-blue-200'
@@ -1362,7 +1362,7 @@ export default function ProspectsModule() {
           <DialogContent className="sm:max-w-[450px]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Phone className="size-5 text-[#003366]" />
+                <Phone className="size-5 text-[#134885]" />
                 Ajouter une interaction
               </DialogTitle>
               <DialogDescription>
@@ -1415,7 +1415,7 @@ export default function ProspectsModule() {
               <Button
                 onClick={handleAddInteraction}
                 disabled={interactionSubmitting}
-                className="bg-[#003366] hover:bg-[#002244] text-white"
+                className="bg-[#134885] hover:bg-[#0D3A6E] text-white"
               >
                 {interactionSubmitting ? (
                   <span className="flex items-center gap-2">
@@ -1479,7 +1479,7 @@ export default function ProspectsModule() {
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={viewExistingDuplicate}
-                className="bg-[#003366] hover:bg-[#002244] text-white"
+                className="bg-[#134885] hover:bg-[#0D3A6E] text-white"
               >
                 Voir l&apos;existant
               </AlertDialogAction>

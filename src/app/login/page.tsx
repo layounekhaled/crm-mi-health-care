@@ -76,7 +76,7 @@ export default function LoginPage() {
               <img src="/logo.png" alt="MI HEALTH CARE" className="h-20 w-auto object-contain" />
             </motion.div>
             <div>
-              <CardDescription className="mt-1 text-sm font-medium text-[#003366]/80">
+              <CardDescription className="mt-1 text-sm font-medium text-[#134885]/80">
                 CRM — Solutions Santé
               </CardDescription>
             </div>
@@ -108,7 +108,7 @@ export default function LoginPage() {
                     placeholder="nom@mihealthcare.dz"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-11 border-slate-200 bg-white focus:border-[#003366] focus:ring-[#003366]/20"
+                    className="pl-10 h-11 border-slate-200 bg-white focus:border-[#134885] focus:ring-[#134885]/20"
                     required
                     autoComplete="email"
                   />
@@ -128,7 +128,7 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10 h-11 border-slate-200 bg-white focus:border-[#003366] focus:ring-[#003366]/20"
+                    className="pl-10 pr-10 h-11 border-slate-200 bg-white focus:border-[#134885] focus:ring-[#134885]/20"
                     required
                     autoComplete="current-password"
                   />
@@ -152,7 +152,7 @@ export default function LoginPage() {
                   id="remember"
                   checked={rememberMe}
                   onCheckedChange={(checked) => setRememberMe(checked === true)}
-                  className="border-slate-300 data-[state=checked]:bg-[#003366] data-[state=checked]:border-[#003366]"
+                  className="border-slate-300 data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
                 />
                 <Label
                   htmlFor="remember"
@@ -166,7 +166,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="h-11 w-full bg-gradient-to-r from-[#003366] to-[#004080] text-white font-semibold shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366] transition-all duration-200"
+                className="h-11 w-full bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white font-semibold shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885] transition-all duration-200"
               >
                 {loading ? (
                   <>

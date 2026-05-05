@@ -20,7 +20,7 @@ export function ModuleHeader({ title, subtitle, actions }: ModuleHeaderProps) {
               className="h-10 w-auto shrink-0 object-contain"
             />
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-[#003366]">
+              <h1 className="text-xl font-bold tracking-tight text-[#134885]">
                 {title}
               </h1>
               <p className="text-xs text-muted-foreground">

@@ -98,24 +98,24 @@ interface DashboardData {
 const STATUT_ORDER = ['Nouveau', 'Contacté', 'Intéressé', 'Devis', 'Négociation', 'Gagnée', 'Perdu']
 
 const STATUT_COLORS: Record<string, string> = {
-  Nouveau: '#003366',
-  'Contacté': '#004080',
+  Nouveau: '#134885',
+  'Contacté': '#1A5A9E',
   'Intéressé': '#336699',
-  Devis: '#FF9900',
+  Devis: '#F6852A',
   Négociation: '#CC7A00',
   'Gagnée': '#059669',
   'Perdu': '#dc2626',
 }
 
 const MARQUE_COLORS: Record<string, string> = {
-  MIR: '#003366',
-  BOS: '#FF9900',
+  MIR: '#134885',
+  BOS: '#F6852A',
   Löwenstein: '#336699',
-  Yuwell: '#004080',
+  Yuwell: '#1A5A9E',
   Gelenke: '#CC7A00',
 }
 
-const SOURCE_COLORS = ['#003366', '#FF9900', '#336699', '#004080', '#CC7A00']
+const SOURCE_COLORS = ['#134885', '#F6852A', '#336699', '#1A5A9E', '#CC7A00']
 
 const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
   appel: <Phone className="h-4 w-4" />,
@@ -132,7 +132,7 @@ const ACTIVITY_COLORS: Record<string, string> = {
   appel: 'bg-blue-100 text-blue-700',
   email: 'bg-sky-100 text-sky-700',
   reunion: 'bg-amber-100 text-amber-700',
-  visite: 'bg-[#003366]/10 text-[#003366]',
+  visite: 'bg-[#134885]/10 text-[#134885]',
   commerciale: 'bg-violet-100 text-violet-700',
   suivi: 'bg-rose-100 text-rose-700',
   administrative: 'bg-slate-100 text-slate-700',
@@ -351,14 +351,14 @@ export default function Dashboard() {
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="MI HEALTH CARE" className="h-10 w-auto object-contain" />
               <div className="hidden sm:block">
-                <h1 className="text-lg font-bold tracking-tight text-[#003366]">
+                <h1 className="text-lg font-bold tracking-tight text-[#134885]">
                   Tableau de bord
                 </h1>
                 <p className="text-xs text-muted-foreground">Solutions Santé — Algérie</p>
               </div>
             </div>
-            <Badge variant="outline" className="hidden sm:flex gap-1.5 border-[#003366]/20 bg-[#003366]/5 text-[#003366]">
-              <div className="h-2 w-2 rounded-full bg-[#FF9900] animate-pulse" />
+            <Badge variant="outline" className="hidden sm:flex gap-1.5 border-[#134885]/20 bg-[#134885]/5 text-[#134885]">
+              <div className="h-2 w-2 rounded-full bg-[#F6852A] animate-pulse" />
               En direct
             </Badge>
           </div>
@@ -402,8 +402,8 @@ export default function Dashboard() {
                   icon={<DollarSign className="h-5 w-5" />}
                   value={formatCurrency(data?.opportunities.caEstime ?? 0)}
                   label="CA Estimé"
-                  iconBgColor="bg-[#003366]/10"
-                  iconTextColor="text-[#003366]"
+                  iconBgColor="bg-[#134885]/10"
+                  iconTextColor="text-[#134885]"
                 />
                 <KpiCard
                   icon={<TrendingUp className="h-5 w-5" />}
@@ -588,21 +588,21 @@ export default function Dashboard() {
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
                       />
                       <Legend verticalAlign="top" height={36} />
-                      <Bar dataKey="Estimé" fill="#003366" radius={[4, 4, 0, 0]} maxBarSize={64} />
-                      <Bar dataKey="Réel" fill="#004080" radius={[4, 4, 0, 0]} maxBarSize={64} />
+                      <Bar dataKey="Estimé" fill="#134885" radius={[4, 4, 0, 0]} maxBarSize={64} />
+                      <Bar dataKey="Réel" fill="#1A5A9E" radius={[4, 4, 0, 0]} maxBarSize={64} />
                     </BarChart>
                   </ResponsiveContainer>
                   {/* Summary below chart */}
                   <div className="mt-4 grid grid-cols-2 gap-4">
-                    <div className="rounded-lg bg-[#003366]/5 p-3 text-center">
+                    <div className="rounded-lg bg-[#134885]/5 p-3 text-center">
                       <p className="text-xs text-muted-foreground">Estimé</p>
-                      <p className="text-lg font-bold text-[#003366]">
+                      <p className="text-lg font-bold text-[#134885]">
                         {formatCurrency(data?.opportunities.caEstime ?? 0)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-[#004080]/5 p-3 text-center">
+                    <div className="rounded-lg bg-[#1A5A9E]/5 p-3 text-center">
                       <p className="text-xs text-muted-foreground">Réel</p>
-                      <p className="text-lg font-bold text-[#004080]">
+                      <p className="text-lg font-bold text-[#1A5A9E]">
                         {formatCurrency(data?.opportunities.caReel ?? 0)}
                       </p>
                     </div>

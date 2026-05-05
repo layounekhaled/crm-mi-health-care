@@ -90,15 +90,15 @@ export function CRMSidebar() {
   const RoleIcon = roleIcons[displayRole] || Shield
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-[#003366] text-white">
+    <div className="flex h-full flex-col bg-[#134885] text-white">
       {/* Logo / Brand Area */}
-      <div className="flex items-center gap-3 border-b border-[#002244] px-4 py-4">
+      <div className="flex items-center gap-3 border-b border-[#0D3A6E] px-4 py-4">
         <img src="/logo.png" alt="MI HEALTH CARE" className="h-11 w-auto shrink-0 object-contain" />
         {/* Close button on mobile */}
         <Button
           variant="ghost"
           size="icon"
-          className="ml-auto h-8 w-8 text-slate-400 hover:bg-[#004080] hover:text-white md:hidden"
+          className="ml-auto h-8 w-8 text-slate-400 hover:bg-[#1A5A9E] hover:text-white md:hidden"
           onClick={() => setSidebarOpen(false)}
         >
           <X className="h-4 w-4" />
@@ -106,7 +106,7 @@ export function CRMSidebar() {
       </div>
 
       {/* Notifications Bar */}
-      <div className="flex items-center justify-between border-b border-[#002244]/60 px-4 py-2">
+      <div className="flex items-center justify-between border-b border-[#0D3A6E]/60 px-4 py-2">
         <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
           Notifications
         </span>
@@ -125,15 +125,15 @@ export function CRMSidebar() {
                   onClick={() => handleNavClick(item.page)}
                   className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-[#FF9900] text-white shadow-md shadow-[#FF9900]/25'
-                      : 'text-slate-300 hover:bg-[#004080]/80 hover:text-white'
+                      ? 'bg-[#F6852A] text-white shadow-md shadow-[#F6852A]/25'
+                      : 'text-slate-300 hover:bg-[#1A5A9E]/80 hover:text-white'
                   }`}
                 >
                   <Icon
                     className={`h-[18px] w-[18px] shrink-0 transition-transform duration-200 ${
                       isActive
                         ? 'text-white'
-                        : 'text-slate-400 group-hover:text-[#FF9900] group-hover:scale-110'
+                        : 'text-slate-400 group-hover:text-[#F6852A] group-hover:scale-110'
                     }`}
                   />
                   <span className="truncate">{item.label}</span>
@@ -152,12 +152,12 @@ export function CRMSidebar() {
       </nav>
 
       {/* User Profile & Logout */}
-      <div className="border-t border-[#002244] px-3 py-3">
+      <div className="border-t border-[#0D3A6E] px-3 py-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[#004080]/80">
+            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[#1A5A9E]/80">
               <Avatar className="h-8 w-8 border border-slate-600">
-                <AvatarFallback className="bg-[#FF9900] text-xs font-semibold text-white">
+                <AvatarFallback className="bg-[#F6852A] text-xs font-semibold text-white">
                   {getInitials(user?.employeNom || null, user?.email || '')}
                 </AvatarFallback>
               </Avatar>
@@ -166,7 +166,7 @@ export function CRMSidebar() {
                   {displayName}
                 </p>
                 <div className="flex items-center gap-1">
-                  <RoleIcon className="h-3 w-3 text-[#FF9900]" />
+                  <RoleIcon className="h-3 w-3 text-[#F6852A]" />
                   <span className="text-[11px] text-slate-500">
                     {roleLabels[displayRole] || displayRole}
                   </span>
@@ -196,9 +196,9 @@ export function CRMSidebar() {
       </div>
 
       {/* Developer Credit */}
-      <div className="border-t border-[#002244] px-5 py-3">
+      <div className="border-t border-[#0D3A6E] px-5 py-3">
         <div className="flex items-center gap-2">
-          <div className="h-1.5 w-1.5 rounded-full bg-[#FF9900]" />
+          <div className="h-1.5 w-1.5 rounded-full bg-[#F6852A]" />
           <span className="text-xs text-slate-500">
             Developed by{' '}
             <span className="font-semibold text-slate-400">layounekhaled</span>
@@ -214,7 +214,7 @@ export function CRMSidebar() {
       <Button
         variant="ghost"
         size="icon"
-        className="fixed left-4 top-4 z-50 h-10 w-10 bg-[#003366] text-white shadow-lg hover:bg-[#004080] hover:text-white md:hidden"
+        className="fixed left-4 top-4 z-50 h-10 w-10 bg-[#134885] text-white shadow-lg hover:bg-[#1A5A9E] hover:text-white md:hidden"
         onClick={toggleSidebar}
       >
         <Menu className="h-5 w-5" />

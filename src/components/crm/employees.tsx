@@ -132,13 +132,13 @@ function formatMonth(mois: string): string {
 }
 
 function getProgressColor(pct: number): string {
-  if (pct >= 80) return 'bg-[#003366]'
+  if (pct >= 80) return 'bg-[#134885]'
   if (pct >= 50) return 'bg-amber-500'
   return 'bg-red-500'
 }
 
 function getProgressTrackColor(pct: number): string {
-  if (pct >= 80) return 'text-[#003366] dark:text-[#FF9900]'
+  if (pct >= 80) return 'text-[#134885] dark:text-[#F6852A]'
   if (pct >= 50) return 'text-amber-600 dark:text-amber-400'
   return 'text-red-600 dark:text-red-400'
 }
@@ -182,7 +182,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
       className="flex flex-col items-center justify-center py-16 text-center"
     >
       <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/50">
-        <Users className="size-8 text-[#003366]/60" />
+        <Users className="size-8 text-[#134885]/60" />
       </div>
       <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
         {hasFilters ? 'Aucun employé trouvé' : 'Aucun employé'}
@@ -531,7 +531,7 @@ export default function EmployeesModule() {
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="MI HEALTH CARE" className="h-9 w-auto shrink-0 object-contain" />
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-[#003366] dark:text-white">
+                <h1 className="text-xl font-bold tracking-tight text-[#134885] dark:text-white">
                   Employés & Objectifs
                 </h1>
                 <p className="text-xs text-muted-foreground">
@@ -554,7 +554,7 @@ export default function EmployeesModule() {
               </Select>
               <Button
                 onClick={openCreateDialog}
-                className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366]"
+                className="gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885]"
               >
                 <Plus className="size-4" />
                 <span className="hidden sm:inline">Nouvel Employé</span>
@@ -591,8 +591,8 @@ export default function EmployeesModule() {
                         {/* Header: Name + Role Badge */}
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${emp.actif ? 'bg-[#003366]/10 dark:bg-[#003366]/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                              <span className={`text-sm font-bold ${emp.actif ? 'text-[#003366] dark:text-[#FF9900]' : 'text-slate-400'}`}>
+                            <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${emp.actif ? 'bg-[#134885]/10 dark:bg-[#134885]/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                              <span className={`text-sm font-bold ${emp.actif ? 'text-[#134885] dark:text-[#F6852A]' : 'text-slate-400'}`}>
                                 {emp.nom.charAt(0).toUpperCase()}
                               </span>
                             </div>
@@ -642,11 +642,11 @@ export default function EmployeesModule() {
                             <p className="text-[10px] text-muted-foreground">Opérations</p>
                           </div>
                           <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-2 text-center">
-                            <p className="text-base font-bold text-[#003366] dark:text-[#FF9900]">{emp.tachesRealisees}</p>
+                            <p className="text-base font-bold text-[#134885] dark:text-[#F6852A]">{emp.tachesRealisees}</p>
                             <p className="text-[10px] text-muted-foreground">Tâches réalisées</p>
                           </div>
-                          <div className="rounded-lg bg-[#003366]/5 dark:bg-[#003366]/10 p-2 text-center">
-                            <p className="text-sm font-bold text-[#003366] dark:text-[#FF9900]">{formatDZD(emp.caGenere)}</p>
+                          <div className="rounded-lg bg-[#134885]/5 dark:bg-[#134885]/10 p-2 text-center">
+                            <p className="text-sm font-bold text-[#134885] dark:text-[#F6852A]">{formatDZD(emp.caGenere)}</p>
                             <p className="text-[10px] text-muted-foreground">CA généré</p>
                           </div>
                         </div>
@@ -656,7 +656,7 @@ export default function EmployeesModule() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 gap-1 px-2 text-xs text-[#003366] hover:text-[#002244] hover:bg-[#003366]/5 dark:text-[#FF9900] dark:hover:bg-[#003366]/10"
+                            className="h-7 gap-1 px-2 text-xs text-[#134885] hover:text-[#0D3A6E] hover:bg-[#134885]/5 dark:text-[#F6852A] dark:hover:bg-[#134885]/10"
                             onClick={() => openObjectivesDialog(emp)}
                           >
                             <Target className="size-3" />
@@ -665,7 +665,7 @@ export default function EmployeesModule() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 gap-1 px-2 text-xs text-slate-600 hover:text-[#003366] dark:text-slate-400 dark:hover:text-[#FF9900]"
+                            className="h-7 gap-1 px-2 text-xs text-slate-600 hover:text-[#134885] dark:text-slate-400 dark:hover:text-[#F6852A]"
                             onClick={() => openEditDialog(emp)}
                           >
                             <Edit3 className="size-3" />
@@ -685,7 +685,7 @@ export default function EmployeesModule() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={`h-7 gap-1 px-2 text-xs ${emp.actif ? 'text-amber-600 hover:text-amber-700' : 'text-[#003366] hover:text-[#002244]'}`}
+                            className={`h-7 gap-1 px-2 text-xs ${emp.actif ? 'text-amber-600 hover:text-amber-700' : 'text-[#134885] hover:text-[#0D3A6E]'}`}
                             onClick={() => toggleActif(emp)}
                             title={emp.actif ? 'Désactiver' : 'Activer'}
                           >
@@ -707,8 +707,8 @@ export default function EmployeesModule() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-[#003366]/10 dark:bg-[#003366]/20">
-                <Users className="size-4 text-[#003366] dark:text-[#FF9900]" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
+                <Users className="size-4 text-[#134885] dark:text-[#F6852A]" />
               </div>
               {editingId ? 'Modifier l\'employé' : 'Nouvel employé'}
             </DialogTitle>
@@ -799,7 +799,7 @@ export default function EmployeesModule() {
             <Button
               onClick={handleSave}
               disabled={saving || !formData.nom.trim()}
-              className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white hover:from-[#002244] hover:to-[#003366]"
+              className="gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white hover:from-[#0D3A6E] hover:to-[#134885]"
             >
               {saving ? (
                 <>
@@ -843,8 +843,8 @@ export default function EmployeesModule() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-[#FF9900]/10 dark:bg-[#FF9900]/20">
-                <Target className="size-4 text-[#FF9900] dark:text-[#FF9900]" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#F6852A]/10 dark:bg-[#F6852A]/20">
+                <Target className="size-4 text-[#F6852A] dark:text-[#F6852A]" />
               </div>
               Objectifs — {selectedEmployee?.nom}
             </DialogTitle>
@@ -854,8 +854,8 @@ export default function EmployeesModule() {
           </DialogHeader>
 
           {/* Objective Form */}
-          <div className="rounded-lg border border-[#003366]/20 dark:border-[#003366]/30 bg-[#003366]/5 dark:bg-[#003366]/10 p-4 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#003366] dark:text-[#FF9900]">
+          <div className="rounded-lg border border-[#134885]/20 dark:border-[#134885]/30 bg-[#134885]/5 dark:bg-[#134885]/10 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[#134885] dark:text-[#F6852A]">
               <BarChart3 className="size-4" />
               {editingObjectiveId ? 'Modifier l\'objectif' : 'Nouvel objectif'}
             </div>
@@ -910,7 +910,7 @@ export default function EmployeesModule() {
                 size="sm"
                 onClick={handleSaveObjective}
                 disabled={savingObjective || !objectiveForm.mois}
-                className="gap-1 bg-gradient-to-r from-[#003366] to-[#004080] text-white hover:from-[#002244] hover:to-[#003366]"
+                className="gap-1 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white hover:from-[#0D3A6E] hover:to-[#134885]"
               >
                 {savingObjective ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -976,7 +976,7 @@ export default function EmployeesModule() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <Calendar className="size-4 text-[#FF9900]" />
+                        <Calendar className="size-4 text-[#F6852A]" />
                         <span className="text-sm font-semibold text-slate-900 dark:text-white capitalize">
                           {formatMonth(obj.mois)}
                         </span>
@@ -985,7 +985,7 @@ export default function EmployeesModule() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 text-slate-400 hover:text-[#003366]"
+                          className="h-6 w-6 p-0 text-slate-400 hover:text-[#134885]"
                           onClick={() => selectObjectiveForEdit(obj)}
                         >
                           <Edit3 className="size-3" />

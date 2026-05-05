@@ -531,7 +531,7 @@ export default function TasksModule() {
               <div className="flex items-center gap-3">
                 <img src="/logo.png" alt="MI HEALTH CARE" className="h-9 w-auto shrink-0 object-contain" />
                 <div>
-                  <h1 className="text-xl font-bold tracking-tight text-[#003366] dark:text-white">
+                  <h1 className="text-xl font-bold tracking-tight text-[#134885] dark:text-white">
                     Tâches
                   </h1>
                   <p className="text-xs text-muted-foreground">
@@ -566,13 +566,13 @@ export default function TasksModule() {
                         setFilterAssignee('all')
                       }
                     }}
-                    className="border-[#FF9900] data-[state=checked]:bg-[#003366] data-[state=checked]:border-[#003366]"
+                    className="border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
                   />
                 </div>
                 {/* New Task Button */}
                 <Button
                   onClick={openCreateDialog}
-                  className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366]"
+                  className="gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885]"
                 >
                   <Plus className="size-4" />
                   <span className="hidden sm:inline">Nouvelle Tâche</span>
@@ -673,7 +673,7 @@ export default function TasksModule() {
           <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <ListChecks className="size-3.5 text-[#003366]" />
+                <ListChecks className="size-3.5 text-[#134885]" />
                 Total tâches
               </div>
               <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
@@ -730,7 +730,7 @@ export default function TasksModule() {
         {/* Task List */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="size-8 animate-spin text-[#003366]" />
+            <Loader2 className="size-8 animate-spin text-[#134885]" />
             <span className="mt-3 text-sm text-muted-foreground">Chargement des tâches...</span>
           </div>
         ) : sortedTasks.length === 0 ? (
@@ -742,7 +742,7 @@ export default function TasksModule() {
             </p>
             <Button
               onClick={openCreateDialog}
-              className="mt-4 gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366]"
+              className="mt-4 gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885]"
             >
               <Plus className="size-4" />
               Nouvelle Tâche
@@ -789,7 +789,7 @@ export default function TasksModule() {
                                 handleQuickComplete(task.id)
                               }
                             }}
-                            className="mt-0.5 shrink-0 border-[#FF9900] data-[state=checked]:bg-[#003366] data-[state=checked]:border-[#003366]"
+                            className="mt-0.5 shrink-0 border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
                             disabled={isDone}
                           />
                           <div className="flex-1 min-w-0">
@@ -807,7 +807,7 @@ export default function TasksModule() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="size-7 p-0 text-slate-400 hover:text-[#003366]"
+                                  className="size-7 p-0 text-slate-400 hover:text-[#134885]"
                                   onClick={() => openEditDialog(task)}
                                 >
                                   <Edit3 className="size-3.5" />
@@ -879,7 +879,7 @@ export default function TasksModule() {
                           <div className="flex items-center gap-2">
                             {task.assigneA ? (
                               <div className="flex items-center gap-2">
-                                <div className="flex size-6 items-center justify-center rounded-full bg-[#003366]/10 text-[10px] font-bold text-[#003366] dark:bg-[#003366]/20 dark:text-[#FF9900]">
+                                <div className="flex size-6 items-center justify-center rounded-full bg-[#134885]/10 text-[10px] font-bold text-[#134885] dark:bg-[#134885]/20 dark:text-[#F6852A]">
                                   {getInitials(task.assigneA.nom)}
                                 </div>
                                 <span className="text-xs text-muted-foreground">
@@ -923,8 +923,8 @@ export default function TasksModule() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-[#003366]/10 dark:bg-[#003366]/20">
-                <CheckSquare className="size-4 text-[#003366] dark:text-[#FF9900]" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
+                <CheckSquare className="size-4 text-[#134885] dark:text-[#F6852A]" />
               </div>
               {editingId ? 'Modifier la tâche' : 'Nouvelle tâche'}
             </DialogTitle>
@@ -1010,7 +1010,7 @@ export default function TasksModule() {
                   {employees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id}>
                       <span className="flex items-center gap-2">
-                        <span className="flex size-5 items-center justify-center rounded-full bg-[#003366]/10 text-[9px] font-bold text-[#003366]">
+                        <span className="flex size-5 items-center justify-center rounded-full bg-[#134885]/10 text-[9px] font-bold text-[#134885]">
                           {getInitials(emp.nom)}
                         </span>
                         {emp.nom}
@@ -1196,7 +1196,7 @@ export default function TasksModule() {
             <Button
               onClick={handleSave}
               disabled={saving || !formData.titre.trim()}
-              className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white hover:from-[#002244] hover:to-[#003366]"
+              className="gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white hover:from-[#0D3A6E] hover:to-[#134885]"
             >
               {saving && <Loader2 className="size-4 animate-spin" />}
               {editingId ? 'Enregistrer' : 'Créer la tâche'}

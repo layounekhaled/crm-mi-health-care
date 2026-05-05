@@ -4,8 +4,8 @@
   "description": "CRM Gestion Commerciale - Matériel Médical",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#003366",
-  "theme_color": "#003366",
+  "background_color": "#134885",
+  "theme_color": "#134885",
   "icons": [
     {
       "src": "/android-chrome-192.png",

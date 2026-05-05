@@ -591,7 +591,7 @@ export default function OpportunitiesModule() {
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="MI HEALTH CARE" className="h-9 w-auto shrink-0 object-contain" />
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-[#003366] dark:text-white">
+                <h1 className="text-xl font-bold tracking-tight text-[#134885] dark:text-white">
                   Opportunités
                 </h1>
                 <p className="text-xs text-muted-foreground">
@@ -631,7 +631,7 @@ export default function OpportunitiesModule() {
               </div>
               <Button
                 onClick={openCreateDialog}
-                className="gap-1.5 bg-gradient-to-r from-[#003366] to-[#004080] text-white shadow-lg shadow-[#003366]/25 hover:from-[#002244] hover:to-[#003366]"
+                className="gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885]"
               >
                 <Plus className="size-4" />
                 <span className="hidden sm:inline">Nouvelle Opportunité</span>
@@ -648,7 +648,7 @@ export default function OpportunitiesModule() {
           <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <TrendingUp className="size-3.5 text-[#003366]" />
+                <TrendingUp className="size-3.5 text-[#134885]" />
                 Pipeline
               </div>
               <p className="mt-1 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
@@ -662,7 +662,7 @@ export default function OpportunitiesModule() {
                 <CheckCircle2 className="size-3.5 text-emerald-500" />
                 Gagné
               </div>
-              <p className="mt-1 text-base font-bold text-[#003366] dark:text-[#FF9900] sm:text-lg">
+              <p className="mt-1 text-base font-bold text-[#134885] dark:text-[#F6852A] sm:text-lg">
                 {formatDZD(totalGagne)}
               </p>
             </CardContent>
@@ -681,7 +681,7 @@ export default function OpportunitiesModule() {
           <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Briefcase className="size-3.5 text-[#FF9900]" />
+                <Briefcase className="size-3.5 text-[#F6852A]" />
                 Total
               </div>
               <p className="mt-1 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
@@ -694,7 +694,7 @@ export default function OpportunitiesModule() {
         {/* Loading */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-8 animate-spin text-[#003366]" />
+            <Loader2 className="size-8 animate-spin text-[#134885]" />
             <span className="ml-3 text-muted-foreground">Chargement des opportunités...</span>
           </div>
         ) : (
@@ -881,8 +881,8 @@ export default function OpportunitiesModule() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-[#003366]/10 dark:bg-[#003366]/20">
-                <Briefcase className="size-4 text-[#003366] dark:text-[#FF9900]" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
+                <Briefcase className="size-4 text-[#134885] dark:text-[#F6852A]" />
               </div>
               {editingId ? 'Modifier l\'opportunité' : 'Nouvelle opportunité'}
             </DialogTitle>
@@ -993,7 +993,7 @@ export default function OpportunitiesModule() {
                         <p className="font-semibold text-emerald-700 dark:text-emerald-300">
                           Opportunité gagnée ! 🎉
                         </p>
-                        <p className="text-xs text-[#003366] dark:text-[#FF9900]">
+                        <p className="text-xs text-[#134885] dark:text-[#F6852A]">
                           Le client sera automatiquement converti s&apos;il ne l&apos;est pas déjà.
                         </p>
                       </div>
@@ -1105,7 +1105,7 @@ export default function OpportunitiesModule() {
             <Button
               onClick={handleSave}
               disabled={saving || !formData.nomProjet.trim() || (formData.statut === 'Perdu' && !formData.motifPerte)}
-              className="gap-1.5 bg-[#003366] hover:bg-[#002244]"
+              className="gap-1.5 bg-[#134885] hover:bg-[#0D3A6E]"
             >
               {saving ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -1123,7 +1123,7 @@ export default function OpportunitiesModule() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           {detailLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-6 animate-spin text-[#003366]" />
+              <Loader2 className="size-6 animate-spin text-[#134885]" />
               <span className="ml-3 text-muted-foreground">Chargement...</span>
             </div>
           ) : selectedOpportunity ? (
@@ -1131,7 +1131,7 @@ export default function OpportunitiesModule() {
               <DialogHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003366] to-[#004080] text-white">
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#134885] to-[#1A5A9E] text-white">
                       <Briefcase className="size-5" />
                     </div>
                     <div>
@@ -1157,7 +1157,7 @@ export default function OpportunitiesModule() {
                 </div>
                 <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
                   <p className="text-xs text-muted-foreground">Montant</p>
-                  <p className="text-sm font-semibold text-[#003366] dark:text-[#FF9900]">
+                  <p className="text-sm font-semibold text-[#134885] dark:text-[#F6852A]">
                     {formatDZD(selectedOpportunity.montantEstime)}
                   </p>
                 </div>
@@ -1205,7 +1205,7 @@ export default function OpportunitiesModule() {
                       variant={selectedOpportunity.statut === s.value ? 'default' : 'outline'}
                       className={`h-7 gap-1 text-xs ${
                         selectedOpportunity.statut === s.value
-                          ? 'bg-[#003366] hover:bg-[#002244]'
+                          ? 'bg-[#134885] hover:bg-[#0D3A6E]'
                           : ''
                       }`}
                       onClick={async () => {
@@ -1263,7 +1263,7 @@ export default function OpportunitiesModule() {
                                 : op.statut === 'en_cours'
                                   ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300'
                                   : op.statut === 'terminee'
-                                    ? 'bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-[#FF9900]'
+                                    ? 'bg-[#134885]/10 text-[#134885] dark:bg-[#134885]/20 dark:text-[#F6852A]'
                                     : ''
                             }
                           >
@@ -1322,7 +1322,7 @@ export default function OpportunitiesModule() {
                                 : task.statut === 'en_cours'
                                   ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300'
                                   : task.statut === 'terminee'
-                                    ? 'bg-[#003366]/10 text-[#003366] dark:bg-[#003366]/20 dark:text-[#FF9900]'
+                                    ? 'bg-[#134885]/10 text-[#134885] dark:bg-[#134885]/20 dark:text-[#F6852A]'
                                     : ''
                             }
                           >
@@ -1354,8 +1354,8 @@ export default function OpportunitiesModule() {
                         key={inter.id}
                         className="flex items-start gap-3 rounded-lg border bg-white p-3 dark:bg-slate-800/50"
                       >
-                        <div className="flex size-8 items-center justify-center rounded-full bg-[#003366]/10 dark:bg-[#003366]/20">
-                          <MessageSquare className="size-4 text-[#003366] dark:text-[#FF9900]" />
+                        <div className="flex size-8 items-center justify-center rounded-full bg-[#134885]/10 dark:bg-[#134885]/20">
+                          <MessageSquare className="size-4 text-[#134885] dark:text-[#F6852A]" />
                         </div>
                         <div className="flex-1">
                           <p className="text-sm">{inter.notes || inter.type}</p>
@@ -1433,7 +1433,7 @@ export default function OpportunitiesModule() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Wrench className="size-5 text-[#FF9900]" />
+              <Wrench className="size-5 text-[#F6852A]" />
               Ajouter une opération
             </DialogTitle>
             <DialogDescription>
@@ -1513,7 +1513,7 @@ export default function OpportunitiesModule() {
             <Button
               onClick={handleAddOperation}
               disabled={!operationForm.produit || !operationForm.marque}
-              className="gap-1 bg-[#004080] hover:bg-[#003366]"
+              className="gap-1 bg-[#1A5A9E] hover:bg-[#134885]"
             >
               <Plus className="size-4" /> Ajouter
             </Button>
@@ -1526,7 +1526,7 @@ export default function OpportunitiesModule() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ListChecks className="size-5 text-[#FF9900]" />
+              <ListChecks className="size-5 text-[#F6852A]" />
               Ajouter une tâche
             </DialogTitle>
             <DialogDescription>
@@ -1582,7 +1582,7 @@ export default function OpportunitiesModule() {
             <Button
               onClick={handleAddTask}
               disabled={!taskForm.titre}
-              className="gap-1 bg-[#004080] hover:bg-[#003366]"
+              className="gap-1 bg-[#1A5A9E] hover:bg-[#134885]"
             >
               <Plus className="size-4" /> Ajouter
             </Button>
@@ -1666,16 +1666,16 @@ function KanbanCard({
           </div>
 
           <div className="mt-2 flex items-center gap-1.5">
-            <DollarSign className="size-3 text-[#FF9900]" />
-            <span className="text-xs font-semibold text-[#003366] dark:text-[#FF9900]">
+            <DollarSign className="size-3 text-[#F6852A]" />
+            <span className="text-xs font-semibold text-[#134885] dark:text-[#F6852A]">
               {formatDZD(opportunity.montantEstime)}
             </span>
           </div>
 
           <div className="mt-2 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <div className="flex size-5 items-center justify-center rounded-full bg-[#003366]/10 dark:bg-[#003366]/20">
-                <User className="size-3 text-[#003366] dark:text-[#FF9900]" />
+              <div className="flex size-5 items-center justify-center rounded-full bg-[#134885]/10 dark:bg-[#134885]/20">
+                <User className="size-3 text-[#134885] dark:text-[#F6852A]" />
               </div>
               <span className="text-xs text-muted-foreground">
                 {opportunity.commercial?.nom || '—'}
