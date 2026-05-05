@@ -166,6 +166,7 @@ model Employee {
   user           User?
   chatParticipants ChatParticipant[]
   sentMessages   ChatMessage[]
+  emailConfig    EmailConfig?
 }
 
 model Objective {
@@ -253,4 +254,21 @@ model ChatMessage {
 
   @@index([conversationId, createdAt])
   @@index([expediteurId])
+}
+
+model EmailConfig {
+  id             String   @id @default(cuid())
+  employeId      String   @unique
+  email          String
+  imapHost       String?
+  imapPort       Int      @default(993)
+  imapTls        Boolean  @default(true)
+  smtpHost       String?
+  smtpPort       Int      @default(587)
+  smtpTls        Boolean  @default(true)
+  emailPassword  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  employe Employee @relation(fields: [employeId], references: [id], onDelete: Cascade)
 }

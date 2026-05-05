@@ -9,6 +9,7 @@ export type Page =
   | 'tasks' 
   | 'after-sales' 
   | 'employees'
+  | 'emails'
 
 interface CurrentUser {
   id: string
