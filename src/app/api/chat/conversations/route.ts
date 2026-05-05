@@ -80,11 +80,17 @@ export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request)
     if (!authUser || !authUser.employeId) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+      return NextResponse.json({ error: 'Non autorisé', hint: 'Session invalide ou expirée' }, { status: 401 })
     }
 
     const employeId = authUser.employeId
-    const body = await request.json()
+    
+    let body
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Corps de requête invalide' }, { status: 400 })
+    }
     const { type, participantIds, nom } = body
 
     if (!type || !['direct', 'group'].includes(type)) {
@@ -249,6 +255,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ...conversation, unreadCount: 0 }, { status: 201 })
   } catch (error) {
     console.error('[CHAT_CONVERSATIONS_POST]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    return NextResponse.json({ error: 'Erreur serveur', details: message }, { status: 500 })
   }
 }

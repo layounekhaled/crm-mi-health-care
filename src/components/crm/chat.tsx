@@ -228,7 +228,6 @@ export default function ChatWidget() {
     setIsLoading(true)
     setChatError(null)
     try {
-      console.log('[CHAT] Démarrage conversation avec:', targetEmployeId)
       const res = await fetch('/api/chat/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,27 +238,21 @@ export default function ChatWidget() {
         }),
       })
       
-      console.log('[CHAT] Réponse statut:', res.status, res.statusText)
-      
       if (res.ok) {
         const conv = await res.json()
-        console.log('[CHAT] Conversation créée/récupérée:', conv.id)
         setSelectedConversation(conv)
         setMessages(conv.messages || [])
         setShowNewChat(false)
         setSearchQuery('')
         fetchConversations()
       } else if (res.status === 401) {
-        setChatError('Session expirée. Veuillez vous reconnecter.')
-        console.error('[CHAT] 401 Non autorisé')
+        setChatError('Session expirée. Rechargez la page et reconnectez-vous.')
       } else {
         const err = await res.json().catch(() => ({ error: 'Erreur inconnue' }))
-        setChatError(err.error || 'Erreur lors de la création de la conversation')
-        console.error('[CHAT] Erreur création conversation:', err)
+        setChatError(err.details || err.error || 'Erreur lors de la création de la conversation')
       }
     } catch (error) {
       setChatError('Erreur réseau. Vérifiez votre connexion.')
-      console.error('[CHAT] Erreur réseau:', error)
     } finally {
       setIsLoading(false)
     }
