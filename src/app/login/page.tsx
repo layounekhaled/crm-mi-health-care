@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
-import Image from 'next/image'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -67,12 +66,12 @@ export default function LoginPage() {
         >
           {/* Logo on white background for contrast on blue panel */}
           <div className="mx-auto mb-8 rounded-2xl bg-white p-6 shadow-2xl shadow-black/20 inline-block">
-            <Image
+            <img
               src="/logo-white.png"
               alt="MI HEALTH CARE"
               width={350}
               height={100}
-              priority
+              className="h-auto"
             />
           </div>
           <p className="text-white/80 text-lg font-light max-w-sm mx-auto">
@@ -109,13 +108,10 @@ export default function LoginPage() {
                 transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
                 className="mx-auto"
               >
-                <Image
+                <img
                   src="/logo-white.png"
                   alt="MI HEALTH CARE"
-                  width={220}
-                  height={63}
-                  className="mx-auto"
-                  priority
+                  className="mx-auto h-16 w-auto object-contain"
                 />
               </motion.div>
 
