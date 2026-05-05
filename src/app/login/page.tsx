@@ -74,7 +74,9 @@ export default function LoginPage() {
             />
           </div>
           <p className="text-white/80 text-lg font-light max-w-sm mx-auto">
-            Plateforme CRM pour la gestion commerciale de matériel médical
+            DALIA le système qui centralise toute votre activité :
+            <br />
+            prospects, ventes, opérations et suivi des clients
           </p>
           <div className="mt-8 flex items-center justify-center gap-2">
             <div className="h-1 w-8 rounded-full bg-[#F6852A]" />
@@ -121,7 +123,7 @@ export default function LoginPage() {
                   Connexion
                 </h2>
                 <CardDescription className="mt-1 text-sm font-medium text-[#134885]">
-                  MI HEALTH CARE — CRM Solutions Santé
+                  DALIA "le cerveau de l'entreprise"
                 </CardDescription>
               </div>
             </CardHeader>
