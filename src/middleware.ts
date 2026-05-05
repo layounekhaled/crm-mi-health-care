@@ -9,15 +9,17 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.startsWith('/logo')
+    pathname.startsWith('/_next')
   ) {
     return NextResponse.next()
   }
 
-  // Allow static files (images, fonts, etc.)
-  if (pathname.match(/\.(png|jpe?g|svg|ico|webp|gif|woff2?|ttf|eot)$/i)) {
+  // Allow static files from public directory (images, fonts, icons, manifests, etc.)
+  if (
+    pathname.match(/\.(png|jpe?g|gif|svg|ico|webp|bmp|woff2?|ttf|eot|otf|json|xml|txt|webmanifest)$/i) ||
+    pathname.startsWith('/favicon') ||
+    pathname.startsWith('/logo')
+  ) {
     return NextResponse.next()
   }
 
@@ -43,6 +45,12 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!login|api/auth|_next/static|_next/image|favicon|logo|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.svg|.*\\.ico|.*\\.webp|.*\\.gif|.*\\.woff2?|.*\\.ttf|.*\\.eot).*)',
+    /*
+     * Match all paths except:
+     * - /login, /api/auth, /_next (handled in middleware function)
+     * - Static files are allowed in middleware function via regex
+     * Matcher is broad - actual filtering happens inside the function
+     */
+    '/(.*)',
   ],
 }

@@ -64,14 +64,13 @@ export default function LoginPage() {
           transition={{ duration: 0.6 }}
           className="relative z-10 text-center"
         >
-          {/* Logo on white background for contrast on blue panel */}
-          <div className="mx-auto mb-8 rounded-2xl bg-white p-6 shadow-2xl shadow-black/20 inline-block">
+          {/* Logo on white card for contrast on blue panel */}
+          <div className="mx-auto mb-8 rounded-2xl bg-white p-5 shadow-2xl shadow-black/20 inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo-white.png"
+              src="/logo.png"
               alt="MI HEALTH CARE"
-              width={350}
-              height={100}
-              className="h-auto"
+              className="h-24 w-auto"
             />
           </div>
           <p className="text-white/80 text-lg font-light max-w-sm mx-auto">
@@ -108,8 +107,9 @@ export default function LoginPage() {
                 transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
                 className="mx-auto"
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/logo-white.png"
+                  src="/logo.png"
                   alt="MI HEALTH CARE"
                   className="mx-auto h-16 w-auto object-contain"
                 />

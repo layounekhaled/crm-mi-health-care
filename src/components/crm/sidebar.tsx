@@ -93,7 +93,7 @@ export function CRMSidebar() {
     <div className="flex h-full flex-col bg-[#134885] text-white">
       {/* Logo / Brand Area */}
       <div className="flex items-center gap-3 border-b border-[#0D3A6E] px-4 py-3">
-        <img src="/logo-white.png" alt="MI HEALTH CARE" className="h-10 w-auto shrink-0 object-contain rounded-lg" />
+        <img src="/logo.png" alt="MI HEALTH CARE" className="h-10 w-auto shrink-0 object-contain rounded-lg bg-white px-1" />
         {/* Close button on mobile */}
         <Button
           variant="ghost"
