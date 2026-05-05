@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getAuthUser } from '@/lib/auth-helpers'
+import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 
 // GET /api/chat/messages/latest - Récupérer les nouveaux messages depuis un timestamp (polling)
 export async function GET(request: NextRequest) {
@@ -11,6 +11,12 @@ export async function GET(request: NextRequest) {
     }
 
     const employeId = authUser.employeId
+
+    // Vérifier que l'employé existe encore
+    const employeeExists = await db.employee.findUnique({ where: { id: employeId }, select: { id: true } })
+    if (!employeeExists) {
+      return staleSessionResponse()
+    }
     const { searchParams } = new URL(request.url)
     const since = searchParams.get('since')
 

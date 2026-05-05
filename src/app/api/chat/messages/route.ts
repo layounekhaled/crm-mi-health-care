@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getAuthUser } from '@/lib/auth-helpers'
+import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 
 // POST /api/chat/messages - Envoyer un message
 export async function POST(request: NextRequest) {
@@ -11,7 +11,19 @@ export async function POST(request: NextRequest) {
     }
 
     const employeId = authUser.employeId
-    const body = await request.json()
+
+    // Vérifier que l'employé existe encore
+    const employeeExists = await db.employee.findUnique({ where: { id: employeId }, select: { id: true } })
+    if (!employeeExists) {
+      return staleSessionResponse()
+    }
+
+    let body
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Corps de requête invalide' }, { status: 400 })
+    }
     const { conversationId, contenu } = body
 
     if (!conversationId) {

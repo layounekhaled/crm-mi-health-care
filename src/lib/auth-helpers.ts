@@ -1,5 +1,5 @@
 import { getToken } from 'next-auth/jwt'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 export interface AuthUser {
   id: string
@@ -26,6 +26,22 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUser | null
   } catch {
     return null
   }
+}
+
+/**
+ * Check if an auth response is a "stale session" error (employeId no longer exists in DB).
+ * If stale, returns a 401 response with action: 'relogin'.
+ * Call this in API routes after getAuthUser() to prevent foreign key violations.
+ */
+export function staleSessionResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      error: 'Session obsolète',
+      action: 'relogin',
+      message: 'Vos données de session sont obsolètes. Veuillez vous déconnecter et vous reconnecter.',
+    },
+    { status: 401 }
+  )
 }
 
 export function canAccess(authUser: AuthUser | null, requiredRoles: string[]): boolean {

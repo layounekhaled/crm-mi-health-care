@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMStore } from '@/lib/store'
+import { signOut } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -116,7 +117,11 @@ export default function ChatWidget() {
           setConversations(data)
         }
       } else if (res.status === 401) {
-        console.warn('[CHAT] Session expirée, reconnexion nécessaire')
+        const err = await res.json().catch(() => ({}))
+        if (err.action === 'relogin') {
+          setChatError('Session obsolète. Reconnexion en cours...')
+          setTimeout(() => signOut({ callbackUrl: '/login' }), 2000)
+        }
       }
     } catch (err) {
       console.error('[CHAT] Erreur fetch conversations:', err)
@@ -246,7 +251,13 @@ export default function ChatWidget() {
         setSearchQuery('')
         fetchConversations()
       } else if (res.status === 401) {
-        setChatError('Session expirée. Rechargez la page et reconnectez-vous.')
+        const err = await res.json().catch(() => ({}))
+        if (err.action === 'relogin') {
+          setChatError('Session obsolète. Reconnexion en cours...')
+          setTimeout(() => signOut({ callbackUrl: '/login' }), 2000)
+        } else {
+          setChatError('Session expirée. Rechargez la page et reconnectez-vous.')
+        }
       } else {
         const err = await res.json().catch(() => ({ error: 'Erreur inconnue' }))
         setChatError(err.details || err.error || 'Erreur lors de la création de la conversation')

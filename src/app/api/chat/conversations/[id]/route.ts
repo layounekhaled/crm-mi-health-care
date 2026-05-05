@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getAuthUser } from '@/lib/auth-helpers'
+import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 
 // GET /api/chat/conversations/[id] - Récupérer une conversation avec ses messages (paginés)
 export async function GET(
@@ -14,6 +14,13 @@ export async function GET(
     }
 
     const employeId = authUser.employeId
+
+    // Vérifier que l'employé existe encore
+    const employeeExists = await db.employee.findUnique({ where: { id: employeId }, select: { id: true } })
+    if (!employeeExists) {
+      return staleSessionResponse()
+    }
+
     const { id } = await params
 
     // Vérifier que l'employé est participant de la conversation

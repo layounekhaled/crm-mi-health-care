@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getAuthUser } from '@/lib/auth-helpers'
+import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 
 // GET /api/chat/conversations - Récupérer toutes les conversations de l'employé courant
 export async function GET(request: NextRequest) {
@@ -11,6 +11,12 @@ export async function GET(request: NextRequest) {
     }
 
     const employeId = authUser.employeId
+
+    // Vérifier que l'employé existe encore (session peut être obsolète après re-seed)
+    const employeeExists = await db.employee.findUnique({ where: { id: employeId }, select: { id: true } })
+    if (!employeeExists) {
+      return staleSessionResponse()
+    }
 
     // Récupérer les conversations où l'employé courant est participant
     const conversations = await db.chatConversation.findMany({
@@ -80,11 +86,17 @@ export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request)
     if (!authUser || !authUser.employeId) {
-      return NextResponse.json({ error: 'Non autorisé', hint: 'Session invalide ou expirée' }, { status: 401 })
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
     const employeId = authUser.employeId
-    
+
+    // Vérifier que l'employé existe encore (session peut être obsolète après re-seed)
+    const employeeExists = await db.employee.findUnique({ where: { id: employeId }, select: { id: true } })
+    if (!employeeExists) {
+      return staleSessionResponse()
+    }
+
     let body
     try {
       body = await request.json()
