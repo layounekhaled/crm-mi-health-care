@@ -73,11 +73,11 @@ export default function LoginPage() {
               className="h-24 w-auto"
             />
           </div>
-          <p className="text-white/80 text-lg font-light max-w-sm mx-auto">
-            &quot;DALIA&quot; le système qui centralise toute votre activité
-            <br />
-            prospects, ventes, opérations et suivi des clients
-          </p>
+          <div className="text-white/80 max-w-sm mx-auto text-center">
+            <p className="text-2xl font-semibold tracking-wide">&quot;DALIA&quot;</p>
+            <p className="text-base font-light mt-2">le système qui centralise toute votre activité</p>
+            <p className="text-base font-light">prospects, ventes, opérations et suivi des clients</p>
+          </div>
           <div className="mt-8 flex items-center justify-center gap-2">
             <div className="h-1 w-8 rounded-full bg-[#F6852A]" />
             <div className="h-1 w-2 rounded-full bg-[#F6852A]/60" />
