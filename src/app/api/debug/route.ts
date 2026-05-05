@@ -4,6 +4,9 @@ import { getToken } from 'next-auth/jwt'
 export async function GET(request: NextRequest) {
   const debug: Record<string, unknown> = {}
 
+  // Show cookie header for debugging
+  debug.cookieHeader = request.headers.get('cookie')?.substring(0, 200) || 'NO COOKIE HEADER'
+
   // Check env vars
   debug.hasNextauthSecret = !!process.env.NEXTAUTH_SECRET
   debug.nextauthUrl = process.env.NEXTAUTH_URL || 'NOT SET'
