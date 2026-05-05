@@ -109,7 +109,9 @@ export default function ChatWidget() {
       const res = await fetch('/api/chat/conversations')
       if (res.ok) {
         const data = await res.json()
-        setConversations(data)
+        if (Array.isArray(data)) {
+          setConversations(data)
+        }
       }
     } catch {
       // silent fail
@@ -122,9 +124,10 @@ export default function ChatWidget() {
       const res = await fetch(`/api/chat/conversations/${conversationId}`)
       if (res.ok) {
         const data = await res.json()
-        setMessages(data.messages || [])
-        // Update last poll time to now
-        lastPollTimeRef.current = new Date().toISOString()
+        if (data && Array.isArray(data.messages)) {
+          setMessages(data.messages)
+          lastPollTimeRef.current = new Date().toISOString()
+        }
       }
     } catch {
       // silent fail
@@ -139,8 +142,9 @@ export default function ChatWidget() {
         `/api/chat/messages/latest?since=${encodeURIComponent(lastPollTimeRef.current)}`
       )
       if (res.ok) {
-        const newMsgs = await res.json()
-        if (newMsgs.length > 0) {
+        const data = await res.json()
+        const newMsgs = data.messages || data
+        if (Array.isArray(newMsgs) && newMsgs.length > 0) {
           const relevantMsgs = newMsgs.filter(
             (m: { conversationId: string }) => m.conversationId === selectedConversation.id
           )
@@ -225,12 +229,15 @@ export default function ChatWidget() {
       if (res.ok) {
         const conv = await res.json()
         setSelectedConversation(conv)
-        await fetchMessages(conv.id)
+        setMessages(conv.messages || [])
         setShowNewChat(false)
         fetchConversations()
+      } else {
+        const err = await res.json().catch(() => ({ error: 'Erreur inconnue' }))
+        console.error('[CHAT] Error starting conversation:', err)
       }
-    } catch {
-      // silent fail
+    } catch (error) {
+      console.error('[CHAT] Network error:', error)
     } finally {
       setIsLoading(false)
     }
@@ -246,9 +253,18 @@ export default function ChatWidget() {
   useEffect(() => {
     if (showNewChat) {
       fetch('/api/employees/list')
-        .then((res) => res.json())
-        .then((data) => setEmployees(data))
-        .catch(() => {})
+        .then((res) => {
+          if (res.ok) return res.json()
+          return []
+        })
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setEmployees(data)
+          } else {
+            setEmployees([])
+          }
+        })
+        .catch(() => setEmployees([]))
     }
   }, [showNewChat])
 
