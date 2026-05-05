@@ -65,14 +65,16 @@ export default function LoginPage() {
           transition={{ duration: 0.6 }}
           className="relative z-10 text-center"
         >
-          <Image
-            src="/logo.png"
-            alt="MI HEALTH CARE"
-            width={400}
-            height={115}
-            className="mx-auto mb-8"
-            priority
-          />
+          {/* Logo on white background for contrast on blue panel */}
+          <div className="mx-auto mb-8 rounded-2xl bg-white p-6 shadow-2xl shadow-black/20 inline-block">
+            <Image
+              src="/logo-white.png"
+              alt="MI HEALTH CARE"
+              width={350}
+              height={100}
+              priority
+            />
+          </div>
           <p className="text-white/80 text-lg font-light max-w-sm mx-auto">
             Plateforme CRM pour la gestion commerciale de matériel médical
           </p>
@@ -100,38 +102,30 @@ export default function LoginPage() {
         >
           <Card className="border-0 shadow-2xl shadow-slate-200/50">
             <CardHeader className="space-y-4 pb-2 text-center">
-              {/* Logo on mobile (visible on < lg screens) */}
+              {/* Logo - visible on ALL screen sizes */}
               <motion.div
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-                className="mx-auto lg:hidden"
+                className="mx-auto"
               >
-                <div className="rounded-2xl bg-[#134885] p-4 shadow-lg shadow-[#134885]/20">
-                  <Image
-                    src="/logo.png"
-                    alt="MI HEALTH CARE"
-                    width={200}
-                    height={57}
-                    priority
-                  />
-                </div>
+                <Image
+                  src="/logo-white.png"
+                  alt="MI HEALTH CARE"
+                  width={220}
+                  height={63}
+                  className="mx-auto"
+                  priority
+                />
               </motion.div>
 
-              {/* Desktop header */}
-              <div className="hidden lg:block">
+              {/* Header text */}
+              <div>
                 <h2 className="text-2xl font-bold tracking-tight text-slate-900">
                   Connexion
                 </h2>
                 <CardDescription className="mt-1 text-sm font-medium text-[#134885]">
                   MI HEALTH CARE — CRM Solutions Santé
-                </CardDescription>
-              </div>
-
-              {/* Mobile header */}
-              <div className="lg:hidden">
-                <CardDescription className="text-sm font-medium text-[#134885]">
-                  Connectez-vous à votre espace
                 </CardDescription>
               </div>
             </CardHeader>
