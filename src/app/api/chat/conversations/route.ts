@@ -2,6 +2,87 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 
+// Constante pour le canal Général
+const GENERAL_CHANNEL_NAME = 'Général'
+
+/**
+ * S'assurer que le canal Général existe et que l'employé y est participant.
+ * Si le canal n'existe pas, le créer avec tous les employés actifs.
+ * Si le canal existe mais que l'employé n'y est pas, l'ajouter.
+ */
+async function ensureGeneralChannel(employeId: string) {
+  try {
+    // Chercher le canal Général existant
+    let generalConv = await db.chatConversation.findFirst({
+      where: { type: 'group', nom: GENERAL_CHANNEL_NAME },
+      include: {
+        participants: {
+          select: { employeId: true },
+        },
+      },
+    })
+
+    if (!generalConv) {
+      // Créer le canal Général avec tous les employés actifs
+      const allEmployees = await db.employee.findMany({
+        where: { actif: true },
+        select: { id: true },
+      })
+
+      generalConv = await db.chatConversation.create({
+        data: {
+          type: 'group',
+          nom: GENERAL_CHANNEL_NAME,
+          participants: {
+            create: allEmployees.map((emp) => ({ employeId: emp.id })),
+          },
+        },
+        include: {
+          participants: {
+            select: { employeId: true },
+          },
+        },
+      })
+    } else {
+      // Vérifier que l'employé courant est participant
+      const isParticipant = generalConv.participants.some(
+        (p) => p.employeId === employeId
+      )
+      if (!isParticipant) {
+        await db.chatParticipant.create({
+          data: {
+            conversationId: generalConv.id,
+            employeId,
+          },
+        })
+      }
+
+      // Ajouter les nouveaux employés qui ne sont pas encore dans le canal
+      const allEmployees = await db.employee.findMany({
+        where: { actif: true },
+        select: { id: true },
+      })
+      const existingParticipantIds = new Set(
+        generalConv.participants.map((p) => p.employeId)
+      )
+      const newParticipants = allEmployees.filter(
+        (emp) => !existingParticipantIds.has(emp.id)
+      )
+      if (newParticipants.length > 0) {
+        await db.chatParticipant.createMany({
+          data: newParticipants.map((emp) => ({
+            conversationId: generalConv.id,
+            employeId: emp.id,
+          })),
+        })
+      }
+    }
+  } catch (error) {
+    console.error('[ENSURE_GENERAL_CHANNEL]', error)
+    // Ne pas bloquer si la création du canal échoue
+  }
+}
+
 // GET /api/chat/conversations - Récupérer toutes les conversations de l'employé courant
 export async function GET(request: NextRequest) {
   try {
@@ -17,6 +98,9 @@ export async function GET(request: NextRequest) {
     if (!employeeExists) {
       return staleSessionResponse()
     }
+
+    // S'assurer que le canal Général existe
+    await ensureGeneralChannel(employeId)
 
     // Récupérer les conversations où l'employé courant est participant
     const conversations = await db.chatConversation.findMany({
@@ -210,21 +294,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Vérifier que tous les participants existent
+    // Vérifier que tous les participants existent dans la base
     const participants = await db.employee.findMany({
       where: {
         id: { in: participantIds },
       },
     })
     if (participants.length !== participantIds.length) {
+      const foundIds = participants.map((p) => p.id)
+      const missingIds = participantIds.filter((id: string) => !foundIds.includes(id))
+      console.error('[CHAT_CONVERSATIONS_POST] Employés introuvables:', missingIds)
       return NextResponse.json(
-        { error: 'Un ou plusieurs employés introuvables' },
+        { error: 'Un ou plusieurs employés introuvables', missingIds },
         { status: 404 }
       )
     }
 
-    // Créer la conversation avec les participants
+    // Créer la liste finale des participants (éviter les doublons)
     const allParticipantIds = [...new Set([employeId, ...participantIds])]
+
+    // Double-vérification : s'assurer que TOUS les IDs (y compris le courant) existent
+    const allExistCheck = await db.employee.findMany({
+      where: { id: { in: allParticipantIds } },
+      select: { id: true },
+    })
+    if (allExistCheck.length !== allParticipantIds.length) {
+      const foundIds = allExistCheck.map((p) => p.id)
+      const missingIds = allParticipantIds.filter((id) => !foundIds.includes(id))
+      console.error('[CHAT_CONVERSATIONS_POST] IDs manquants après vérification:', missingIds, '- employeId JWT:', employeId)
+      return NextResponse.json(
+        { error: 'Session obsolète. Veuillez vous déconnecter et reconnecter.', action: 'relogin' },
+        { status: 401 }
+      )
+    }
 
     const conversation = await db.chatConversation.create({
       data: {

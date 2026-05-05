@@ -106,9 +106,27 @@ async function main() {
   await db.user.create({ data: { email: 'youcef@mihealthcare.dz', motDePasse: hashTech, employeId: youcef.id, role: 'technicien' } })
   await db.user.create({ data: { email: 'nadia@mihealthcare.dz', motDePasse: hashTech, employeId: nadia.id, role: 'technicien' } })
 
+  // Create the General chat channel with all employees
+  await db.chatConversation.create({
+    data: {
+      type: 'group',
+      nom: 'Général',
+      participants: {
+        create: [
+          { employeId: khaled.id },
+          { employeId: amine.id },
+          { employeId: sara.id },
+          { employeId: youcef.id },
+          { employeId: nadia.id },
+        ],
+      },
+    },
+  })
+
   console.log('✅ Seed completed successfully!')
   console.log(`  - 5 employees`)
   console.log(`  - 5 users`)
+  console.log(`  - 1 canal Général`)
   console.log(`  - 10 prospects (4 clients)`)
   console.log(`  - 4 events`)
   console.log(`  - 10 opportunities`)

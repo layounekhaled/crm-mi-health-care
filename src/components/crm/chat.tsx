@@ -324,8 +324,17 @@ export default function ChatWidget() {
   // Total unread count
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
 
+  // Trier les conversations : Général en premier, puis par date
+  const sortedConversations = [...conversations].sort((a, b) => {
+    // Canal Général toujours en premier
+    if (a.type === 'group' && a.nom === 'Général') return -1
+    if (b.type === 'group' && b.nom === 'Général') return 1
+    // Ensuite par date de mise à jour
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  })
+
   // Filter conversations by search
-  const filteredConversations = conversations.filter((conv) => {
+  const filteredConversations = sortedConversations.filter((conv) => {
     if (!searchQuery) return true
     const name = getConvName(conv).toLowerCase()
     return name.includes(searchQuery.toLowerCase())
@@ -383,12 +392,19 @@ export default function ChatWidget() {
                   </button>
                   <Avatar className="h-8 w-8 shrink-0">
                     <AvatarFallback className="bg-white/20 text-xs text-white">
-                      {getConvAvatar(selectedConversation)}
+                      {selectedConversation.type === 'group' && selectedConversation.nom === 'Général' ? (
+                        <Users className="h-4 w-4" />
+                      ) : (
+                        getConvAvatar(selectedConversation)
+                      )}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-white">
-                      {getConvName(selectedConversation)}
+                      {selectedConversation.type === 'group' && selectedConversation.nom === 'Général'
+                        ? '📢 Général'
+                        : getConvName(selectedConversation)
+                      }
                     </p>
                     {selectedConversation.type === 'group' && (
                       <p className="text-[10px] text-white/60">
@@ -630,12 +646,16 @@ export default function ChatWidget() {
                             <Avatar className="h-10 w-10">
                               <AvatarFallback
                                 className={
-                                  conv.type === 'group'
-                                    ? 'bg-[#F6852A]/10 text-xs text-[#F6852A]'
-                                    : 'bg-[#134885]/10 text-xs text-[#134885]'
+                                  conv.type === 'group' && conv.nom === 'G\u00e9n\u00e9ral'
+                                    ? 'bg-gradient-to-br from-[#134885] to-[#1A5A9E] text-xs text-white'
+                                    : conv.type === 'group'
+                                      ? 'bg-[#F6852A]/10 text-xs text-[#F6852A]'
+                                      : 'bg-[#134885]/10 text-xs text-[#134885]'
                                 }
                               >
-                                {conv.type === 'group' ? (
+                                {conv.type === 'group' && conv.nom === 'G\u00e9n\u00e9ral' ? (
+                                  <Users className="h-5 w-5" />
+                                ) : conv.type === 'group' ? (
                                   <Users className="h-4 w-4" />
                                 ) : (
                                   getConvAvatar(conv)
@@ -652,12 +672,17 @@ export default function ChatWidget() {
                             <div className="flex items-center justify-between gap-2">
                               <p
                                 className={`truncate text-sm ${
-                                  conv.unreadCount > 0
-                                    ? 'font-semibold text-slate-900'
-                                    : 'font-medium text-slate-700'
+                                  conv.type === 'group' && conv.nom === 'G\u00e9n\u00e9ral'
+                                    ? 'font-bold text-[#134885]'
+                                    : conv.unreadCount > 0
+                                      ? 'font-semibold text-slate-900'
+                                      : 'font-medium text-slate-700'
                                 }`}
                               >
-                                {getConvName(conv)}
+                                {conv.type === 'group' && conv.nom === 'G\u00e9n\u00e9ral'
+                                  ? '📢 G\u00e9n\u00e9ral'
+                                  : getConvName(conv)
+                                }
                               </p>
                               <span className="shrink-0 text-[10px] text-slate-400">
                                 {conv.messages?.[0]
