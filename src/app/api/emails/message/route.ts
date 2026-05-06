@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
+import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         user: emailConfig.email,
         pass: emailConfig.emailPassword,
       },
+      tls: { rejectUnauthorized: false },
       logger: false as unknown as undefined,
       connectionTimeout: 15000,
       greetingTimeout: 15000,
@@ -55,6 +56,12 @@ export async function GET(request: NextRequest) {
           uid: true,
           source: true,
         }, { uid: true })
+
+        if (!msgData) {
+          lock.release()
+          await client.logout()
+          return NextResponse.json({ error: 'Message non trouvé' }, { status: 404 })
+        }
 
         // Marquer comme lu
         await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true })
@@ -85,7 +92,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
           uid: msgData.uid,
-          flags: msgData.flags,
+          flags: msgData.flags ? [...msgData.flags] : [],
           envelope: msgData.envelope,
           textContent,
           htmlContent,
@@ -151,6 +158,7 @@ export async function DELETE(request: NextRequest) {
         user: emailConfig.email,
         pass: emailConfig.emailPassword,
       },
+      tls: { rejectUnauthorized: false },
       logger: false as unknown as undefined,
       connectionTimeout: 15000,
       greetingTimeout: 15000,
@@ -164,8 +172,8 @@ export async function DELETE(request: NextRequest) {
       try {
         // Marquer comme supprimé
         await client.messageFlagsAdd(uid, ['\\Deleted'], { uid: true })
-        // Expunger
-        await client.expunge()
+        // Expunger - use type assertion as expunge is available at runtime but not in types
+        await (client as unknown as { expunge: (range?: string, options?: { uid?: boolean }) => Promise<boolean> }).expunge(String(uid), { uid: true })
       } finally {
         try { lock.release() } catch { /* déjà libéré */ }
       }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
+import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 import { ImapFlow } from 'imapflow'
 
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         user: emailConfig.email,
         pass: emailConfig.emailPassword,
       },
+      tls: { rejectUnauthorized: false },
       logger: false as unknown as undefined,
       connectionTimeout: 15000,
       greetingTimeout: 15000,
@@ -45,45 +46,49 @@ export async function GET(request: NextRequest) {
       const lock = await client.getMailboxLock(folder)
 
       try {
-        // Recherche
-        let searchCriteria: Record<string, unknown> | string = {}
+        // Recherche - use search() to get matching UIDs for total count
+        let searchQuery: Record<string, unknown> = {}
         if (search) {
-          searchCriteria = { or: [{ from: search }, { subject: search }, { to: search }] }
+          searchQuery = { or: [{ from: search }, { subject: search }, { to: search }] }
         }
 
-        const totalMessages = await client.messageFlags(folder, searchCriteria, { uid: true })
+        const searchResult = await client.search(searchQuery, { uid: true })
+        const matchingUids = Array.isArray(searchResult) ? searchResult : []
+        const total = matchingUids.length
 
-        // Fetch messages for the page
-        const messages: Record<string, unknown>[] = []
-        const total = totalMessages.length || 0
-        const startSeq = Math.max(1, total - (page * limit) + 1)
-        const endSeq = total - ((page - 1) * limit)
-
-        if (endSeq < 1) {
+        if (total === 0) {
           lock.release()
           await client.logout()
           return NextResponse.json({ messages: [], total: 0, page, totalPages: 0 })
         }
 
-        // Utiliser fetch pour récupérer les en-têtes
-        const range = `${Math.max(1, startSeq)}:${Math.max(1, endSeq)}`
+        // Calculate pagination range from matching UIDs (newest first)
+        const startIdx = Math.max(0, total - (page * limit))
+        const endIdx = total - ((page - 1) * limit)
+        const pageUids = matchingUids.slice(startIdx, endIdx).reverse()
 
-        for await (const msg of client.fetch(range, {
-          envelope: true,
-          flags: true,
-          uid: true,
-          bodyStructure: true,
-        })) {
-          messages.push({
-            uid: msg.uid,
-            flags: msg.flags,
-            envelope: msg.envelope,
-            bodyStructure: msg.bodyStructure,
-          })
+        // Fetch messages for the page UIDs
+        const messages: Record<string, unknown>[] = []
+        const uidRange = pageUids.join(',')
+
+        if (uidRange) {
+          for await (const msg of client.fetch(uidRange, {
+            envelope: true,
+            flags: true,
+            uid: true,
+            bodyStructure: true,
+          }, { uid: true })) {
+            messages.push({
+              uid: msg.uid,
+              flags: msg.flags ? [...msg.flags] : [],
+              envelope: msg.envelope,
+              bodyStructure: msg.bodyStructure,
+            })
+          }
         }
 
-        // Inverser pour avoir les plus récents en premier
-        messages.reverse()
+        // Sort by UID descending (newest first) since UIDs are ascending
+        messages.sort((a, b) => (b.uid as number) - (a.uid as number))
 
         lock.release()
         await client.logout()

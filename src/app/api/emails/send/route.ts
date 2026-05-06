@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
         user: emailConfig.email,
         pass: emailConfig.emailPassword,
       },
+      tls: { rejectUnauthorized: false },
       connectionTimeout: 15000,
       greetingTimeout: 15000,
       socketTimeout: 30000,

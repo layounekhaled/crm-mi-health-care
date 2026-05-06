@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
         user: emailConfig.email,
         pass: emailConfig.emailPassword,
       },
+      tls: { rejectUnauthorized: false },
       logger: false as unknown as undefined,
       connectionTimeout: 15000,
       greetingTimeout: 15000,
