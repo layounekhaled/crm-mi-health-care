@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import {
   LayoutDashboard,
   UserRound,
+  UserCheck,
   Calendar,
   Briefcase,
   Package,
@@ -20,6 +21,7 @@ import {
   Stethoscope,
   Mail,
   CalendarDays,
+  CalendarClock,
   FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -37,12 +39,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 const navItems: { page: Page; label: string; icon: React.ComponentType<{ className?: string }>; roles: string[] }[] = [
   { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'prospects', label: 'Prospects', icon: UserRound, roles: ['admin', 'commercial'] },
+  { page: 'clients', label: 'Clients', icon: UserCheck, roles: ['admin', 'commercial'] },
   { page: 'events', label: 'Événements', icon: Calendar, roles: ['admin', 'commercial'] },
   { page: 'opportunities', label: 'Opportunités', icon: Briefcase, roles: ['admin', 'commercial'] },
   { page: 'operations', label: 'Opérations', icon: Package, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'tasks', label: 'Tâches', icon: CheckSquare, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'after-sales', label: 'Après-vente', icon: Wrench, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'employees', label: 'Employés', icon: Users, roles: ['admin'] },
+  { page: 'calendar', label: 'Calendrier', icon: CalendarClock, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'rh', label: 'RH', icon: CalendarDays, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'emails', label: 'Emails', icon: Mail, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'documents', label: 'Documents', icon: FileText, roles: ['admin', 'commercial', 'technicien'] },
