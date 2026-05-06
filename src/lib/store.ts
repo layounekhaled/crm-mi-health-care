@@ -11,6 +11,7 @@ export type Page =
   | 'employees'
   | 'emails'
   | 'rh'
+  | 'documents'
 
 interface CurrentUser {
   id: string

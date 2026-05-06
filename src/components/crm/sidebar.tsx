@@ -20,6 +20,7 @@ import {
   Stethoscope,
   Mail,
   CalendarDays,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -44,6 +45,7 @@ const navItems: { page: Page; label: string; icon: React.ComponentType<{ classNa
   { page: 'employees', label: 'Employés', icon: Users, roles: ['admin'] },
   { page: 'rh', label: 'RH', icon: CalendarDays, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'emails', label: 'Emails', icon: Mail, roles: ['admin', 'commercial', 'technicien'] },
+  { page: 'documents', label: 'Documents', icon: FileText, roles: ['admin', 'commercial', 'technicien'] },
 ]
 
 const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {

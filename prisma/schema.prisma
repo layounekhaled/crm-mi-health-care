@@ -27,6 +27,7 @@ model Prospect {
   afterSales    AfterSale[]
   eventLinks    EventProspect[]
   tasks         Task[]
+  documentSends DocumentSend[]
 }
 
 model Event {
@@ -170,6 +171,8 @@ model Employee {
   leaveRequests    LeaveRequest[]
   approvedRequests LeaveRequest[] @relation("ApprovedRequests")
   leaveMovements   LeaveMovement[]
+  documents        Document[]
+  documentSends    DocumentSend[]
 }
 
 model Objective {
@@ -326,4 +329,46 @@ model CalendarDay {
 
   @@index([date])
   @@index([type])
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  brand         String   // MIR / BOS / Löwenstein / Yuwell / Gelenke / Autres
+  productName   String?
+  documentType  String   // catalogue / prospectus / fiche_technique / formation / sav / autre
+  fileUrl       String   // URL publique Supabase
+  filePath      String   // chemin storage
+  fileName      String
+  fileSize      Int      // en octets
+  uploadedBy    String?  // employeId
+  status        String   @default("active") // active / archived
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  uploader     Employee?     @relation(fields: [uploadedBy], references: [id])
+
+  @@index([brand])
+  @@index([documentType])
+  @@index([status])
+}
+
+model DocumentSend {
+  id            String   @id @default(cuid())
+  documentIds   String   // JSON array of document IDs
+  sentBy        String?  // employeId
+  recipientType String   // prospect / client / manual
+  recipientId   String?  // prospect/client ID
+  recipientEmail String
+  message       String?
+  sentAt        DateTime @default(now())
+  status        String   @default("sent") // sent / failed
+
+  sender   Employee? @relation(fields: [sentBy], references: [id])
+  prospect Prospect? @relation(fields: [recipientId], references: [id])
+
+  @@index([sentBy])
+  @@index([recipientId])
+  @@index([sentAt])
 }
