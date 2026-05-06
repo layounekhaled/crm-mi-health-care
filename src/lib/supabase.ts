@@ -19,8 +19,8 @@ export function createSupabaseAdmin(): SupabaseClient {
   })
 }
 
-// Bucket name
-export const BUCKET_NAME = 'documents'
+// Bucket name (must match Supabase dashboard exactly)
+export const BUCKET_NAME = 'Documents'
 
 // Brand folders
 export const BRAND_FOLDERS: Record<string, string> = {
