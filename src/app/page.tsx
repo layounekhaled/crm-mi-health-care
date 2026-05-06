@@ -12,6 +12,7 @@ import TasksModule from '@/components/crm/tasks'
 import AfterSalesModule from '@/components/crm/after-sales'
 import EmployeesModule from '@/components/crm/employees'
 import EmailsModule from '@/components/crm/emails'
+import RHModule from '@/components/crm/rh'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Loader2 } from 'lucide-react'
 import ChatWidget from '@/components/crm/chat'
@@ -56,6 +57,8 @@ export default function Home() {
         return <AfterSalesModule />
       case 'employees':
         return <EmployeesModule />
+      case 'rh':
+        return <RHModule />
       case 'emails':
         return <EmailsModule />
       default:

@@ -167,6 +167,9 @@ model Employee {
   chatParticipants ChatParticipant[]
   sentMessages   ChatMessage[]
   emailConfig    EmailConfig?
+  leaveRequests    LeaveRequest[]
+  approvedRequests LeaveRequest[] @relation("ApprovedRequests")
+  leaveMovements   LeaveMovement[]
 }
 
 model Objective {
@@ -271,4 +274,56 @@ model EmailConfig {
   updatedAt      DateTime @updatedAt
 
   employe Employee @relation(fields: [employeId], references: [id], onDelete: Cascade)
+}
+
+model LeaveRequest {
+  id            String   @id @default(cuid())
+  employeeId    String
+  type          String   // leave / absence / recovery_work
+  startDate     DateTime
+  endDate       DateTime
+  daysCount     Int
+  reason        String?
+  attachmentUrl String?
+  status        String   @default("pending") // pending / approved / rejected
+  adminComment  String?
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  approver  Employee? @relation("ApprovedRequests", fields: [approvedBy], references: [id])
+  movements LeaveMovement[]
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([type])
+}
+
+model LeaveMovement {
+  id         String   @id @default(cuid())
+  employeeId String
+  type       String   // leave / absence / recovery / annual_credit / adjustment
+  value      Int      // +N or -N
+  sourceId   String?  // reference to LeaveRequest id
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  employee Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  source   LeaveRequest? @relation(fields: [sourceId], references: [id])
+
+  @@index([employeeId])
+  @@index([type])
+  @@index([date])
+}
+
+model CalendarDay {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  type      String   // working_day / weekend / holiday
+  label     String?  // e.g. "Jour de l'an", "Fête de l'indépendance"
+  createdAt DateTime @default(now())
+
+  @@index([date])
+  @@index([type])
 }

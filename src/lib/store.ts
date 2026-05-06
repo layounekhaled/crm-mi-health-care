@@ -10,6 +10,7 @@ export type Page =
   | 'after-sales' 
   | 'employees'
   | 'emails'
+  | 'rh'
 
 interface CurrentUser {
   id: string
