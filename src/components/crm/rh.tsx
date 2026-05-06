@@ -139,7 +139,7 @@ const statusBadgeClass: Record<string, string> = {
 
 const dayTypeLabels: Record<string, string> = {
   working_day: 'Jour ouvré',
-  weekend: 'Week-end',
+  weekend: 'Week-end (Ven-Sam)',
   holiday: 'Jour férié',
 }
 
@@ -491,18 +491,81 @@ export default function RHModule() {
     }
   }
 
+  // Jours fériés officiels d'Algérie
+  // Les dates religieuses (Aïd, Achoura, Mawloud, Nouvel an hidjri) changent chaque année
+  const getAlgeriaHolidays = (year: number): Record<string, string> => {
+    const holidays: Record<string, string> = {}
+
+    // ── Jours fériés fixes ──
+    holidays[`${year}-01-01`] = 'Nouvel an'
+    holidays[`${year}-01-12`] = 'Yennayer (Nouvel an amazigh)'
+    holidays[`${year}-05-01`] = 'Fête du travail'
+    holidays[`${year}-07-05`] = "Fête de l'indépendance"
+    holidays[`${year}-11-01`] = 'Fête de la Révolution'
+
+    // ── Jours fériés religieux 2025 ──
+    if (year === 2025) {
+      holidays['2025-03-30'] = 'Aïd el-Fitr'
+      holidays['2025-03-31'] = 'Aïd el-Fitr (2ème jour)'
+      holidays['2025-04-01'] = 'Aïd el-Fitr (3ème jour)'
+      holidays['2025-06-06'] = 'Aïd el-Adha'
+      holidays['2025-06-07'] = 'Aïd el-Adha (2ème jour)'
+      holidays['2025-06-08'] = 'Aïd el-Adha (3ème jour)'
+      holidays['2025-06-27'] = 'Nouvel an hidjri'
+      holidays['2025-07-06'] = 'Achoura'
+      holidays['2025-09-05'] = 'Mawlid nabaoui'
+    }
+
+    // ── Jours fériés religieux 2026 ──
+    if (year === 2026) {
+      holidays['2026-03-20'] = 'Aïd el-Fitr'
+      holidays['2026-03-21'] = 'Aïd el-Fitr (2ème jour)'
+      holidays['2026-03-22'] = 'Aïd el-Fitr (3ème jour)'
+      holidays['2026-05-27'] = 'Aïd el-Adha'
+      holidays['2026-05-28'] = 'Aïd el-Adha (2ème jour)'
+      holidays['2026-05-29'] = 'Aïd el-Adha (3ème jour)'
+      holidays['2026-06-17'] = 'Nouvel an hidjri'
+      holidays['2026-06-26'] = 'Achoura'
+      holidays['2026-08-26'] = 'Mawlid nabaoui'
+    }
+
+    // ── Jours fériés religieux 2027 ──
+    if (year === 2027) {
+      holidays['2027-03-09'] = 'Aïd el-Fitr'
+      holidays['2027-03-10'] = 'Aïd el-Fitr (2ème jour)'
+      holidays['2027-03-11'] = 'Aïd el-Fitr (3ème jour)'
+      holidays['2027-05-16'] = 'Aïd el-Adha'
+      holidays['2027-05-17'] = 'Aïd el-Adha (2ème jour)'
+      holidays['2027-05-18'] = 'Aïd el-Adha (3ème jour)'
+      holidays['2027-06-07'] = 'Nouvel an hidjri'
+      holidays['2027-06-16'] = 'Achoura'
+      holidays['2027-08-15'] = 'Mawlid nabaoui'
+    }
+
+    return holidays
+  }
+
   const handleGenerateCalendar = async () => {
     setActionLoading(true)
     try {
       const days: { date: string; type: string; label?: string }[] = []
       const year = calendarYear
+      const holidays = getAlgeriaHolidays(year)
+
       for (let m = 0; m < 12; m++) {
         const daysInMonth = new Date(year, m + 1, 0).getDate()
         for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
           const date = new Date(year, m, d)
           const dayOfWeek = date.getDay()
-          const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-          if (dayOfWeek === 0 || dayOfWeek === 6) {
+
+          // En Algérie, le weekend est vendredi (5) et samedi (6)
+          const isWeekend = dayOfWeek === 5 || dayOfWeek === 6
+          const holidayLabel = holidays[dateStr]
+
+          if (holidayLabel) {
+            days.push({ date: dateStr, type: 'holiday', label: holidayLabel })
+          } else if (isWeekend) {
             days.push({ date: dateStr, type: 'weekend' })
           } else {
             days.push({ date: dateStr, type: 'working_day' })
@@ -517,7 +580,10 @@ export default function RHModule() {
         body: JSON.stringify({ days }),
       })
       if (res.ok) {
-        toast.success(`Calendrier ${year} généré avec succès`)
+        const data = await res.json()
+        const holidayCount = days.filter(d => d.type === 'holiday').length
+        const weekendCount = days.filter(d => d.type === 'weekend').length
+        toast.success(`Calendrier ${year} généré : ${holidayCount} jour(s) férié(s), ${weekendCount} week-end(s) (ven-sam)`, { duration: 5000 })
         fetchCalendar()
       } else {
         const data = await res.json()
@@ -1349,7 +1415,7 @@ export default function RHModule() {
                     <div className="rounded-lg border border-[#F6852A]/30 bg-[#F6852A]/5 p-3">
                       <p className="text-sm text-[#F6852A]">
                         <strong>Note :</strong> Au moins un jour dans la plage sélectionnée doit être un
-                        week-end ou un jour férié pour une récupération.
+                        week-end (vendredi-samedi) ou un jour férié pour une récupération.
                       </p>
                     </div>
                   )}
