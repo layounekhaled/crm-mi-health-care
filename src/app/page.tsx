@@ -19,6 +19,7 @@ import DocumentsModule from '@/components/crm/documents'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Loader2 } from 'lucide-react'
 import ChatWidget from '@/components/crm/chat'
+import { GlobalSearch } from '@/components/crm/global-search'
 
 export default function Home() {
   const { currentPage, sidebarOpen } = useCRMStore()
@@ -89,6 +90,7 @@ export default function Home() {
         </main>
       </div>
       <ChatWidget />
+      <GlobalSearch />
     </div>
   )
 }

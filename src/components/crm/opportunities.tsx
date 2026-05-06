@@ -71,6 +71,10 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
+import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { toast } from 'sonner'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -294,6 +298,12 @@ export default function OpportunitiesModule() {
   // Client search
   const [clientSearch, setClientSearch] = useState('')
 
+  // DnD state
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [motifPerteDialogOpen, setMotifPerteDialogOpen] = useState(false)
+  const [motifPerteOppId, setMotifPerteOppId] = useState<string | null>(null)
+  const [motifPerteValue, setMotifPerteValue] = useState('')
+
   // ─── Data Fetching ─────────────────────────────────────────────
 
   const fetchOpportunities = useCallback(async () => {
@@ -306,7 +316,7 @@ export default function OpportunitiesModule() {
         setOpportunities(data)
       }
     } catch (err) {
-      console.error('Failed to fetch opportunities:', err)
+      toast.error('Erreur lors du chargement des opportunités')
     }
   }, [filterStatut])
 
@@ -318,7 +328,7 @@ export default function OpportunitiesModule() {
         setClients(data.data || data)
       }
     } catch (err) {
-      console.error('Failed to fetch clients:', err)
+      toast.error('Erreur lors du chargement des clients')
     }
   }, [])
 
@@ -330,7 +340,7 @@ export default function OpportunitiesModule() {
         setCommercials(data)
       }
     } catch (err) {
-      console.error('Failed to fetch commercials:', err)
+      toast.error('Erreur lors du chargement des commerciaux')
     }
   }, [])
 
@@ -343,7 +353,7 @@ export default function OpportunitiesModule() {
         setSelectedOpportunity(data)
       }
     } catch (err) {
-      console.error('Failed to fetch opportunity detail:', err)
+      toast.error('Erreur lors du chargement du détail')
     } finally {
       setDetailLoading(false)
     }
@@ -422,7 +432,7 @@ export default function OpportunitiesModule() {
       setShowFormDialog(false)
       await fetchOpportunities()
     } catch (err) {
-      console.error('Save failed:', err)
+      toast.error("Erreur lors de l'enregistrement")
     } finally {
       setSaving(false)
     }
@@ -440,7 +450,7 @@ export default function OpportunitiesModule() {
         await fetchOpportunities()
       }
     } catch (err) {
-      console.error('Delete failed:', err)
+      toast.error('Erreur lors de la suppression')
     }
   }
 
@@ -460,7 +470,7 @@ export default function OpportunitiesModule() {
         await fetchOpportunities()
       }
     } catch (err) {
-      console.error('Move failed:', err)
+      toast.error('Erreur lors du déplacement')
     }
   }
 
@@ -487,7 +497,7 @@ export default function OpportunitiesModule() {
         await fetchOpportunities()
       }
     } catch (err) {
-      console.error('Add operation failed:', err)
+      toast.error("Erreur lors de l'ajout de l'opération")
     }
   }
 
@@ -513,7 +523,7 @@ export default function OpportunitiesModule() {
         await fetchOpportunityDetail(selectedOpportunity.id)
       }
     } catch (err) {
-      console.error('Add task failed:', err)
+      toast.error("Erreur lors de l'ajout de la tâche")
     }
   }
 
@@ -581,6 +591,83 @@ export default function OpportunitiesModule() {
     } else {
       setSortField(field)
       setSortDir('asc')
+    }
+  }
+
+  // ─── DnD Handlers ────────────────────────────────────────────────
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  )
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveId(null)
+
+    if (!over) return
+
+    const activeOpp = opportunities.find(o => o.id === active.id)
+    if (!activeOpp) return
+
+    // Find which column the item was dropped on
+    const overStage = PIPELINE_STAGES.find(s => s.value === over.id)
+    if (!overStage) return
+
+    const newStatut = overStage.value
+    if (activeOpp.statut === newStatut) return // No change
+
+    // If moving to "Perdu", show motif dialog
+    if (newStatut === 'Perdu') {
+      setMotifPerteOppId(activeOpp.id)
+      setMotifPerteValue('')
+      setMotifPerteDialogOpen(true)
+      return
+    }
+
+    // Optimistic update
+    setOpportunities(prev => prev.map(o => o.id === active.id ? { ...o, statut: newStatut } : o))
+
+    try {
+      const res = await fetch(`/api/opportunities/${active.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut: newStatut }),
+      })
+      if (!res.ok) throw new Error('Move failed')
+      toast.success(`Opportunité déplacée vers "${overStage.label}"`)
+      await fetchOpportunities()
+    } catch {
+      toast.error('Erreur lors du déplacement')
+      await fetchOpportunities() // Revert
+    }
+  }
+
+  const handleConfirmMotifPerte = async () => {
+    if (!motifPerteOppId) return
+    const opp = opportunities.find(o => o.id === motifPerteOppId)
+    if (!opp) return
+
+    // Optimistic update
+    setOpportunities(prev => prev.map(o => o.id === motifPerteOppId ? { ...o, statut: 'Perdu', motifPerte: motifPerteValue || 'Autre' } : o))
+    setMotifPerteDialogOpen(false)
+
+    try {
+      const res = await fetch(`/api/opportunities/${motifPerteOppId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut: 'Perdu', motifPerte: motifPerteValue || 'Autre' }),
+      })
+      if (!res.ok) throw new Error('Move failed')
+      toast.success('Opportunité déplacée vers "Perdu"')
+      setMotifPerteOppId(null)
+      await fetchOpportunities()
+    } catch {
+      toast.error('Erreur lors du déplacement')
+      await fetchOpportunities() // Revert
     }
   }
 
@@ -705,64 +792,87 @@ export default function OpportunitiesModule() {
           <>
             {/* ─── Kanban View ──────────────────────────────────── */}
             {viewMode === 'kanban' && (
-              <div className="overflow-x-auto pb-4">
-                <div className="flex gap-4" style={{ minWidth: `${PIPELINE_STAGES.length * 296}px` }}>
-                  {kanbanData.map(stage => (
-                    <div
-                      key={stage.value}
-                      className="flex w-[280px] flex-shrink-0 flex-col rounded-xl border border-slate-200/80 bg-white/50 dark:border-slate-800/80 dark:bg-slate-900/50"
-                    >
-                      {/* Column Header */}
-                      <div className={`rounded-t-xl px-3 py-2.5 ${stage.headerBg}`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`size-2.5 rounded-full ${stage.color}`} />
-                            <span className={`text-sm font-semibold ${stage.textColor}`}>
-                              {stage.label}
-                            </span>
-                          </div>
-                          <Badge variant="secondary" className="text-xs">
-                            {stage.opportunities.length}
-                          </Badge>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {formatDZD(stage.opportunities.reduce((s, o) => s + (o.montantEstime || 0), 0))}
-                        </p>
-                      </div>
-
-                      {/* Cards */}
-                      <ScrollArea className="flex-1" style={{ maxHeight: 'calc(100vh - 340px)' }}>
-                        <div className="space-y-2 p-2">
-                          <AnimatePresence mode="popLayout">
-                            {stage.opportunities.map(opp => (
-                              <KanbanCard
-                                key={opp.id}
-                                opportunity={opp}
-                                onMove={moveOpportunity}
-                                onClick={() => {
-                                  fetchOpportunityDetail(opp.id)
-                                  setShowDetailDialog(true)
-                                }}
-                                onEdit={() => openEditDialog(opp)}
-                                onDelete={() => {
-                                  setDeletingId(opp.id)
-                                  setShowDeleteDialog(true)
-                                }}
-                              />
-                            ))}
-                          </AnimatePresence>
-                          {stage.opportunities.length === 0 && (
-                            <div className="flex flex-col items-center justify-center py-8 text-xs text-muted-foreground">
-                              <Briefcase className="mb-2 size-8 opacity-20" />
-                              Aucune opportunité
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCorners}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="overflow-x-auto pb-4">
+                  <div className="flex gap-4" style={{ minWidth: `${PIPELINE_STAGES.length * 296}px` }}>
+                    {kanbanData.map(stage => (
+                      <div
+                        key={stage.value}
+                        id={stage.value}
+                        className="flex w-[280px] flex-shrink-0 flex-col rounded-xl border border-slate-200/80 bg-white/50 dark:border-slate-800/80 dark:bg-slate-900/50"
+                      >
+                        {/* Column Header */}
+                        <div className={`rounded-t-xl px-3 py-2.5 ${stage.headerBg}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`size-2.5 rounded-full ${stage.color}`} />
+                              <span className={`text-sm font-semibold ${stage.textColor}`}>
+                                {stage.label}
+                              </span>
                             </div>
-                          )}
+                            <Badge variant="secondary" className="text-xs">
+                              {stage.opportunities.length}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {formatDZD(stage.opportunities.reduce((s, o) => s + (o.montantEstime || 0), 0))}
+                          </p>
                         </div>
-                      </ScrollArea>
-                    </div>
-                  ))}
+
+                        {/* Cards */}
+                        <ScrollArea className="flex-1" style={{ maxHeight: 'calc(100vh - 340px)' }}>
+                          <div className="space-y-2 p-2">
+                            <SortableContext items={stage.opportunities.map(o => o.id)} strategy={verticalListSortingStrategy}>
+                              <AnimatePresence mode="popLayout">
+                                {stage.opportunities.map(opp => (
+                                  <SortableKanbanCard
+                                    key={opp.id}
+                                    opportunity={opp}
+                                    onMove={moveOpportunity}
+                                    onClick={() => {
+                                      fetchOpportunityDetail(opp.id)
+                                      setShowDetailDialog(true)
+                                    }}
+                                    onEdit={() => openEditDialog(opp)}
+                                    onDelete={() => {
+                                      setDeletingId(opp.id)
+                                      setShowDeleteDialog(true)
+                                    }}
+                                  />
+                                ))}
+                              </AnimatePresence>
+                            </SortableContext>
+                            {stage.opportunities.length === 0 && (
+                              <div className="flex flex-col items-center justify-center py-8 text-xs text-muted-foreground">
+                                <Briefcase className="mb-2 size-8 opacity-20" />
+                                Aucune opportunité
+                              </div>
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+                <DragOverlay>
+                  {activeId ? (
+                    <div className="w-[260px] rotate-3 opacity-90">
+                      <KanbanCard
+                        opportunity={opportunities.find(o => o.id === activeId)!}
+                        onMove={async () => {}}
+                        onClick={() => {}}
+                        onEdit={() => {}}
+                        onDelete={() => {}}
+                      />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             )}
 
             {/* ─── List View ────────────────────────────────────── */}
@@ -1632,6 +1742,43 @@ export default function OpportunitiesModule() {
           if (selectedOpportunity) fetchOpportunityDetail(selectedOpportunity.id)
         }}
       />
+
+      {/* ─── Motif de Perte Dialog ──────────────────────────────── */}
+      <Dialog open={motifPerteDialogOpen} onOpenChange={setMotifPerteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="size-5" />
+              Motif de perte
+            </DialogTitle>
+            <DialogDescription>
+              Pourquoi cette opportunité est-elle perdue ?
+            </DialogDescription>
+          </DialogHeader>
+          <Select value={motifPerteValue} onValueChange={setMotifPerteValue}>
+            <SelectTrigger>
+              <SelectValue placeholder="Sélectionner un motif" />
+            </SelectTrigger>
+            <SelectContent>
+              {MOTIFS_PERTE.map(m => (
+                <SelectItem key={m} value={m}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMotifPerteDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmMotifPerte}
+              disabled={!motifPerteValue}
+            >
+              Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -1742,5 +1889,32 @@ function KanbanCard({
         </CardContent>
       </Card>
     </motion.div>
+  )
+}
+
+// ─── Sortable Kanban Card Component ──────────────────────────────
+
+function SortableKanbanCard({ opportunity, onMove, onClick, onEdit, onDelete }: {
+  opportunity: Opportunity
+  onMove: (id: string, statut: string) => Promise<void>
+  onClick: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: opportunity.id,
+    data: { type: 'opportunity', statut: opportunity.statut },
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <KanbanCard opportunity={opportunity} onMove={onMove} onClick={onClick} onEdit={onEdit} onDelete={onDelete} />
+    </div>
   )
 }
