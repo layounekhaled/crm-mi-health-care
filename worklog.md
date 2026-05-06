@@ -20,3 +20,25 @@ Stage Summary:
 - New flags API route operational
 - Professional email client UI implemented
 - Code pushed to GitHub, Vercel auto-deploy triggered
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Complete RH module - Leave, Absence & Recovery management
+
+Work Log:
+- Added 3 Prisma models: LeaveRequest, LeaveMovement, CalendarDay
+- Added Employee relations for leave management
+- Pushed schema to database (prisma db push)
+- Created 6 API routes under /api/rh/
+- Built complete UI component (rh.tsx, 1993 lines)
+- Integrated in sidebar, store, and page routing
+- Lint check: 0 errors
+- Git committed (5c0747e) and pushed to origin/main
+
+Stage Summary:
+- Full RH module operational with admin & employee views
+- Workflow: Request → Approval → Movement → Dynamic balance
+- Annual credit auto-generation with anti-duplicate
+- Calendar management for working days/weekends/holidays
+- Notification integration for request/approval flows
