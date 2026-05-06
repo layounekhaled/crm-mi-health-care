@@ -70,6 +70,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -117,6 +118,8 @@ interface Interaction {
   notes?: string | null
   date: string
   employe?: { id: string; nom: string } | null
+  task?: { id: string; titre: string } | null
+  afterSale?: { id: string; titre: string } | null
 }
 
 interface Opportunity {
@@ -248,6 +251,7 @@ export default function OpportunitiesModule() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showAddOperationDialog, setShowAddOperationDialog] = useState(false)
   const [showAddTaskDialog, setShowAddTaskDialog] = useState(false)
+  const [showAddInteractionDialog, setShowAddInteractionDialog] = useState(false)
 
   // Form state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -1343,31 +1347,58 @@ export default function OpportunitiesModule() {
 
               {/* Interactions */}
               <div className="space-y-3">
-                <Label className="text-sm font-semibold flex items-center gap-1.5">
-                  <MessageSquare className="size-3.5" />
-                  Historique des interactions ({selectedOpportunity.interactions?.length || 0})
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <MessageSquare className="size-3.5" />
+                    Historique des interactions ({selectedOpportunity.interactions?.length || 0})
+                  </Label>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-[#134885]/20 text-[#134885] hover:bg-[#134885]/5"
+                    onClick={() => setShowAddInteractionDialog(true)}
+                  >
+                    <Plus className="size-3 mr-1" />
+                    Ajouter
+                  </Button>
+                </div>
                 {selectedOpportunity.interactions && selectedOpportunity.interactions.length > 0 ? (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {selectedOpportunity.interactions.map(inter => (
-                      <div
-                        key={inter.id}
-                        className="flex items-start gap-3 rounded-lg border bg-white p-3 dark:bg-slate-800/50"
-                      >
-                        <div className="flex size-8 items-center justify-center rounded-full bg-[#134885]/10 dark:bg-[#134885]/20">
-                          <MessageSquare className="size-4 text-[#134885] dark:text-[#F6852A]" />
+                    {selectedOpportunity.interactions.map(inter => {
+                      const interactionType = INTERACTION_TYPES.find(t => t.value === inter.type)
+                      const TypeIcon = interactionType?.icon || MessageSquare
+                      return (
+                        <div
+                          key={inter.id}
+                          className="flex items-start gap-3 rounded-lg border bg-white p-3 dark:bg-slate-800/50"
+                        >
+                          <div className="flex size-8 items-center justify-center rounded-full bg-[#134885]/10 dark:bg-[#134885]/20">
+                            <TypeIcon className={`size-4 ${interactionType?.color || 'text-[#134885] dark:text-[#F6852A]'}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm">{inter.notes || inter.type}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {inter.employe?.nom || 'Système'} · {formatDateTime(inter.date)}
+                            </p>
+                            {inter.task && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <ListChecks className="size-3" />
+                                Tâche: {inter.task.titre}
+                              </p>
+                            )}
+                            {inter.afterSale && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <Wrench className="size-3" />
+                                SAV: {inter.afterSale.titre}
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            {interactionType?.label || inter.type}
+                          </Badge>
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm">{inter.notes || inter.type}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {inter.employe?.nom || 'Système'} · {formatDateTime(inter.date)}
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="text-xs">
-                          {inter.type === 'appel' ? 'Appel' : inter.type === 'email' ? 'Email' : inter.type === 'rendez_vous' ? 'RDV' : inter.type === 'note' ? 'Note' : inter.type}
-                        </Badge>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <p className="py-4 text-center text-xs text-muted-foreground">
@@ -1589,6 +1620,18 @@ export default function OpportunitiesModule() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Interaction Dialog */}
+      <AddInteractionDialog
+        open={showAddInteractionDialog}
+        onOpenChange={setShowAddInteractionDialog}
+        opportunityId={selectedOpportunity?.id}
+        prospectId={selectedOpportunity?.clientId || undefined}
+        contextLabel={selectedOpportunity?.nomProjet || 'cette opportunité'}
+        onSuccess={() => {
+          if (selectedOpportunity) fetchOpportunityDetail(selectedOpportunity.id)
+        }}
+      />
     </div>
   )
 }

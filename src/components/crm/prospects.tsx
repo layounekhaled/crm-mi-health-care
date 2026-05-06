@@ -68,6 +68,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -103,6 +104,8 @@ interface Interaction {
   notes: string | null
   date: string
   employe?: { id: string; nom: string } | null
+  task?: { id: string; titre: string; statut: string } | null
+  afterSale?: { id: string; type: string; statut: string } | null
 }
 
 interface Opportunity {
@@ -168,14 +171,6 @@ const SOURCES = [
   { value: 'événement', label: 'Événement' },
   { value: 'prospection', label: 'Prospection' },
   { value: 'recommandation', label: 'Recommandation' },
-]
-
-const INTERACTION_TYPES = [
-  { value: 'appel', label: 'Appel téléphonique' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'email', label: 'Email' },
-  { value: 'visite', label: 'Visite' },
-  { value: 'autre', label: 'Autre' },
 ]
 
 // ─── Helper: Source badge color ─────────────────────────────────────────────
@@ -321,13 +316,6 @@ export default function ProspectsModule() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [duplicateExistingId, setDuplicateExistingId] = useState<string | null>(null)
-
-  // Interaction form state
-  const [interactionForm, setInteractionForm] = useState({
-    type: 'appel',
-    notes: '',
-  })
-  const [interactionSubmitting, setInteractionSubmitting] = useState(false)
 
   // ─── Fetch prospects ────────────────────────────────────────────────────
 
@@ -502,37 +490,6 @@ export default function ProspectsModule() {
       }
     } catch {
       toast.error('Erreur lors de la conversion')
-    }
-  }
-
-  // ─── Add interaction ────────────────────────────────────────────────────
-
-  const handleAddInteraction = async () => {
-    if (!selectedProspect || !interactionForm.notes.trim()) {
-      toast.error('Veuillez saisir des notes')
-      return
-    }
-
-    setInteractionSubmitting(true)
-    try {
-      const res = await fetch('/api/interactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: interactionForm.type,
-          prospectId: selectedProspect.id,
-          notes: interactionForm.notes,
-        }),
-      })
-      if (!res.ok) throw new Error('Erreur')
-      toast.success('Interaction ajoutée avec succès')
-      setAddInteractionOpen(false)
-      setInteractionForm({ type: 'appel', notes: '' })
-      fetchDetail(selectedProspect.id)
-    } catch {
-      toast.error("Erreur lors de l'ajout de l'interaction")
-    } finally {
-      setInteractionSubmitting(false)
     }
   }
 
@@ -1256,6 +1213,20 @@ export default function ProspectsModule() {
                                   {interaction.notes}
                                 </p>
                               )}
+                              {(interaction.task || interaction.afterSale) && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  {interaction.task && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-slate-100">
+                                      📋 {interaction.task.titre}
+                                    </Badge>
+                                  )}
+                                  {interaction.afterSale && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
+                                      🔧 SAV: {interaction.afterSale.type}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1357,78 +1328,16 @@ export default function ProspectsModule() {
           </DialogContent>
         </Dialog>
 
-        {/* ── Add Interaction Dialog ──────────────────────────────────────── */}
-        <Dialog open={addInteractionOpen} onOpenChange={setAddInteractionOpen}>
-          <DialogContent className="sm:max-w-[450px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Phone className="size-5 text-[#134885]" />
-                Ajouter une interaction
-              </DialogTitle>
-              <DialogDescription>
-                Enregistrez une nouvelle interaction avec{' '}
-                {selectedProspect?.nom}.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>Type d&apos;interaction</Label>
-                <Select
-                  value={interactionForm.type}
-                  onValueChange={(v) => setInteractionForm({ ...interactionForm, type: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INTERACTION_TYPES.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        <span className="flex items-center gap-2">
-                          <InteractionIcon type={t.value} />
-                          {t.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="interaction-notes">Notes</Label>
-                <Textarea
-                  id="interaction-notes"
-                  placeholder="Détails de l'interaction..."
-                  value={interactionForm.notes}
-                  onChange={(e) =>
-                    setInteractionForm({ ...interactionForm, notes: e.target.value })
-                  }
-                  rows={4}
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddInteractionOpen(false)}>
-                Annuler
-              </Button>
-              <Button
-                onClick={handleAddInteraction}
-                disabled={interactionSubmitting}
-                className="bg-[#134885] hover:bg-[#0D3A6E] text-white"
-              >
-                {interactionSubmitting ? (
-                  <span className="flex items-center gap-2">
-                    <span className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Enregistrement...
-                  </span>
-                ) : (
-                  'Enregistrer'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* ── Add Interaction Dialog (shared) ─────────────────────────────── */}
+        <AddInteractionDialog
+          open={addInteractionOpen}
+          onOpenChange={setAddInteractionOpen}
+          prospectId={selectedProspect?.id}
+          contextLabel={selectedProspect?.nom || ''}
+          onSuccess={() => {
+            if (selectedProspect) fetchDetail(selectedProspect.id)
+          }}
+        />
 
         {/* ── Delete Confirmation Dialog ──────────────────────────────────── */}
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

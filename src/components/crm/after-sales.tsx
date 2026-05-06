@@ -19,6 +19,7 @@ import {
   Calendar,
   User,
   StickyNote,
+  MessageSquare,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -56,6 +57,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
+import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -202,6 +204,10 @@ export default function AfterSalesModule() {
   // Delete dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Add interaction dialog
+  const [showAddInteractionDialog, setShowAddInteractionDialog] = useState(false)
+  const [selectedAfterSaleForInteraction, setSelectedAfterSaleForInteraction] = useState<any>(null)
 
   // Form
   const [formData, setFormData] = useState({
@@ -573,6 +579,19 @@ export default function AfterSalesModule() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-7 w-7 p-0 text-[#134885]"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedAfterSaleForInteraction(item)
+                                  setShowAddInteractionDialog(true)
+                                }}
+                                title="Ajouter une interaction"
+                              >
+                                <MessageSquare className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="h-7 gap-1.5 px-2 text-xs text-slate-600 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
                                 onClick={() => {
                                   setDeletingId(item.id)
@@ -805,6 +824,18 @@ export default function AfterSalesModule() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Interaction Dialog */}
+      <AddInteractionDialog
+        open={showAddInteractionDialog}
+        onOpenChange={setShowAddInteractionDialog}
+        afterSaleId={selectedAfterSaleForInteraction?.id}
+        prospectId={selectedAfterSaleForInteraction?.clientId}
+        contextLabel={selectedAfterSaleForInteraction?.client?.nom || 'ce SAV'}
+        onSuccess={() => {
+          fetchAfterSales()
+        }}
+      />
     </div>
   )
 }

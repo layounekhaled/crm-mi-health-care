@@ -18,6 +18,7 @@ import {
   User,
   Search,
   X,
+  MessageSquare,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -46,6 +47,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
+import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -193,6 +195,12 @@ export default function TasksModule() {
   const [showFormDialog, setShowFormDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showAddInteractionDialog, setShowAddInteractionDialog] = useState(false)
+  const [interactionTaskId, setInteractionTaskId] = useState<string | null>(null)
+  const [interactionTaskName, setInteractionTaskName] = useState('')
+  const [completeOnInteraction, setCompleteOnInteraction] = useState(false)
+  const [interactionProspectId, setInteractionProspectId] = useState<string | null>(null)
+  const [interactionOpportunityId, setInteractionOpportunityId] = useState<string | null>(null)
 
   // Form
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -508,6 +516,15 @@ export default function TasksModule() {
     setShowDeleteDialog(true)
   }
 
+  const openInteractionDialog = (task: Task, shouldComplete: boolean = false) => {
+    setInteractionTaskId(task.id)
+    setInteractionTaskName(task.titre)
+    setCompleteOnInteraction(shouldComplete)
+    setInteractionProspectId(task.prospectId || null)
+    setInteractionOpportunityId(task.opportunityId || null)
+    setShowAddInteractionDialog(true)
+  }
+
   // ─── Linked entity label ───────────────────────────────────────
 
   function getLinkedEntity(task: Task): { label: string; type: string } | null {
@@ -782,16 +799,29 @@ export default function TasksModule() {
                       <CardContent className="p-4">
                         {/* Top: Checkbox + Title + Actions */}
                         <div className="flex items-start gap-3">
-                          <Checkbox
-                            checked={isDone}
-                            onCheckedChange={() => {
-                              if (!isDone) {
-                                handleQuickComplete(task.id)
-                              }
-                            }}
-                            className="mt-0.5 shrink-0 border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
-                            disabled={isDone}
-                          />
+                          <div className="flex items-center gap-1">
+                            <Checkbox
+                              checked={isDone}
+                              onCheckedChange={() => {
+                                if (!isDone) {
+                                  handleQuickComplete(task.id)
+                                }
+                              }}
+                              className="mt-0.5 shrink-0 border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
+                              disabled={isDone}
+                            />
+                            {task.statut !== 'terminee' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openInteractionDialog(task, true)
+                                }}
+                                className="text-[10px] text-[#F6852A] hover:underline ml-2"
+                              >
+                                Terminer + Interaction
+                              </button>
+                            )}
+                          </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <h3
@@ -811,6 +841,18 @@ export default function TasksModule() {
                                   onClick={() => openEditDialog(task)}
                                 >
                                   <Edit3 className="size-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-[#134885]"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openInteractionDialog(task, task.statut !== 'terminee')
+                                  }}
+                                  title="Ajouter une interaction"
+                                >
+                                  <MessageSquare className="h-3.5 w-3.5" />
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -1240,6 +1282,20 @@ export default function TasksModule() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Add Interaction Dialog ──────────────────────────────── */}
+      <AddInteractionDialog
+        open={showAddInteractionDialog}
+        onOpenChange={setShowAddInteractionDialog}
+        taskId={interactionTaskId || undefined}
+        prospectId={interactionProspectId || undefined}
+        opportunityId={interactionOpportunityId || undefined}
+        contextLabel={interactionTaskName || 'cette tâche'}
+        onCompleteTask={completeOnInteraction ? interactionTaskId || undefined : undefined}
+        onSuccess={() => {
+          fetchTasks()
+        }}
+      />
     </div>
   )
 }

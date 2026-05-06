@@ -116,6 +116,7 @@ model Task {
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
   operation   Operation?   @relation(fields: [operationId], references: [id])
   event       Event?       @relation(fields: [eventId], references: [id])
+  interactions Interaction[]
 }
 
 model Interaction {
@@ -123,6 +124,8 @@ model Interaction {
   type          String   @default("appel")
   prospectId    String?
   opportunityId String?
+  taskId        String?
+  afterSaleId   String?
   notes         String?
   date          DateTime @default(now())
   employeId     String?
@@ -130,7 +133,12 @@ model Interaction {
 
   prospect    Prospect?    @relation(fields: [prospectId], references: [id])
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  task        Task?        @relation(fields: [taskId], references: [id])
+  afterSale   AfterSale?   @relation(fields: [afterSaleId], references: [id])
   employe     Employee?    @relation(fields: [employeId], references: [id])
+
+  @@index([taskId])
+  @@index([afterSaleId])
 }
 
 model AfterSale {
@@ -146,6 +154,7 @@ model AfterSale {
 
   client  Prospect @relation(fields: [clientId], references: [id])
   employe Employee? @relation(fields: [employeId], references: [id])
+  interactions Interaction[]
 }
 
 model Employee {
