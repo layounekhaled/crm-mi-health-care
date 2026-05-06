@@ -66,3 +66,29 @@ Stage Summary:
 - 7 files changed, 4223 lines added
 - All accessible via sidebar navigation
 - Production URL: https://crm-mi-health-care.vercel.app
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Recherche Globale (Ctrl+K) + Drag & Drop Kanban Opportunités
+
+Work Log:
+- Created /api/search endpoint with role-based filtering across 5 entity types (prospects, opportunities, tasks, employees, events)
+- Created GlobalSearch component using cmdk (CommandDialog) with Ctrl+K/Cmd+K shortcut, 300ms debounce, grouped results
+- Integrated GlobalSearch in page.tsx layout
+- Added @dnd-kit/core + @dnd-kit/sortable drag & drop to Opportunities Kanban
+- Created SortableKanbanCard wrapper component with useSortable hook
+- Added DragOverlay for visual feedback during drag
+- Added motif de perte dialog when dragging to "Perdu" column
+- Replaced all console.error with toast.error in Opportunities module
+- Optimistic updates on drag with API call + toast feedback
+- Build successful (0 errors)
+- Git committed (9c48c58) and pushed to origin/main
+- Vercel deployment: QUEUED → BUILDING → READY
+
+Stage Summary:
+- Global Search (Ctrl+K) fully functional with search API
+- Drag & Drop Kanban with @dnd-kit working
+- Toast notifications added to Opportunities module
+- 6 files changed, 977 lines added
+- Production URL: https://crm-mi-health-care.vercel.app
