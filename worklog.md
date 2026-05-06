@@ -42,3 +42,27 @@ Stage Summary:
 - Annual credit auto-generation with anti-duplicate
 - Calendar management for working days/weekends/holidays
 - Notification integration for request/approval flows
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Dashboard enrichi + Module Clients + Module Calendrier
+
+Work Log:
+- Updated Zustand store: added 'clients' and 'calendar' page types
+- Updated sidebar: added Clients (UserCheck icon) and Calendrier (CalendarClock icon) nav items
+- Enriched Dashboard API with: caByMonth (12 months), topCommercials, topProducts, pipeline data, afterSales by type/statut, prospectsByWilaya
+- Rewrote Dashboard UI with: pipeline funnel visual, CA by month line/area chart, top commercials bar chart, top products list, prospects by wilaya chart, SAV stats section, 2 additional KPIs (SAV en attente, Délai moyen)
+- Created ClientsModule (clients.tsx): dedicated client view with health indicator, quick call/whatsapp, enriched detail dialog with 5 tabs (Profil, Opportunités, Interactions, SAV, Documents)
+- Created CalendarModule (calendar.tsx): monthly/weekly/daily views with color-coded events (tasks, events, interactions, SAV), navigation, day detail dialog, task completion action
+- Updated page.tsx with new component imports and route cases
+- Build successful (0 errors)
+- Git committed (f0fa970) and pushed to origin/main
+- Vercel deployment: BUILDING → READY
+- Tested: site returns 200/307, API returns 401 (auth required)
+
+Stage Summary:
+- 3 major features deployed: enriched Dashboard, Clients module, Calendar module
+- 7 files changed, 4223 lines added
+- All accessible via sidebar navigation
+- Production URL: https://crm-mi-health-care.vercel.app
