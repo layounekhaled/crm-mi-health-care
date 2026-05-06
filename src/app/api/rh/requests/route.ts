@@ -117,6 +117,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Server-side: recalculate daysCount from date range and verify it matches
+    const diffTime = end.getTime() - start.getTime()
+    const calculatedDays = Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1)
+    if (days !== calculatedDays) {
+      return NextResponse.json(
+        { error: `Le nombre de jours (${days}) ne correspond pas à la plage de dates (${calculatedDays} jour${calculatedDays > 1 ? 's' : ''})` },
+        { status: 400 }
+      )
+    }
+
     // Validate recovery_work: at least one date in range must be weekend/holiday
     if (type === 'recovery_work') {
       const calendarDays = await db.calendarDay.findMany({
