@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
+import { ImapFlow } from 'imapflow'
+import { simpleParser } from 'mailparser'
 
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 // GET /api/emails/message - Lire un email spécifique
 export async function GET(request: NextRequest) {
@@ -19,9 +22,6 @@ export async function GET(request: NextRequest) {
     if (!emailConfig || !emailConfig.imapHost || !emailConfig.emailPassword) {
       return NextResponse.json({ error: 'Configuration email manquante' }, { status: 400 })
     }
-
-    const { ImapFlow } = await import('imapflow')
-    const { simpleParser } = await import('mailparser')
 
     const { searchParams } = new URL(request.url)
     const folder = searchParams.get('folder') || 'INBOX'
@@ -149,8 +149,6 @@ export async function DELETE(request: NextRequest) {
     if (!folder || !uid) {
       return NextResponse.json({ error: 'Dossier et UID requis' }, { status: 400 })
     }
-
-    const { ImapFlow } = await import('imapflow')
 
     const client = new ImapFlow({
       host: emailConfig.imapHost,

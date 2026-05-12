@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
+import { ImapFlow } from 'imapflow'
 
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 // PATCH /api/emails/flags - Modifier les flags d'un email (lu/non-lu, favori)
 export async function PATCH(request: NextRequest) {
@@ -35,8 +37,6 @@ export async function PATCH(request: NextRequest) {
     if (!addFlags && !removeFlags) {
       return NextResponse.json({ error: 'Au moins un flag à ajouter ou supprimer est requis' }, { status: 400 })
     }
-
-    const { ImapFlow } = await import('imapflow')
 
     const client = new ImapFlow({
       host: emailConfig.imapHost,

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
+import { ImapFlow } from 'imapflow'
+import nodemailer from 'nodemailer'
 
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 // GET /api/emails/debug - Diagnostic de connexion email
 export async function GET(request: NextRequest) {
@@ -54,7 +57,6 @@ export async function GET(request: NextRequest) {
     // Test IMAP
     debug.imapTest = { status: 'testing...' }
     try {
-      const { ImapFlow } = await import('imapflow')
       const imapClient = new ImapFlow({
         host: emailConfig.imapHost,
         port: emailConfig.imapPort,
@@ -89,7 +91,6 @@ export async function GET(request: NextRequest) {
     // Test SMTP
     debug.smtpTest = { status: 'testing...' }
     try {
-      const nodemailer = await import('nodemailer')
       const transporter = nodemailer.createTransport({
         host: emailConfig.smtpHost,
         port: emailConfig.smtpPort,
@@ -195,7 +196,6 @@ export async function POST(request: NextRequest) {
     // Test IMAP
     debug.imapTest = { status: 'testing...', host: imapHost, port: imapPort || 993 }
     try {
-      const { ImapFlow } = await import('imapflow')
       const imapClient = new ImapFlow({
         host: imapHost,
         port: imapPort || 993,
@@ -228,7 +228,6 @@ export async function POST(request: NextRequest) {
     const effectiveSmtpPort = smtpPort || 587
     debug.smtpTest = { status: 'testing...', host: smtpHost, port: effectiveSmtpPort, secure: effectiveSmtpPort === 465 }
     try {
-      const nodemailer = await import('nodemailer')
       const transporter = nodemailer.createTransport({
         host: smtpHost,
         port: effectiveSmtpPort,

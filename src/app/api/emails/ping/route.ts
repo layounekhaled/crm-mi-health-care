@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
+import { ImapFlow } from 'imapflow'
+import nodemailer from 'nodemailer'
 
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 // GET /api/emails/ping - Public diagnostic endpoint (no auth required)
 // Tests if email ports are reachable from the serverless function
@@ -66,22 +69,9 @@ export async function GET() {
     result.smtpTcpTest = { status: 'failed', error: tcpErr instanceof Error ? tcpErr.message : String(tcpErr) }
   }
 
-  // 4. Test module imports
-  result.imapflowImportTest = { status: 'testing...' }
-  try {
-    const imapModule = await import('imapflow')
-    result.imapflowImportTest = { status: 'success', hasImapFlow: typeof imapModule.ImapFlow === 'function' }
-  } catch (importErr: unknown) {
-    result.imapflowImportTest = { status: 'failed', error: importErr instanceof Error ? importErr.message : String(importErr) }
-  }
-
-  result.nodemailerImportTest = { status: 'testing...' }
-  try {
-    const nodemailerModule = await import('nodemailer')
-    result.nodemailerImportTest = { status: 'success', hasCreateTransport: typeof nodemailerModule.createTransport === 'function' }
-  } catch (importErr: unknown) {
-    result.nodemailerImportTest = { status: 'failed', error: importErr instanceof Error ? importErr.message : String(importErr) }
-  }
+  // 4. Test module imports (static - should always work)
+  result.imapflowImportTest = { status: 'success', hasImapFlow: typeof ImapFlow === 'function' }
+  result.nodemailerImportTest = { status: 'success', hasCreateTransport: typeof nodemailer.createTransport === 'function' }
 
   return NextResponse.json(result, { status: 200 })
 }

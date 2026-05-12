@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
+import { ImapFlow } from 'imapflow'
 
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 // GET /api/emails/folders - Lister les dossiers email
 export async function GET(request: NextRequest) {
@@ -19,8 +21,6 @@ export async function GET(request: NextRequest) {
     if (!emailConfig || !emailConfig.imapHost || !emailConfig.emailPassword) {
       return NextResponse.json({ error: 'Configuration email manquante' }, { status: 400 })
     }
-
-    const { ImapFlow } = await import('imapflow')
 
     const client = new ImapFlow({
       host: emailConfig.imapHost,
@@ -66,7 +66,6 @@ export async function GET(request: NextRequest) {
 
       await client.logout()
 
-      // Trier : INBOX en premier, puis Sent, puis Drafts, puis Trash, puis le reste
       const priorityOrder: Record<string, number> = {
         '\\Inbox': 1,
         '\\Sent': 2,

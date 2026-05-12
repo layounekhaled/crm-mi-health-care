@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
+import nodemailer from 'nodemailer'
+import { ImapFlow } from 'imapflow'
 
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 // POST /api/emails/send - Envoyer un email
 export async function POST(request: NextRequest) {
@@ -42,8 +45,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    const nodemailer = await import('nodemailer')
 
     const fromAddress = `"${authUser.employeNom || emailConfig.email}" <${emailConfig.email}>`
 
@@ -103,8 +104,6 @@ export async function POST(request: NextRequest) {
       })
 
       if (emailConfig.imapHost) {
-        const { ImapFlow } = await import('imapflow')
-
         const imapClient = new ImapFlow({
           host: emailConfig.imapHost,
           port: emailConfig.imapPort,
