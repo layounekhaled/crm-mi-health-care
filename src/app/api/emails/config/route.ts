@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 
+export const maxDuration = 60
+
 // GET /api/emails/config - Récupérer la configuration email de l'employé
 export async function GET(request: NextRequest) {
   try {
@@ -17,12 +19,10 @@ export async function GET(request: NextRequest) {
       return staleSessionResponse()
     }
 
-    // Chercher la configuration email de l'employé
     let emailConfig = await db.emailConfig.findUnique({
       where: { employeId },
     })
 
-    // Si pas de config, essayer de créer une config par défaut basée sur l'email de l'employé
     if (!emailConfig) {
       const employee = await db.employee.findUnique({
         where: { id: employeId },
@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
       })
 
       if (employee?.email) {
-        // Retourner la config par défaut sans la sauvegarder
         return NextResponse.json({
           employeId,
           email: employee.email,
@@ -61,12 +60,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       ...emailConfig,
-      emailPassword: undefined, // Ne jamais envoyer le mot de passe au frontend
+      emailPassword: undefined,
       isConfigured: !!(emailConfig.imapHost && emailConfig.email),
     })
   } catch (error) {
     console.error('[EMAIL_CONFIG_GET]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    return NextResponse.json({ error: 'Erreur serveur', details: message }, { status: 500 })
   }
 }
 
@@ -158,6 +158,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('[EMAIL_CONFIG_DELETE]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    return NextResponse.json({ error: 'Erreur serveur', details: message }, { status: 500 })
   }
 }

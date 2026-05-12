@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import nodemailer from 'nodemailer'
-import { ImapFlow } from 'imapflow'
+
+export const maxDuration = 60
 
 // POST /api/emails/send - Envoyer un email
 export async function POST(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Corps de requête invalide' }, { status: 400 })
     }
 
-    const { to, cc, bcc, subject, text, html, replyTo } = body
+    const { to, cc, bcc, subject, text, html, replyTo, inReplyTo } = body
 
     if (!to || !subject) {
       return NextResponse.json(
@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const nodemailer = await import('nodemailer')
 
     const fromAddress = `"${authUser.employeNom || emailConfig.email}" <${emailConfig.email}>`
 
@@ -70,21 +72,19 @@ export async function POST(request: NextRequest) {
       text: text || '',
       html: html || undefined,
       replyTo: replyTo || undefined,
+      inReplyTo: inReplyTo || undefined,
     })
 
     transporter.close()
 
     // ── Sauvegarder la copie dans le dossier IMAP "Envoyés" ─────
-    // On le fait après l'envoi SMTP pour ne pas bloquer l'envoi si l'append IMAP échoue
     let savedToImap = false
     try {
-      // Construire le message MIME brut (sans BCC pour la confidentialité)
       const MailComposer = require('nodemailer/lib/mail-composer')
       const composer = new MailComposer({
         from: fromAddress,
         to: Array.isArray(to) ? to.join(', ') : to,
         cc: cc ? (Array.isArray(cc) ? cc.join(', ') : cc) : undefined,
-        // Ne pas inclure BCC dans la copie sauvegardée (confidentialité)
         subject,
         text: text || '',
         html: html || undefined,
@@ -102,8 +102,9 @@ export async function POST(request: NextRequest) {
         stream.on('error', reject)
       })
 
-      // Se connecter à IMAP pour trouver le dossier Envoyés et y ajouter le message
       if (emailConfig.imapHost) {
+        const { ImapFlow } = await import('imapflow')
+
         const imapClient = new ImapFlow({
           host: emailConfig.imapHost,
           port: emailConfig.imapPort,
@@ -121,8 +122,6 @@ export async function POST(request: NextRequest) {
 
         await imapClient.connect()
 
-        // Trouver le dossier "Envoyés" (le nom varie selon le fournisseur)
-        // LWS/Dovecot français : INBOX.Envoyés, Envoyés, INBOX.Sent, etc.
         const mailboxes = await imapClient.list()
         const sentFolder = mailboxes.find(m => {
           if (m.specialUse === '\\Sent') return true
@@ -133,8 +132,6 @@ export async function POST(request: NextRequest) {
         })
 
         if (sentFolder) {
-          // ImapFlow.append(path, content, flags, idate)
-          // path = dossier cible, content = Buffer du message MIME, flags = tableau de flags
           const contentBuffer = Buffer.from(rawMessage, 'utf-8')
           await imapClient.append(sentFolder.path, contentBuffer, ['\\Seen'], new Date())
           savedToImap = true
@@ -145,7 +142,6 @@ export async function POST(request: NextRequest) {
         await imapClient.logout()
       }
     } catch (imapAppendError) {
-      // Ne pas faire échouer l'envoi si la sauvegarde IMAP échoue
       console.error('[EMAIL_SEND_IMAP_APPEND] Erreur sauvegarde IMAP:', imapAppendError)
     }
 
@@ -157,18 +153,23 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[EMAIL_SEND_POST]', error)
     const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    const code = (error as any)?.code || ''
 
     let userMessage = "Impossible d'envoyer l'email"
     if (message.includes('Invalid login') || message.includes('AUTH') || message.includes('credentials')) {
       userMessage = 'Identifiants SMTP incorrects. Vérifiez votre configuration email.'
     } else if (message.includes('ENOTFOUND') || message.includes('getaddrinfo')) {
-      userMessage = `Serveur SMTP introuvable. Vérifiez la configuration.`
+      userMessage = 'Serveur SMTP introuvable. Vérifiez la configuration.'
     } else if (message.includes('ECONNREFUSED')) {
-      userMessage = 'Connexion SMTP refusée. Vérifiez le port et le serveur.'
+      userMessage = 'Connexion SMTP refusée. Le port est peut-être bloqué par Vercel.'
+    } else if (message.includes('ETIMEDOUT') || message.includes('timeout') || code === 'ETIMEDOUT') {
+      userMessage = 'Délai d\'attente SMTP dépassé. Le port est peut-être bloqué par Vercel.'
+    } else if (message.includes('EHOSTUNREACH') || code === 'EHOSTUNREACH') {
+      userMessage = 'Impossible de joindre le serveur SMTP. Port probablement bloqué par Vercel.'
     }
 
     return NextResponse.json(
-      { error: userMessage, details: message },
+      { error: userMessage, details: message, code },
       { status: 500 }
     )
   }

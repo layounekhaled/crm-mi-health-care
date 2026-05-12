@@ -558,20 +558,27 @@ export default function EmailsModule() {
         credentials: 'same-origin',
         body: JSON.stringify(configForm),
       })
-      if (res.ok) {
-        const data = await res.json()
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.success !== undefined) {
         setTestResult(data)
         if (data.success) {
           toast.success('Connexion réussie', { description: 'IMAP et SMTP fonctionnent correctement' })
         } else {
           const failedParts: string[] = []
-          if (!data.results.imap.success) failedParts.push(`IMAP: ${data.results.imap.message}`)
-          if (!data.results.smtp.success) failedParts.push(`SMTP: ${data.results.smtp.message}`)
-          toast.error('Échec de connexion', { description: failedParts.join(' | '), duration: 10000 })
+          if (data.results?.imap && !data.results.imap.success) failedParts.push(`IMAP: ${data.results.imap.message}`)
+          if (data.results?.smtp && !data.results.smtp.success) failedParts.push(`SMTP: ${data.results.smtp.message}`)
+          toast.error('Échec de connexion', { description: failedParts.join(' | ') || data.error || 'Échec', duration: 15000 })
         }
       } else {
-        const err = await res.json().catch(() => ({}))
-        toast.error('Erreur de test', { description: err.error || 'Impossible de tester la connexion' })
+        // Erreur serveur - afficher les détails
+        const errorDetail = data.details || data.error || 'Erreur inconnue'
+        const errorCode = data.code || ''
+        const desc = errorCode ? `${errorDetail} (code: ${errorCode})` : errorDetail
+        toast.error(data.error || 'Erreur de test', { description: desc, duration: 15000 })
+        // Mettre à jour testResult avec l'erreur
+        if (data.results) {
+          setTestResult(data)
+        }
       }
     } catch {
       toast.error('Erreur réseau', { description: 'Impossible de joindre le serveur' })
@@ -597,17 +604,24 @@ export default function EmailsModule() {
         credentials: 'same-origin',
         body: JSON.stringify(configForm),
       })
-      if (testRes.ok) {
-        const testData = await testRes.json()
+      const testData = await testRes.json().catch(() => ({}))
+      if (testRes.ok && testData.success !== undefined) {
         setTestResult(testData)
         if (!testData.success) {
           setIsTesting(false)
           const failedParts: string[] = []
-          if (!testData.results.imap.success) failedParts.push(`IMAP: ${testData.results.imap.message}`)
-          if (!testData.results.smtp.success) failedParts.push(`SMTP: ${testData.results.smtp.message}`)
-          toast.error('Échec de connexion', { description: failedParts.join(' | '), duration: 10000 })
+          if (testData.results?.imap && !testData.results.imap.success) failedParts.push(`IMAP: ${testData.results.imap.message}`)
+          if (testData.results?.smtp && !testData.results.smtp.success) failedParts.push(`SMTP: ${testData.results.smtp.message}`)
+          toast.error('Échec de connexion', { description: failedParts.join(' | ') || testData.error || 'Échec', duration: 15000 })
           return
         }
+      } else {
+        // Erreur serveur pendant le test
+        setIsTesting(false)
+        const errorDetail = testData.details || testData.error || 'Erreur inconnue'
+        toast.error('Échec de connexion', { description: errorDetail, duration: 15000 })
+        if (testData.results) setTestResult(testData)
+        return
       }
     } catch {
       setIsTesting(false)
@@ -616,11 +630,13 @@ export default function EmailsModule() {
     }
     setIsTesting(false)
     try {
+      // Exclure le champ preset avant d'envoyer
+      const { preset: _preset, ...configData } = configForm as any
       const res = await fetch('/api/emails/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify(configForm),
+        body: JSON.stringify(configData),
       })
       if (res.ok) {
         const data = await res.json()

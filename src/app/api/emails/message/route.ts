@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import { ImapFlow } from 'imapflow'
-import { simpleParser } from 'mailparser'
+
+export const maxDuration = 60
 
 // GET /api/emails/message - Lire un email spécifique
 export async function GET(request: NextRequest) {
@@ -19,6 +19,9 @@ export async function GET(request: NextRequest) {
     if (!emailConfig || !emailConfig.imapHost || !emailConfig.emailPassword) {
       return NextResponse.json({ error: 'Configuration email manquante' }, { status: 400 })
     }
+
+    const { ImapFlow } = await import('imapflow')
+    const { simpleParser } = await import('mailparser')
 
     const { searchParams } = new URL(request.url)
     const folder = searchParams.get('folder') || 'INBOX'
@@ -49,7 +52,6 @@ export async function GET(request: NextRequest) {
       const lock = await client.getMailboxLock(folder)
 
       try {
-        // Récupérer le message complet avec le source brut
         const msgData = await client.fetchOne(uid, {
           envelope: true,
           flags: true,
@@ -69,7 +71,6 @@ export async function GET(request: NextRequest) {
         lock.release()
         await client.logout()
 
-        // Parser le source avec mailparser pour une extraction fiable
         const source = msgData.source?.toString('utf-8') || ''
         let textContent = ''
         let htmlContent = ''
@@ -80,11 +81,9 @@ export async function GET(request: NextRequest) {
           htmlContent = parsed.html || ''
         } catch (parseError) {
           console.error('[EMAIL_MESSAGE_PARSE]', parseError)
-          // Fallback: extraire le texte brut du source
           const bodyStart = source.indexOf('\r\n\r\n')
           if (bodyStart > -1) {
             textContent = source.substring(bodyStart + 4)
-            // Nettoyer les encodages quoted-printable
             textContent = textContent.replace(/=\r?\n/g, '')
             textContent = textContent.replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
           }
@@ -118,7 +117,8 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('[EMAIL_MESSAGE_GET]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    return NextResponse.json({ error: 'Erreur serveur', details: message }, { status: 500 })
   }
 }
 
@@ -150,6 +150,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Dossier et UID requis' }, { status: 400 })
     }
 
+    const { ImapFlow } = await import('imapflow')
+
     const client = new ImapFlow({
       host: emailConfig.imapHost,
       port: emailConfig.imapPort,
@@ -170,9 +172,7 @@ export async function DELETE(request: NextRequest) {
 
       const lock = await client.getMailboxLock(folder)
       try {
-        // Marquer comme supprimé
         await client.messageFlagsAdd(uid, ['\\Deleted'], { uid: true })
-        // Expunger - use type assertion as expunge is available at runtime but not in types
         await (client as unknown as { expunge: (range?: string, options?: { uid?: boolean }) => Promise<boolean> }).expunge(String(uid), { uid: true })
       } finally {
         try { lock.release() } catch { /* déjà libéré */ }
@@ -190,6 +190,7 @@ export async function DELETE(request: NextRequest) {
     }
   } catch (error) {
     console.error('[EMAIL_MESSAGE_DELETE]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    return NextResponse.json({ error: 'Erreur serveur', details: message }, { status: 500 })
   }
 }

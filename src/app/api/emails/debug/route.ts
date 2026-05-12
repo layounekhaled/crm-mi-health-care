@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import { ImapFlow } from 'imapflow'
-import nodemailer from 'nodemailer'
+
+export const maxDuration = 60
 
 // GET /api/emails/debug - Diagnostic de connexion email
 export async function GET(request: NextRequest) {
   const debug: Record<string, unknown> = {}
 
   try {
-    // 1. Vérifier l'authentification
     const authUser = await getAuthUser(request)
     debug.authUser = authUser ? {
       id: authUser.id,
@@ -22,7 +21,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...debug, error: 'Non autorisé' })
     }
 
-    // 2. Vérifier l'employé existe
     const employee = await db.employee.findUnique({
       where: { id: authUser.employeId },
       select: { id: true, nom: true, email: true },
@@ -33,7 +31,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...debug, error: 'Employé non trouvé' })
     }
 
-    // 3. Vérifier la config email
     const emailConfig = await db.emailConfig.findUnique({
       where: { employeId: authUser.employeId },
     })
@@ -54,9 +51,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...debug, error: 'Pas de config email' })
     }
 
-    // 4. Tester IMAP
+    // Test IMAP
     debug.imapTest = { status: 'testing...' }
     try {
+      const { ImapFlow } = await import('imapflow')
       const imapClient = new ImapFlow({
         host: emailConfig.imapHost,
         port: emailConfig.imapPort,
@@ -80,15 +78,18 @@ export async function GET(request: NextRequest) {
         folders: mailboxes.map(m => m.path + ' (' + m.specialUse + ')'),
       }
     } catch (imapErr: unknown) {
+      const err = imapErr instanceof Error ? imapErr : new Error(String(imapErr))
       debug.imapTest = {
         status: 'failed',
-        error: imapErr instanceof Error ? imapErr.message : String(imapErr),
+        error: err.message,
+        code: (err as any)?.code || '',
       }
     }
 
-    // 5. Tester SMTP
+    // Test SMTP
     debug.smtpTest = { status: 'testing...' }
     try {
+      const nodemailer = await import('nodemailer')
       const transporter = nodemailer.createTransport({
         host: emailConfig.smtpHost,
         port: emailConfig.smtpPort,
@@ -107,16 +108,50 @@ export async function GET(request: NextRequest) {
       transporter.close()
       debug.smtpTest = { status: 'success' }
     } catch (smtpErr: unknown) {
+      const err = smtpErr instanceof Error ? smtpErr : new Error(String(smtpErr))
       debug.smtpTest = {
         status: 'failed',
-        error: smtpErr instanceof Error ? smtpErr.message : String(smtpErr),
+        error: err.message,
+        code: (err as any)?.code || '',
       }
+    }
+
+    // Test DNS resolution
+    debug.dnsTest = { status: 'testing...' }
+    try {
+      const { lookup } = await import('node:dns/promises')
+      const imapDns = await lookup(emailConfig.imapHost)
+      const smtpDns = await lookup(emailConfig.smtpHost)
+      debug.dnsTest = {
+        status: 'success',
+        imap: { address: imapDns.address, family: imapDns.family },
+        smtp: { address: smtpDns.address, family: smtpDns.family },
+      }
+    } catch (dnsErr: unknown) {
+      debug.dnsTest = {
+        status: 'failed',
+        error: dnsErr instanceof Error ? dnsErr.message : String(dnsErr),
+      }
+    }
+
+    // Environment info
+    debug.environment = {
+      nodeVersion: process.version,
+      platform: process.platform,
+      vercel: !!process.env.VERCEL,
+      vercelRegion: process.env.VERCEL_REGION || 'unknown',
     }
 
     return NextResponse.json(debug)
   } catch (error) {
     debug.globalError = error instanceof Error ? error.message : String(error)
     debug.globalStack = error instanceof Error ? error.stack : undefined
+    debug.environment = {
+      nodeVersion: process.version,
+      platform: process.platform,
+      vercel: !!process.env.VERCEL,
+      vercelRegion: process.env.VERCEL_REGION || 'unknown',
+    }
     return NextResponse.json(debug, { status: 500 })
   }
 }
@@ -160,6 +195,7 @@ export async function POST(request: NextRequest) {
     // Test IMAP
     debug.imapTest = { status: 'testing...', host: imapHost, port: imapPort || 993 }
     try {
+      const { ImapFlow } = await import('imapflow')
       const imapClient = new ImapFlow({
         host: imapHost,
         port: imapPort || 993,
@@ -180,9 +216,11 @@ export async function POST(request: NextRequest) {
         folders: mailboxes.map(m => m.path + ' (' + m.specialUse + ')'),
       }
     } catch (imapErr: unknown) {
+      const err = imapErr instanceof Error ? imapErr : new Error(String(imapErr))
       debug.imapTest = {
         status: 'failed',
-        error: imapErr instanceof Error ? imapErr.message : String(imapErr),
+        error: err.message,
+        code: (err as any)?.code || '',
       }
     }
 
@@ -190,6 +228,7 @@ export async function POST(request: NextRequest) {
     const effectiveSmtpPort = smtpPort || 587
     debug.smtpTest = { status: 'testing...', host: smtpHost, port: effectiveSmtpPort, secure: effectiveSmtpPort === 465 }
     try {
+      const nodemailer = await import('nodemailer')
       const transporter = nodemailer.createTransport({
         host: smtpHost,
         port: effectiveSmtpPort,
@@ -205,13 +244,41 @@ export async function POST(request: NextRequest) {
       transporter.close()
       debug.smtpTest = { status: 'success' }
     } catch (smtpErr: unknown) {
+      const err = smtpErr instanceof Error ? smtpErr : new Error(String(smtpErr))
       debug.smtpTest = {
         status: 'failed',
-        error: smtpErr instanceof Error ? smtpErr.message : String(smtpErr),
+        error: err.message,
+        code: (err as any)?.code || '',
       }
     }
 
-    // Test sauvegarde config (sans sauvegarder vraiment)
+    // Test DNS
+    debug.dnsTest = { status: 'testing...' }
+    try {
+      const { lookup } = await import('node:dns/promises')
+      const imapDns = await lookup(imapHost)
+      const smtpDns = await lookup(smtpHost)
+      debug.dnsTest = {
+        status: 'success',
+        imap: { address: imapDns.address },
+        smtp: { address: smtpDns.address },
+      }
+    } catch (dnsErr: unknown) {
+      debug.dnsTest = {
+        status: 'failed',
+        error: dnsErr instanceof Error ? dnsErr.message : String(dnsErr),
+      }
+    }
+
+    // Environment info
+    debug.environment = {
+      nodeVersion: process.version,
+      platform: process.platform,
+      vercel: !!process.env.VERCEL,
+      vercelRegion: process.env.VERCEL_REGION || 'unknown',
+    }
+
+    // Prisma test
     debug.prismaTest = { status: 'testing...' }
     try {
       const existingConfig = await db.emailConfig.findUnique({
@@ -233,6 +300,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     debug.globalError = error instanceof Error ? error.message : String(error)
     debug.globalStack = error instanceof Error ? error.stack : undefined
+    debug.environment = {
+      nodeVersion: process.version,
+      platform: process.platform,
+      vercel: !!process.env.VERCEL,
+      vercelRegion: process.env.VERCEL_REGION || 'unknown',
+    }
     return NextResponse.json(debug, { status: 500 })
   }
 }

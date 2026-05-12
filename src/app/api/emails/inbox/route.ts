@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import { ImapFlow } from 'imapflow'
+
+export const maxDuration = 60
 
 // GET /api/emails/inbox - Récupérer les emails d'un dossier
 export async function GET(request: NextRequest) {
@@ -18,6 +19,8 @@ export async function GET(request: NextRequest) {
     if (!emailConfig || !emailConfig.imapHost || !emailConfig.emailPassword) {
       return NextResponse.json({ error: 'Configuration email manquante' }, { status: 400 })
     }
+
+    const { ImapFlow } = await import('imapflow')
 
     const { searchParams } = new URL(request.url)
     const folder = searchParams.get('folder') || 'INBOX'
@@ -46,8 +49,6 @@ export async function GET(request: NextRequest) {
       const lock = await client.getMailboxLock(folder)
 
       try {
-        // Recherche - utiliser `true` pour récupérer TOUS les messages quand pas de recherche
-        // C'est plus fiable que `{}` sur certains serveurs IMAP
         let searchResult
         if (search) {
           searchResult = await client.search(
@@ -55,7 +56,6 @@ export async function GET(request: NextRequest) {
             { uid: true }
           )
         } else {
-          // `true` = SEARCH ALL - récupère tous les UIDs du dossier
           searchResult = await client.search(true, { uid: true })
         }
 
@@ -68,12 +68,10 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ messages: [], total: 0, page, totalPages: 0 })
         }
 
-        // Calculate pagination range from matching UIDs (newest first)
         const startIdx = Math.max(0, total - (page * limit))
         const endIdx = total - ((page - 1) * limit)
         const pageUids = matchingUids.slice(startIdx, endIdx).reverse()
 
-        // Fetch messages for the page UIDs
         const messages: Record<string, unknown>[] = []
         const uidRange = pageUids.join(',')
 
@@ -93,7 +91,6 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Sort by UID descending (newest first) since UIDs are ascending
         messages.sort((a, b) => (b.uid as number) - (a.uid as number))
 
         lock.release()
@@ -108,13 +105,13 @@ export async function GET(request: NextRequest) {
           totalPages,
         })
       } catch (innerError) {
-        // S'assurer que le lock est libéré en cas d'erreur
         try { lock.release() } catch { /* déjà libéré */ }
         throw innerError
       }
     } catch (imapError: unknown) {
       const errorMsg = imapError instanceof Error ? imapError.message : 'Erreur de connexion IMAP'
-      console.error('[EMAIL_INBOX_IMAP]', errorMsg, 'folder:', folder)
+      const errorCode = (imapError as any)?.code || ''
+      console.error('[EMAIL_INBOX_IMAP]', errorMsg, 'folder:', folder, 'Code:', errorCode)
 
       let userMessage = 'Impossible de se connecter au serveur email'
       if (errorMsg.includes('AUTHENTICATE FAILED') || errorMsg.includes('Invalid credentials')) {
@@ -123,19 +120,23 @@ export async function GET(request: NextRequest) {
         userMessage = `Serveur IMAP "${emailConfig.imapHost}" introuvable.`
       } else if (errorMsg.includes('ECONNREFUSED')) {
         userMessage = `Connexion IMAP refusée par ${emailConfig.imapHost}:${emailConfig.imapPort}.`
-      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout')) {
-        userMessage = `Le serveur IMAP ${emailConfig.imapHost} ne répond pas.`
+      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout') || errorCode === 'ETIMEDOUT') {
+        userMessage = `Le serveur IMAP ne répond pas. Le port ${emailConfig.imapPort} est peut-être bloqué par Vercel.`
+      } else if (errorMsg.includes('EHOSTUNREACH') || errorCode === 'EHOSTUNREACH') {
+        userMessage = `Impossible de joindre le serveur IMAP. Port probablement bloqué par Vercel.`
       } else if (errorMsg.includes('Mailbox') && (errorMsg.includes('not found') || errorMsg.includes('doesn\'t exist') || errorMsg.includes('NONEXISTENT'))) {
         userMessage = `Le dossier "${folder}" n'existe pas sur le serveur.`
       }
 
       return NextResponse.json(
-        { error: userMessage, details: errorMsg },
+        { error: userMessage, details: errorMsg, code: errorCode },
         { status: 400 }
       )
     }
   } catch (error) {
     console.error('[EMAIL_INBOX_GET]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    const code = (error as any)?.code || ''
+    return NextResponse.json({ error: 'Erreur serveur', details: message, code }, { status: 500 })
   }
 }

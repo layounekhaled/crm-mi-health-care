@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import { ImapFlow } from 'imapflow'
+
+export const maxDuration = 60
 
 // GET /api/emails/folders - Lister les dossiers email
 export async function GET(request: NextRequest) {
@@ -18,6 +19,8 @@ export async function GET(request: NextRequest) {
     if (!emailConfig || !emailConfig.imapHost || !emailConfig.emailPassword) {
       return NextResponse.json({ error: 'Configuration email manquante' }, { status: 400 })
     }
+
+    const { ImapFlow } = await import('imapflow')
 
     const client = new ImapFlow({
       host: emailConfig.imapHost,
@@ -51,7 +54,6 @@ export async function GET(request: NextRequest) {
             specialUse: mailbox.specialUse || '',
           })
         } catch {
-          // Some folders might not support STATUS
           folders.push({
             name: mailbox.name,
             path: mailbox.path,
@@ -74,7 +76,6 @@ export async function GET(request: NextRequest) {
         '\\Spam': 5,
       }
 
-      // Fonction pour déterminer la priorité d'un dossier (support LWS/Dovecot français)
       const getFolderPriority = (folder: { specialUse: string; path: string }): number => {
         if (priorityOrder[folder.specialUse]) return priorityOrder[folder.specialUse]
         const lowerPath = folder.path.toLowerCase()
@@ -98,27 +99,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ folders })
     } catch (imapError: unknown) {
       const errorMsg = imapError instanceof Error ? imapError.message : 'Erreur de connexion IMAP'
-      console.error('[EMAIL_FOLDERS_IMAP]', errorMsg)
+      const errorCode = (imapError as any)?.code || ''
+      console.error('[EMAIL_FOLDERS_IMAP]', errorMsg, 'Code:', errorCode)
 
-      // Messages d'erreur plus clairs
       let userMessage = 'Impossible de se connecter au serveur email'
       if (errorMsg.includes('AUTHENTICATE FAILED') || errorMsg.includes('Invalid credentials')) {
         userMessage = 'Identifiants incorrects. Vérifiez votre email et mot de passe d\'application dans les paramètres.'
       } else if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo')) {
         userMessage = `Serveur IMAP "${emailConfig.imapHost}" introuvable. Vérifiez la configuration.`
       } else if (errorMsg.includes('ECONNREFUSED')) {
-        userMessage = `Connexion IMAP refusée par ${emailConfig.imapHost}:${emailConfig.imapPort}. Vérifiez le port.`
-      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout')) {
-        userMessage = `Le serveur IMAP ${emailConfig.imapHost} ne répond pas. Réessayez plus tard.`
+        userMessage = `Connexion IMAP refusée par ${emailConfig.imapHost}:${emailConfig.imapPort}. Le port est peut-être bloqué.`
+      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout') || errorCode === 'ETIMEDOUT') {
+        userMessage = `Le serveur IMAP ${emailConfig.imapHost} ne répond pas. Le port ${emailConfig.imapPort} est peut-être bloqué par Vercel.`
+      } else if (errorMsg.includes('EHOSTUNREACH') || errorCode === 'EHOSTUNREACH') {
+        userMessage = `Impossible de joindre ${emailConfig.imapHost}:${emailConfig.imapPort}. Le port est probablement bloqué par Vercel.`
       }
 
       return NextResponse.json(
-        { error: userMessage, details: errorMsg },
+        { error: userMessage, details: errorMsg, code: errorCode },
         { status: 400 }
       )
     }
   } catch (error) {
     console.error('[EMAIL_FOLDERS_GET]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    const code = (error as any)?.code || ''
+    return NextResponse.json({ error: 'Erreur serveur', details: message, code }, { status: 500 })
   }
 }

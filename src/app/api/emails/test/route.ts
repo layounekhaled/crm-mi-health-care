@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import { ImapFlow } from 'imapflow'
-import nodemailer from 'nodemailer'
+
+export const maxDuration = 60
 
 // POST /api/emails/test - Tester la connexion email (IMAP + SMTP)
 export async function POST(request: NextRequest) {
@@ -33,6 +33,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Importer dynamiquement imapflow et nodemailer pour capturer les erreurs d'import
+    let ImapFlow: typeof import('imapflow').ImapFlow
+    try {
+      const imapModule = await import('imapflow')
+      ImapFlow = imapModule.ImapFlow
+    } catch (importErr) {
+      console.error('[EMAIL_TEST_IMPORT_IMAP]', importErr)
+      return NextResponse.json({
+        success: false,
+        results: {
+          imap: { success: false, message: 'Module IMAP non disponible sur le serveur. Contactez le support.' },
+          smtp: { success: false, message: 'Module SMTP non disponible sur le serveur. Contactez le support.' },
+        },
+        error: 'Modules email non disponibles',
+        details: importErr instanceof Error ? importErr.message : String(importErr),
+      }, { status: 500 })
+    }
+
+    let nodemailer: typeof import('nodemailer')
+    try {
+      nodemailer = await import('nodemailer')
+    } catch (importErr) {
+      console.error('[EMAIL_TEST_IMPORT_SMTP]', importErr)
+      return NextResponse.json({
+        success: false,
+        results: {
+          imap: { success: false, message: 'Module SMTP non disponible sur le serveur.' },
+          smtp: { success: false, message: 'Module SMTP non disponible sur le serveur. Contactez le support.' },
+        },
+        error: 'Modules email non disponibles',
+        details: importErr instanceof Error ? importErr.message : String(importErr),
+      }, { status: 500 })
+    }
+
     const results: { imap: { success: boolean; message: string }; smtp: { success: boolean; message: string } } = {
       imap: { success: false, message: '' },
       smtp: { success: false, message: '' },
@@ -56,28 +90,29 @@ export async function POST(request: NextRequest) {
 
     try {
       await imapClient.connect()
-      // Tester qu'on peut lister les dossiers
       await imapClient.list()
       await imapClient.logout()
       results.imap = { success: true, message: 'Connexion IMAP réussie' }
     } catch (imapError: unknown) {
       const errorMsg = imapError instanceof Error ? imapError.message : 'Erreur inconnue'
-      console.error('[EMAIL_TEST_IMAP]', errorMsg)
+      const errorCode = (imapError as any)?.code || ''
+      console.error('[EMAIL_TEST_IMAP]', errorMsg, 'Code:', errorCode)
 
-      // Messages d'erreur plus clairs
       let userMessage = errorMsg
       if (errorMsg.includes('AUTHENTICATE FAILED') || errorMsg.includes('Invalid credentials')) {
         userMessage = 'Identifiants incorrects. Vérifiez votre email et mot de passe d\'application.'
       } else if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo')) {
         userMessage = `Serveur "${imapHost}" introuvable. Vérifiez l'adresse du serveur IMAP.`
       } else if (errorMsg.includes('ECONNREFUSED')) {
-        userMessage = `Connexion refusée par ${imapHost}:${imapPort || 993}. Vérifiez le port et le serveur.`
-      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout')) {
-        userMessage = `Délai d'attente dépassé pour ${imapHost}. Le serveur ne répond pas.`
+        userMessage = `Connexion refusée par ${imapHost}:${imapPort || 993}. Le port peut être bloqué par l'hébergeur (Vercel).`
+      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout') || errorCode === 'ETIMEDOUT') {
+        userMessage = `Délai d'attente dépassé pour ${imapHost}. Le port ${imapPort || 993} peut être bloqué par Vercel. Les ports IMAP (993) et SMTP (587/465) peuvent être bloqués sur Vercel Serverless.`
       } else if (errorMsg.includes('SSL') || errorMsg.includes('TLS') || errorMsg.includes('certificate')) {
         userMessage = 'Erreur de certificat SSL/TLS. Essayez de désactiver TLS si le serveur ne le supporte pas.'
       } else if (errorMsg.includes('Too many login') || errorMsg.includes('rate limit')) {
         userMessage = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.'
+      } else if (errorMsg.includes('EHOSTUNREACH') || errorCode === 'EHOSTUNREACH') {
+        userMessage = `Impossible de joindre ${imapHost}:${imapPort || 993}. Le port est probablement bloqué par Vercel.`
       }
 
       results.imap = { success: false, message: userMessage }
@@ -85,7 +120,6 @@ export async function POST(request: NextRequest) {
 
     // Test SMTP
     try {
-      // Avertissement : Vercel bloque le port 465 (SSL direct). Utiliser 587 (STARTTLS).
       const effectiveSmtpPort = smtpPort || 587
       const transporter = nodemailer.createTransport({
         host: smtpHost,
@@ -106,7 +140,8 @@ export async function POST(request: NextRequest) {
       results.smtp = { success: true, message: 'Connexion SMTP réussie' }
     } catch (smtpError: unknown) {
       const errorMsg = smtpError instanceof Error ? smtpError.message : 'Erreur inconnue'
-      console.error('[EMAIL_TEST_SMTP]', errorMsg)
+      const errorCode = (smtpError as any)?.code || ''
+      console.error('[EMAIL_TEST_SMTP]', errorMsg, 'Code:', errorCode)
 
       let userMessage = errorMsg
       if (errorMsg.includes('Invalid login') || errorMsg.includes('AUTH') || errorMsg.includes('credentials')) {
@@ -114,13 +149,13 @@ export async function POST(request: NextRequest) {
       } else if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo')) {
         userMessage = `Serveur "${smtpHost}" introuvable. Vérifiez l'adresse du serveur SMTP.`
       } else if (errorMsg.includes('ECONNREFUSED')) {
-        userMessage = `Connexion refusée par ${smtpHost}:${smtpPort || 587}. Vérifiez le port et le serveur.`
-      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout')) {
-        userMessage = `Délai d'attente dépassé pour ${smtpHost}. Le serveur ne répond pas.`
+        userMessage = `Connexion refusée par ${smtpHost}:${smtpPort || 587}. Le port peut être bloqué par Vercel.`
+      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout') || errorCode === 'ETIMEDOUT') {
+        userMessage = `Délai d'attente dépassé pour ${smtpHost}. Le port ${smtpPort || 587} peut être bloqué par Vercel Serverless.`
       } else if (errorMsg.includes('SSL') || errorMsg.includes('TLS') || errorMsg.includes('certificate')) {
         userMessage = 'Erreur de certificat SSL/TLS. Essayez le port 465 avec SSL ou le port 587 avec STARTTLS.'
-      } else if (errorMsg.includes('EHOSTUNREACH') || errorMsg.includes('EPIPE') || errorMsg.includes('connection reset') || errorMsg.includes('socket hang up')) {
-        userMessage = `Impossible de se connecter à ${smtpHost}:${smtpPort || 587}. Le port ${smtpPort} peut être bloqué par l'hébergeur. Essayez le port 587 (STARTTLS) au lieu de 465 (SSL).`
+      } else if (errorMsg.includes('EHOSTUNREACH') || errorCode === 'EHOSTUNREACH' || errorMsg.includes('EPIPE') || errorMsg.includes('connection reset') || errorMsg.includes('socket hang up')) {
+        userMessage = `Impossible de se connecter à ${smtpHost}:${smtpPort || 587}. Le port est probablement bloqué par Vercel. Essayez le port 587 (STARTTLS) au lieu de 465 (SSL).`
       }
 
       results.smtp = { success: false, message: userMessage }
@@ -135,6 +170,13 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[EMAIL_TEST_POST]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    const code = (error as any)?.code || ''
+    // Retourner les détails de l'erreur au lieu d'un message générique
+    return NextResponse.json({
+      error: 'Erreur serveur',
+      details: message,
+      code,
+    }, { status: 500 })
   }
 }

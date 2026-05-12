@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import { ImapFlow } from 'imapflow'
+
+export const maxDuration = 60
 
 // PATCH /api/emails/flags - Modifier les flags d'un email (lu/non-lu, favori)
 export async function PATCH(request: NextRequest) {
@@ -34,6 +35,8 @@ export async function PATCH(request: NextRequest) {
     if (!addFlags && !removeFlags) {
       return NextResponse.json({ error: 'Au moins un flag à ajouter ou supprimer est requis' }, { status: 400 })
     }
+
+    const { ImapFlow } = await import('imapflow')
 
     const client = new ImapFlow({
       host: emailConfig.imapHost,
@@ -90,6 +93,7 @@ export async function PATCH(request: NextRequest) {
     }
   } catch (error) {
     console.error('[EMAIL_FLAGS_PATCH]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    return NextResponse.json({ error: 'Erreur serveur', details: message }, { status: 500 })
   }
 }
