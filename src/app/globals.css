@@ -121,3 +121,88 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ─── Quill Email Editor Styles ──────────────────────────────── */
+
+/* Compose dialog editor */
+.quill-compose-editor .ql-toolbar.ql-snow {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px 8px 0 0;
+  background: #f8fafc;
+  padding: 6px 8px;
+}
+
+.quill-compose-editor .ql-container.ql-snow {
+  border: 1px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  font-size: 14px;
+  font-family: inherit;
+  min-height: 250px;
+}
+
+.quill-compose-editor .ql-editor {
+  min-height: 250px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.quill-compose-editor .ql-editor.ql-blank::before {
+  font-style: normal;
+  color: #94a3b8;
+}
+
+/* Signature editor (smaller) */
+.quill-compose-signature .ql-toolbar.ql-snow {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px 6px 0 0;
+  background: #f8fafc;
+  padding: 4px 6px;
+}
+
+.quill-compose-signature .ql-container.ql-snow {
+  border: 1px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  min-height: 60px;
+}
+
+.quill-compose-signature .ql-editor {
+  min-height: 60px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.quill-compose-signature .ql-editor.ql-blank::before {
+  font-style: normal;
+  color: #94a3b8;
+}
+
+/* Quill toolbar button sizing */
+.ql-toolbar.ql-snow .ql-picker-label,
+.ql-toolbar.ql-snow button {
+  padding: 2px 4px;
+}
+
+.ql-toolbar.ql-snow .ql-formats {
+  margin-right: 4px;
+}
+
+/* Quill color picker styling */
+.ql-toolbar.ql-snow .ql-color-picker .ql-picker-label {
+  padding: 2px 4px;
+}
+
+/* Email view body - make prose styles work with Quill HTML */
+.prose p {
+  margin-bottom: 0.5em;
+}
+
+.prose ul, .prose ol {
+  margin-bottom: 0.5em;
+  padding-left: 1.5em;
+}

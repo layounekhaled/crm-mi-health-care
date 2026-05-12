@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Corps de requête invalide' }, { status: 400 })
     }
 
-    const { email, imapHost, imapPort, imapTls, smtpHost, smtpPort, smtpTls, emailPassword } = body
+    const { email, imapHost, imapPort, imapTls, smtpHost, smtpPort, smtpTls, emailPassword, signature } = body
 
     if (!email || !imapHost || !smtpHost) {
       return NextResponse.json(
@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
         smtpPort: smtpPort || 587,
         smtpTls: smtpTls !== false,
         ...(emailPassword ? { emailPassword } : {}),
+        ...(signature !== undefined ? { signature } : {}),
       },
       create: {
         employeId,
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
         smtpPort: smtpPort || 587,
         smtpTls: smtpTls !== false,
         emailPassword: emailPassword || '',
+        signature: signature || null,
       },
     })
 

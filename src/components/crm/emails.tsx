@@ -55,6 +55,7 @@ import {
   Archive,
 } from 'lucide-react'
 import DOMPurify from 'isomorphic-dompurify'
+import QuillEmailEditor, { SignatureEditor } from '@/components/crm/quill-email-editor'
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ interface EmailConfig {
   smtpPort: number
   smtpTls: boolean
   isConfigured: boolean
+  signature?: string
 }
 
 interface EmailFolder {
@@ -303,10 +305,14 @@ export default function EmailsModule() {
     bcc: '',
     subject: '',
     text: '',
+    html: '',
     inReplyTo: '',
     replyTo: '',
   })
   const [showCcBcc, setShowCcBcc] = useState(false)
+  const [signature, setSignature] = useState('')
+  const [signatureDraft, setSignatureDraft] = useState('')
+  const [showSignatureSettings, setShowSignatureSettings] = useState(false)
 
   // Config form state
   const [configForm, setConfigForm] = useState({
@@ -352,6 +358,11 @@ export default function EmailsModule() {
             smtpPort: data.smtpPort || 587,
             smtpTls: data.smtpTls !== false,
           }))
+        }
+        // Charger la signature
+        if (data.signature) {
+          setSignature(data.signature)
+          setSignatureDraft(data.signature)
         }
       }
     } catch (err) {
@@ -632,12 +643,21 @@ export default function EmailsModule() {
     }
     setIsSending(true)
     try {
+      // Construire le HTML final avec signature
+      const finalHtml = composeForm.html
+        ? (signature ? `${composeForm.html}<br><br>${signature}` : composeForm.html)
+        : (signature ? `<p>${composeForm.text.replace(/\n/g, '</p><p>')}</p><br><br>${signature}` : undefined)
+
+      // Générer une version texte brute (fallback)
+      const plainText = composeForm.text || composeForm.html?.replace(/<[^>]*>/g, '') || ''
+
       const payload: Record<string, unknown> = {
         to: composeForm.to,
         cc: composeForm.cc || undefined,
         bcc: composeForm.bcc || undefined,
         subject: composeForm.subject,
-        text: composeForm.text,
+        text: plainText,
+        html: finalHtml,
       }
       if (composeForm.replyTo) {
         payload.replyTo = composeForm.replyTo
@@ -658,7 +678,7 @@ export default function EmailsModule() {
           : `À ${composeForm.to}`
         toast.success('Email envoyé', { description: desc })
         setShowCompose(false)
-        setComposeForm({ to: '', cc: '', bcc: '', subject: '', text: '', inReplyTo: '', replyTo: '' })
+        setComposeForm({ to: '', cc: '', bcc: '', subject: '', text: '', html: '', inReplyTo: '', replyTo: '' })
         // Rafraîchir la liste des dossiers pour mettre à jour le compteur
         fetchFolders()
       } else {
@@ -695,12 +715,20 @@ export default function EmailsModule() {
     const sender = email.envelope.from?.[0]
     const replyToAddr = sender ? (sender.name ? `${sender.name} <${sender.address}>` : sender.address) : ''
     const subject = email.envelope.subject?.startsWith('Re:') ? email.envelope.subject : `Re: ${email.envelope.subject || ''}`
+    // Construire le HTML du message original cité
+    const quotedHtml = `
+      <br><br>
+      <div style="border-left: 3px solid #ccc; padding-left: 10px; margin-left: 0; color: #666;">
+        <p style="margin: 0; font-size: 12px; color: #999;">Le ${formatFullDate(email.envelope.date)}, ${extractEmailAddress(email.envelope.from)} a écrit :</p>
+        ${email.isHtml && email.htmlContent ? email.htmlContent : `<p>${(email.textContent || '').replace(/\n/g, '</p><p>')}</p>`}
+      </div>`
     setComposeForm({
       to: replyToAddr,
       cc: '',
       bcc: '',
       subject,
       text: `\n\n--- Message original ---\nDe: ${extractEmailAddress(email.envelope.from)}\nDate: ${email.envelope.date}\n\n${email.textContent || ''}`,
+      html: quotedHtml,
       inReplyTo: email.envelope.messageId || '',
       replyTo: email.envelope.messageId || '',
     })
@@ -709,12 +737,23 @@ export default function EmailsModule() {
   }
 
   const forwardEmail = (email: EmailDetail) => {
+    const fwdHtml = `
+      <br><br>
+      <div style="background: #f9f9f9; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+        <p style="margin: 0 0 5px; font-size: 12px; color: #666;"><b>Message transféré</b></p>
+        <p style="margin: 0 0 3px; font-size: 12px; color: #666;">De: ${extractEmailAddress(email.envelope.from)}</p>
+        <p style="margin: 0 0 3px; font-size: 12px; color: #666;">Date: ${formatFullDate(email.envelope.date)}</p>
+        <p style="margin: 0 0 3px; font-size: 12px; color: #666;">Sujet: ${email.envelope.subject || ''}</p>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 8px 0;">
+        ${email.isHtml && email.htmlContent ? email.htmlContent : `<p>${(email.textContent || '').replace(/\n/g, '</p><p>')}</p>`}
+      </div>`
     setComposeForm({
       to: '',
       cc: '',
       bcc: '',
       subject: email.envelope.subject?.startsWith('Fwd:') ? email.envelope.subject : `Fwd: ${email.envelope.subject || ''}`,
       text: `\n\n--- Message transféré ---\nDe: ${extractEmailAddress(email.envelope.from)}\nDate: ${email.envelope.date}\n\n${email.textContent || ''}`,
+      html: fwdHtml,
       inReplyTo: '',
       replyTo: '',
     })
@@ -738,7 +777,7 @@ export default function EmailsModule() {
   }
 
   const openCompose = () => {
-    setComposeForm({ to: '', cc: '', bcc: '', subject: '', text: '', inReplyTo: '', replyTo: '' })
+    setComposeForm({ to: '', cc: '', bcc: '', subject: '', text: '', html: '', inReplyTo: '', replyTo: '' })
     setShowCcBcc(false)
     setShowCompose(true)
   }
@@ -1388,84 +1427,148 @@ export default function EmailsModule() {
 
       {/* ── Compose Dialog ────────────────────────────────────── */}
       <Dialog open={showCompose} onOpenChange={setShowCompose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Nouveau message</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 mt-4">
-            <div>
-              <Label className="text-sm font-medium">À</Label>
+        <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col p-0 gap-0">
+          {/* ── Compose Header ──────────────────────────────────── */}
+          <div className="border-b border-slate-200 px-5 py-3 flex items-center justify-between shrink-0">
+            <DialogTitle className="text-base font-semibold text-slate-900">
+              {composeForm.inReplyTo ? 'Répondre' : composeForm.replyTo ? 'Transférer' : 'Nouveau message'}
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="text-xs text-slate-400 h-7"
+                onClick={() => setShowSignatureSettings(!showSignatureSettings)}
+              >
+                <FileText className="h-3.5 w-3.5 mr-1" />
+                Signature
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowCompose(false)} className="h-7 text-xs">Annuler</Button>
+              <Button
+                onClick={sendEmail}
+                disabled={isSending || !composeForm.to || !composeForm.subject}
+                className="bg-[#134885] hover:bg-[#0D3A6E] h-7 text-xs"
+                size="sm"
+              >
+                {isSending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
+                Envoyer
+              </Button>
+            </div>
+          </div>
+
+          {/* ── Compose Body ────────────────────────────────────── */}
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2.5">
+            {/* À */}
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+              <span className="text-sm font-medium text-slate-500 w-10 shrink-0">À</span>
               <Input
                 value={composeForm.to}
                 onChange={(e) => setComposeForm((prev) => ({ ...prev, to: e.target.value }))}
                 placeholder="destinataire@email.com"
+                className="border-0 shadow-none h-7 text-sm focus-visible:ring-0 px-0"
               />
-            </div>
-
-            {/* Cc/Bcc toggle */}
-            <div>
-              {!showCcBcc ? (
-                <Button variant="ghost" size="sm" className="text-xs text-slate-400 h-6 px-1 -mt-1" onClick={() => setShowCcBcc(true)}>
-                  <ChevronsUpDown className="h-3 w-3 mr-1" /> Cc / Cci
+              {!showCcBcc && (
+                <Button variant="ghost" size="sm" className="text-xs text-slate-400 h-6 px-1.5 shrink-0"
+                  onClick={() => setShowCcBcc(true)}>
+                  Cc/Cci
                 </Button>
-              ) : null}
-              {showCcBcc && (
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm font-medium">Cc</Label>
-                    <Input
-                      value={composeForm.cc}
-                      onChange={(e) => setComposeForm((prev) => ({ ...prev, cc: e.target.value }))}
-                      placeholder="copie@email.com (optionnel)"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Cci</Label>
-                    <Input
-                      value={composeForm.bcc}
-                      onChange={(e) => setComposeForm((prev) => ({ ...prev, bcc: e.target.value }))}
-                      placeholder="copie cachée@email.com (optionnel)"
-                    />
-                  </div>
-                </div>
               )}
             </div>
 
-            <div>
-              <Label className="text-sm font-medium">Sujet</Label>
+            {/* Cc / Cci */}
+            {showCcBcc && (
+              <>
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <span className="text-sm font-medium text-slate-500 w-10 shrink-0">Cc</span>
+                  <Input
+                    value={composeForm.cc}
+                    onChange={(e) => setComposeForm((prev) => ({ ...prev, cc: e.target.value }))}
+                    placeholder="copie@email.com (optionnel)"
+                    className="border-0 shadow-none h-7 text-sm focus-visible:ring-0 px-0"
+                  />
+                </div>
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <span className="text-sm font-medium text-slate-500 w-10 shrink-0">Cci</span>
+                  <Input
+                    value={composeForm.bcc}
+                    onChange={(e) => setComposeForm((prev) => ({ ...prev, bcc: e.target.value }))}
+                    placeholder="copie cachée@email.com (optionnel)"
+                    className="border-0 shadow-none h-7 text-sm focus-visible:ring-0 px-0"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Sujet */}
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+              <span className="text-sm font-medium text-slate-500 w-10 shrink-0">Sujet</span>
               <Input
                 value={composeForm.subject}
                 onChange={(e) => setComposeForm((prev) => ({ ...prev, subject: e.target.value }))}
                 placeholder="Sujet du message"
+                className="border-0 shadow-none h-7 text-sm font-medium focus-visible:ring-0 px-0"
               />
             </div>
-            <div>
-              <Label className="text-sm font-medium">Message</Label>
-              <Textarea
-                value={composeForm.text}
-                onChange={(e) => setComposeForm((prev) => ({ ...prev, text: e.target.value }))}
+
+            {/* Signature settings panel (collapsible) */}
+            {showSignatureSettings && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">Signature email</span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" className="h-6 text-xs text-[#134885]"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('/api/emails/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ ...configForm, signature: signatureDraft }),
+                          })
+                          if (res.ok) {
+                            setSignature(signatureDraft)
+                            toast.success('Signature sauvegardée')
+                          }
+                        } catch {
+                          toast.error('Erreur de sauvegarde')
+                        }
+                      }}>
+                      <Check className="h-3 w-3 mr-1" /> Sauvegarder
+                    </Button>
+                  </div>
+                </div>
+                <div className="quill-compose-signature">
+                  <SignatureEditor
+                    value={signatureDraft}
+                    onChange={setSignatureDraft}
+                    placeholder="Creez votre signature : nom, poste, entreprise, téléphone..."
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  La signature sera ajoutée automatiquement à la fin de chaque email envoyé.
+                </p>
+              </div>
+            )}
+
+            {/* Signature preview (if exists and not editing) */}
+            {!showSignatureSettings && signature && (
+              <div className="border-b border-slate-100 pb-1">
+                <p className="text-[10px] text-slate-400 mb-0.5">Signature ajoutée automatiquement :</p>
+                <div
+                  className="text-xs text-slate-500 line-clamp-2"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(signature) }}
+                />
+              </div>
+            )}
+
+            {/* Rich Text Editor */}
+            <div className="quill-compose-editor">
+              <QuillEmailEditor
+                value={composeForm.html}
+                onChange={(html) => setComposeForm((prev) => ({
+                  ...prev,
+                  html,
+                  text: html.replace(/<[^>]*>/g, ''),
+                }))}
                 placeholder="Écrivez votre message..."
-                rows={12}
-                className="resize-none"
               />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="text-slate-400">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => setShowCompose(false)}>Annuler</Button>
-                <Button
-                  onClick={sendEmail}
-                  disabled={isSending || !composeForm.to || !composeForm.subject}
-                  className="bg-[#134885] hover:bg-[#0D3A6E]"
-                >
-                  {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                  Envoyer
-                </Button>
-              </div>
             </div>
           </div>
         </DialogContent>
