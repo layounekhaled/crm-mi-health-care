@@ -645,9 +645,17 @@ export default function EmailsModule() {
         setShowConfig(false)
       } else {
         const err = await res.json().catch(() => ({}))
-        toast.error('Erreur', { description: err.error || err.details || 'Impossible de sauvegarder la configuration', duration: 10000 })
+        const errorDetail = [
+          err.error,
+          err.details,
+          err.code ? `(code: ${err.code})` : '',
+          err.meta ? `(meta: ${err.meta})` : '',
+        ].filter(Boolean).join(' — ') || 'Impossible de sauvegarder la configuration'
+        console.error('[EMAILS] Config save error:', err)
+        toast.error('Erreur de sauvegarde', { description: errorDetail, duration: 20000 })
       }
-    } catch {
+    } catch (netErr) {
+      console.error('[EMAILS] Config save network error:', netErr)
       toast.error('Erreur réseau')
     }
   }

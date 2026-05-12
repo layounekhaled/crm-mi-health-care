@@ -3,6 +3,7 @@ import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 // GET /api/emails/config - Récupérer la configuration email de l'employé
 export async function GET(request: NextRequest) {
@@ -66,7 +67,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[EMAIL_CONFIG_GET]', error)
     const message = error instanceof Error ? error.message : 'Erreur inconnue'
-    return NextResponse.json({ error: 'Erreur serveur', details: message }, { status: 500 })
+    const stack = error instanceof Error ? error.stack?.substring(0, 500) : ''
+    return NextResponse.json({ error: 'Erreur serveur', details: message, stack }, { status: 500 })
   }
 }
 
@@ -101,33 +103,46 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Upsert la configuration
-    const emailConfig = await db.emailConfig.upsert({
+    // Vérifier si une config existe déjà
+    const existingConfig = await db.emailConfig.findUnique({
       where: { employeId },
-      update: {
-        email,
-        imapHost,
-        imapPort: imapPort || 993,
-        imapTls: imapTls !== false,
-        smtpHost,
-        smtpPort: smtpPort || 587,
-        smtpTls: smtpTls !== false,
-        ...(emailPassword ? { emailPassword } : {}),
-        ...(signature !== undefined ? { signature } : {}),
-      },
-      create: {
-        employeId,
-        email,
-        imapHost,
-        imapPort: imapPort || 993,
-        imapTls: imapTls !== false,
-        smtpHost,
-        smtpPort: smtpPort || 587,
-        smtpTls: smtpTls !== false,
-        emailPassword: emailPassword || '',
-        signature: signature || null,
-      },
     })
+
+    let emailConfig
+
+    if (existingConfig) {
+      // Update existing config
+      emailConfig = await db.emailConfig.update({
+        where: { employeId },
+        data: {
+          email,
+          imapHost,
+          imapPort: imapPort || 993,
+          imapTls: imapTls !== false,
+          smtpHost,
+          smtpPort: smtpPort || 587,
+          smtpTls: smtpTls !== false,
+          ...(emailPassword ? { emailPassword } : {}),
+          ...(signature !== undefined ? { signature } : {}),
+        },
+      })
+    } else {
+      // Create new config
+      emailConfig = await db.emailConfig.create({
+        data: {
+          employeId,
+          email,
+          imapHost,
+          imapPort: imapPort || 993,
+          imapTls: imapTls !== false,
+          smtpHost,
+          smtpPort: smtpPort || 587,
+          smtpTls: smtpTls !== false,
+          emailPassword: emailPassword || '',
+          signature: signature || null,
+        },
+      })
+    }
 
     return NextResponse.json({
       ...emailConfig,
@@ -137,7 +152,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[EMAIL_CONFIG_POST]', error)
     const message = error instanceof Error ? error.message : 'Erreur inconnue'
-    return NextResponse.json({ error: 'Erreur serveur', details: message }, { status: 500 })
+    const code = (error as any)?.code || ''
+    const meta = (error as any)?.meta || ''
+    const stack = error instanceof Error ? error.stack?.substring(0, 500) : ''
+    return NextResponse.json({
+      error: 'Erreur serveur',
+      details: message,
+      code,
+      meta: typeof meta === 'object' ? JSON.stringify(meta) : String(meta),
+      stack,
+    }, { status: 500 })
   }
 }
 
