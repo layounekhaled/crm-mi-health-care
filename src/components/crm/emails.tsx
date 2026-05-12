@@ -52,6 +52,7 @@ import {
   ChevronsUpDown,
   MoreHorizontal,
   ArrowRight,
+  Archive,
 } from 'lucide-react'
 import DOMPurify from 'isomorphic-dompurify'
 
@@ -154,16 +155,30 @@ function getFolderIcon(specialUse: string, path: string) {
   if (specialUse === '\\Trash') return <Trash2 className="h-4 w-4" />
   if (specialUse === '\\Junk' || specialUse === '\\Spam') return <AlertCircle className="h-4 w-4" />
   if (specialUse === '\\Flagged' || specialUse === '\\Starred') return <Star className="h-4 w-4" />
+  if (specialUse === '\\Archive') return <Archive className="h-4 w-4" />
+  // Fallback basé sur le chemin
+  if (path === 'Sent' || path === 'Sent Messages' || path === 'Envoyés' || path === '[Gmail]/Sent Mail' || path === 'INBOX.Sent') return <Send className="h-4 w-4" />
+  if (path === 'Drafts' || path === 'Brouillons' || path === '[Gmail]/Drafts') return <FileText className="h-4 w-4" />
+  if (path === 'Trash' || path === 'Corbeille' || path === '[Gmail]/Trash' || path === 'Deleted Messages') return <Trash2 className="h-4 w-4" />
+  if (path === 'Junk' || path === 'Spam' || path === 'Indésirables' || path === '[Gmail]/Spam') return <AlertCircle className="h-4 w-4" />
+  if (path === 'Flagged' || path === 'Starred' || path === 'Favoris' || path === '[Gmail]/Starred') return <Star className="h-4 w-4" />
+  if (path === 'Archive' || path === 'Archives' || path === '[Gmail]/All Mail' || path === '[Gmail]/Archive') return <Archive className="h-4 w-4" />
   return <FolderOpen className="h-4 w-4" />
 }
 
 function getFolderLabel(path: string) {
   if (path === 'INBOX') return 'Boîte de réception'
-  if (path === 'Sent' || path === 'Sent Messages' || path === 'Envoyés') return 'Envoyés'
-  if (path === 'Drafts' || path === 'Brouillons') return 'Brouillons'
-  if (path === 'Trash' || path === 'Corbeille') return 'Corbeille'
-  if (path === 'Junk' || path === 'Spam' || path === 'Indésirables') return 'Indésirables'
-  if (path === 'Flagged' || path === 'Starred' || path === 'Favoris') return 'Favoris'
+  if (path === 'Sent' || path === 'Sent Messages' || path === 'Envoyés' || path === 'Éléments envoyés' || path === '[Gmail]/Sent Mail' || path === 'INBOX.Sent' || path === 'INBOX.Sent Messages') return 'Envoyés'
+  if (path === 'Drafts' || path === 'Brouillons' || path === '[Gmail]/Drafts' || path === 'INBOX.Drafts') return 'Brouillons'
+  if (path === 'Trash' || path === 'Corbeille' || path === '[Gmail]/Trash' || path === 'INBOX.Trash' || path === 'Deleted Messages') return 'Corbeille'
+  if (path === 'Junk' || path === 'Spam' || path === 'Indésirables' || path === '[Gmail]/Spam' || path === 'INBOX.Spam') return 'Indésirables'
+  if (path === 'Flagged' || path === 'Starred' || path === 'Favoris' || path === '[Gmail]/Starred') return 'Favoris'
+  if (path === 'Archive' || path === 'Archives' || path === '[Gmail]/All Mail' || path === '[Gmail]/Archive') return 'Archives'
+  // Pour les dossiers Gmail qui commencent par [Gmail]/, afficher un nom plus propre
+  if (path.startsWith('[Gmail]/')) {
+    const gmailName = path.replace('[Gmail]/', '')
+    return gmailName.replace(/([A-Z])/g, ' $1').trim()
+  }
   return path
 }
 
@@ -625,9 +640,15 @@ export default function EmailsModule() {
         body: JSON.stringify(payload),
       })
       if (res.ok) {
-        toast.success('Email envoyé', { description: `À ${composeForm.to}` })
+        const data = await res.json()
+        const desc = data.savedToImap
+          ? `À ${composeForm.to} · Copie sauvegardée dans Envoyés`
+          : `À ${composeForm.to}`
+        toast.success('Email envoyé', { description: desc })
         setShowCompose(false)
         setComposeForm({ to: '', cc: '', bcc: '', subject: '', text: '', inReplyTo: '', replyTo: '' })
+        // Rafraîchir la liste des dossiers pour mettre à jour le compteur
+        fetchFolders()
       } else {
         const err = await res.json().catch(() => ({}))
         toast.error("Erreur d'envoi", { description: err.error || err.details || 'Impossible d\'envoyer l\'email' })

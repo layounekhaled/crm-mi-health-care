@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 import nodemailer from 'nodemailer'
+import { ImapFlow } from 'imapflow'
 
 // POST /api/emails/send - Envoyer un email
 export async function POST(request: NextRequest) {
@@ -42,6 +43,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const fromAddress = `"${authUser.employeNom || emailConfig.email}" <${emailConfig.email}>`
+
     // Créer le transporteur SMTP
     const transporter = nodemailer.createTransport({
       host: emailConfig.smtpHost,
@@ -57,9 +60,9 @@ export async function POST(request: NextRequest) {
       socketTimeout: 30000,
     })
 
-    // Envoyer l'email
+    // Envoyer l'email via SMTP
     const info = await transporter.sendMail({
-      from: `"${authUser.employeNom || emailConfig.email}" <${emailConfig.email}>`,
+      from: fromAddress,
       to: Array.isArray(to) ? to.join(', ') : to,
       cc: cc ? (Array.isArray(cc) ? cc.join(', ') : cc) : undefined,
       bcc: bcc ? (Array.isArray(bcc) ? bcc.join(', ') : bcc) : undefined,
@@ -71,9 +74,79 @@ export async function POST(request: NextRequest) {
 
     transporter.close()
 
+    // ── Sauvegarder la copie dans le dossier IMAP "Envoyés" ─────
+    // On le fait après l'envoi SMTP pour ne pas bloquer l'envoi si l'append IMAP échoue
+    let savedToImap = false
+    try {
+      // Construire le message MIME brut (sans BCC pour la confidentialité)
+      const MailComposer = require('nodemailer/lib/mail-composer')
+      const composer = new MailComposer({
+        from: fromAddress,
+        to: Array.isArray(to) ? to.join(', ') : to,
+        cc: cc ? (Array.isArray(cc) ? cc.join(', ') : cc) : undefined,
+        // Ne pas inclure BCC dans la copie sauvegardée (confidentialité)
+        subject,
+        text: text || '',
+        html: html || undefined,
+        replyTo: replyTo || undefined,
+        date: new Date(),
+        messageId: info.messageId,
+      })
+
+      const mimeNode = composer.compile()
+      const rawMessage = await new Promise<string>((resolve, reject) => {
+        const chunks: Buffer[] = []
+        const stream = mimeNode.createReadStream()
+        stream.on('data', (chunk: Buffer) => chunks.push(chunk))
+        stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')))
+        stream.on('error', reject)
+      })
+
+      // Se connecter à IMAP pour trouver le dossier Envoyés et y ajouter le message
+      if (emailConfig.imapHost) {
+        const imapClient = new ImapFlow({
+          host: emailConfig.imapHost,
+          port: emailConfig.imapPort,
+          secure: emailConfig.imapTls,
+          auth: {
+            user: emailConfig.email,
+            pass: emailConfig.emailPassword,
+          },
+          tls: { rejectUnauthorized: false },
+          logger: false as unknown as undefined,
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+          socketTimeout: 30000,
+        })
+
+        await imapClient.connect()
+
+        // Trouver le dossier "Envoyés" (le nom varie selon le fournisseur)
+        const mailboxes = await imapClient.list()
+        const sentFolder = mailboxes.find(m =>
+          m.specialUse === '\\Sent' ||
+          ['Sent', 'Sent Messages', 'Envoyés', 'Éléments envoyés', '[Gmail]/Sent Mail', 'INBOX.Sent', 'INBOX.Sent Messages'].includes(m.path)
+        )
+
+        if (sentFolder) {
+          await imapClient.append(rawMessage, {
+            flags: ['\\Seen'],
+            target: sentFolder.path,
+          })
+          savedToImap = true
+        }
+
+        await imapClient.logout()
+      }
+    } catch (imapAppendError) {
+      // Ne pas faire échouer l'envoi si la sauvegarde IMAP échoue
+      console.error('[EMAIL_SEND_IMAP_APPEND] Erreur sauvegarde IMAP:', imapAppendError)
+    }
+
     return NextResponse.json({
       success: true,
       messageId: info.messageId,
+      savedToImap,
     })
   } catch (error) {
     console.error('[EMAIL_SEND_POST]', error)
