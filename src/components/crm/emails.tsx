@@ -143,6 +143,11 @@ const emailPresets: Record<string, Partial<EmailConfig> & { helpUrl?: string; he
     smtpHost: 'smtp.mail.yahoo.com', smtpPort: 587, smtpTls: true,
     helpText: 'Yahoo nécessite un "Mot de passe d\'application". Allez dans : Paramètres du compte → Sécurité → Mots de passe d\'application.',
   },
+  lws: {
+    imapHost: 'mail.wistyty.com', imapPort: 993, imapTls: true,
+    smtpHost: 'mail.wistyty.com', smtpPort: 465, smtpTls: true,
+    helpText: 'Hébergement LWS Panel : Utilisez le mot de passe de votre compte de messagerie. IMAP port 993 (SSL), SMTP port 465 (SSL). Vous pouvez aussi utiliser mail67.lwspanel.com comme serveur.',
+  },
   custom: {},
 }
 
@@ -156,28 +161,35 @@ function getFolderIcon(specialUse: string, path: string) {
   if (specialUse === '\\Junk' || specialUse === '\\Spam') return <AlertCircle className="h-4 w-4" />
   if (specialUse === '\\Flagged' || specialUse === '\\Starred') return <Star className="h-4 w-4" />
   if (specialUse === '\\Archive') return <Archive className="h-4 w-4" />
-  // Fallback basé sur le chemin
-  if (path === 'Sent' || path === 'Sent Messages' || path === 'Envoyés' || path === '[Gmail]/Sent Mail' || path === 'INBOX.Sent') return <Send className="h-4 w-4" />
-  if (path === 'Drafts' || path === 'Brouillons' || path === '[Gmail]/Drafts') return <FileText className="h-4 w-4" />
-  if (path === 'Trash' || path === 'Corbeille' || path === '[Gmail]/Trash' || path === 'Deleted Messages') return <Trash2 className="h-4 w-4" />
-  if (path === 'Junk' || path === 'Spam' || path === 'Indésirables' || path === '[Gmail]/Spam') return <AlertCircle className="h-4 w-4" />
-  if (path === 'Flagged' || path === 'Starred' || path === 'Favoris' || path === '[Gmail]/Starred') return <Star className="h-4 w-4" />
-  if (path === 'Archive' || path === 'Archives' || path === '[Gmail]/All Mail' || path === '[Gmail]/Archive') return <Archive className="h-4 w-4" />
+  // Fallback basé sur le chemin (support LWS/Dovecot français)
+  const lowerPath = path.toLowerCase()
+  if (lowerPath.includes('sent') || lowerPath.includes('envoy') || lowerPath.includes('éléments envoyés')) return <Send className="h-4 w-4" />
+  if (lowerPath.includes('draft') || lowerPath.includes('brouillon')) return <FileText className="h-4 w-4" />
+  if (lowerPath.includes('trash') || lowerPath.includes('corbeille') || lowerPath.includes('deleted') || lowerPath.includes('poubelle')) return <Trash2 className="h-4 w-4" />
+  if (lowerPath.includes('junk') || lowerPath.includes('spam') || lowerPath.includes('indésirable') || lowerPath.includes('courrier indésirable')) return <AlertCircle className="h-4 w-4" />
+  if (lowerPath.includes('flagged') || lowerPath.includes('starred') || lowerPath.includes('favori')) return <Star className="h-4 w-4" />
+  if (lowerPath.includes('archive') || lowerPath.includes('all mail') || lowerPath.includes('tous les messages')) return <Archive className="h-4 w-4" />
   return <FolderOpen className="h-4 w-4" />
 }
 
 function getFolderLabel(path: string) {
   if (path === 'INBOX') return 'Boîte de réception'
-  if (path === 'Sent' || path === 'Sent Messages' || path === 'Envoyés' || path === 'Éléments envoyés' || path === '[Gmail]/Sent Mail' || path === 'INBOX.Sent' || path === 'INBOX.Sent Messages') return 'Envoyés'
-  if (path === 'Drafts' || path === 'Brouillons' || path === '[Gmail]/Drafts' || path === 'INBOX.Drafts') return 'Brouillons'
-  if (path === 'Trash' || path === 'Corbeille' || path === '[Gmail]/Trash' || path === 'INBOX.Trash' || path === 'Deleted Messages') return 'Corbeille'
-  if (path === 'Junk' || path === 'Spam' || path === 'Indésirables' || path === '[Gmail]/Spam' || path === 'INBOX.Spam') return 'Indésirables'
-  if (path === 'Flagged' || path === 'Starred' || path === 'Favoris' || path === '[Gmail]/Starred') return 'Favoris'
-  if (path === 'Archive' || path === 'Archives' || path === '[Gmail]/All Mail' || path === '[Gmail]/Archive') return 'Archives'
+  // Utiliser des correspondances partielles insensibles à la casse pour supporter LWS/Dovecot
+  const lowerPath = path.toLowerCase()
+  if (lowerPath.includes('sent') || lowerPath.includes('envoy') || lowerPath.includes('éléments envoyés')) return 'Envoyés'
+  if (lowerPath.includes('draft') || lowerPath.includes('brouillon')) return 'Brouillons'
+  if (lowerPath.includes('trash') || lowerPath.includes('corbeille') || lowerPath.includes('deleted') || lowerPath.includes('poubelle')) return 'Corbeille'
+  if (lowerPath.includes('junk') || lowerPath.includes('spam') || lowerPath.includes('indésirable') || lowerPath.includes('courrier indésirable')) return 'Indésirables'
+  if (lowerPath.includes('flagged') || lowerPath.includes('starred') || lowerPath.includes('favori')) return 'Favoris'
+  if (lowerPath.includes('archive') || lowerPath.includes('all mail') || lowerPath.includes('tous les messages')) return 'Archives'
   // Pour les dossiers Gmail qui commencent par [Gmail]/, afficher un nom plus propre
   if (path.startsWith('[Gmail]/')) {
     const gmailName = path.replace('[Gmail]/', '')
     return gmailName.replace(/([A-Z])/g, ' $1').trim()
+  }
+  // Pour les dossiers INBOX.xxx (Dovecot), afficher le nom après le séparateur
+  if (path.startsWith('INBOX.')) {
+    return path.replace('INBOX.', '')
   }
   return path
 }
@@ -812,12 +824,13 @@ export default function EmailsModule() {
               {/* Preset selector */}
               <div>
                 <Label className="text-sm font-medium text-slate-700">Fournisseur email</Label>
-                <div className="mt-2 grid grid-cols-4 gap-2">
+                <div className="mt-2 grid grid-cols-5 gap-2">
                   {[
                     { id: 'gmail', label: 'Gmail' },
                     { id: 'outlook', label: 'Outlook' },
                     { id: 'yahoo', label: 'Yahoo' },
-                    { id: 'custom', label: 'Personnalisé' },
+                    { id: 'lws', label: 'LWS' },
+                    { id: 'custom', label: 'Autre' },
                   ].map((p) => (
                     <button
                       key={p.id}

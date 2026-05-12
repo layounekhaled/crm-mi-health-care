@@ -74,12 +74,24 @@ export async function GET(request: NextRequest) {
         '\\Spam': 5,
       }
 
+      // Fonction pour déterminer la priorité d'un dossier (support LWS/Dovecot français)
+      const getFolderPriority = (folder: { specialUse: string; path: string }): number => {
+        if (priorityOrder[folder.specialUse]) return priorityOrder[folder.specialUse]
+        const lowerPath = folder.path.toLowerCase()
+        if (lowerPath === 'inbox') return 1
+        if (lowerPath.includes('sent') || lowerPath.includes('envoy')) return 2
+        if (lowerPath.includes('draft') || lowerPath.includes('brouillon')) return 3
+        if (lowerPath.includes('trash') || lowerPath.includes('corbeille') || lowerPath.includes('deleted') || lowerPath.includes('poubelle')) return 4
+        if (lowerPath.includes('junk') || lowerPath.includes('spam') || lowerPath.includes('indésirable')) return 5
+        if (lowerPath.includes('flagged') || lowerPath.includes('starred') || lowerPath.includes('favori')) return 6
+        if (lowerPath.includes('archive')) return 7
+        return 99
+      }
+
       folders.sort((a, b) => {
-        const aPriority = priorityOrder[a.specialUse] || 99
-        const bPriority = priorityOrder[b.specialUse] || 99
+        const aPriority = getFolderPriority(a)
+        const bPriority = getFolderPriority(b)
         if (aPriority !== bPriority) return aPriority - bPriority
-        if (a.path === 'INBOX') return -1
-        if (b.path === 'INBOX') return 1
         return a.name.localeCompare(b.name)
       })
 

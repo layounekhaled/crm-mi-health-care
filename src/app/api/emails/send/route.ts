@@ -122,11 +122,15 @@ export async function POST(request: NextRequest) {
         await imapClient.connect()
 
         // Trouver le dossier "Envoyés" (le nom varie selon le fournisseur)
+        // LWS/Dovecot français : INBOX.Envoyés, Envoyés, INBOX.Sent, etc.
         const mailboxes = await imapClient.list()
-        const sentFolder = mailboxes.find(m =>
-          m.specialUse === '\\Sent' ||
-          ['Sent', 'Sent Messages', 'Envoyés', 'Éléments envoyés', '[Gmail]/Sent Mail', 'INBOX.Sent', 'INBOX.Sent Messages'].includes(m.path)
-        )
+        const sentFolder = mailboxes.find(m => {
+          if (m.specialUse === '\\Sent') return true
+          const lowerPath = m.path.toLowerCase()
+          return lowerPath.includes('sent') ||
+            lowerPath.includes('envoy') ||
+            lowerPath.includes('éléments envoyés')
+        })
 
         if (sentFolder) {
           // ImapFlow.append(path, content, flags, idate)
