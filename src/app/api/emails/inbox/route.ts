@@ -46,13 +46,19 @@ export async function GET(request: NextRequest) {
       const lock = await client.getMailboxLock(folder)
 
       try {
-        // Recherche - use search() to get matching UIDs for total count
-        let searchQuery: Record<string, unknown> = {}
+        // Recherche - utiliser `true` pour récupérer TOUS les messages quand pas de recherche
+        // C'est plus fiable que `{}` sur certains serveurs IMAP
+        let searchResult
         if (search) {
-          searchQuery = { or: [{ from: search }, { subject: search }, { to: search }] }
+          searchResult = await client.search(
+            { or: [{ from: search }, { subject: search }, { to: search }] },
+            { uid: true }
+          )
+        } else {
+          // `true` = SEARCH ALL - récupère tous les UIDs du dossier
+          searchResult = await client.search(true, { uid: true })
         }
 
-        const searchResult = await client.search(searchQuery, { uid: true })
         const matchingUids = Array.isArray(searchResult) ? searchResult : []
         const total = matchingUids.length
 
@@ -108,7 +114,7 @@ export async function GET(request: NextRequest) {
       }
     } catch (imapError: unknown) {
       const errorMsg = imapError instanceof Error ? imapError.message : 'Erreur de connexion IMAP'
-      console.error('[EMAIL_INBOX_IMAP]', errorMsg)
+      console.error('[EMAIL_INBOX_IMAP]', errorMsg, 'folder:', folder)
 
       let userMessage = 'Impossible de se connecter au serveur email'
       if (errorMsg.includes('AUTHENTICATE FAILED') || errorMsg.includes('Invalid credentials')) {
@@ -119,6 +125,8 @@ export async function GET(request: NextRequest) {
         userMessage = `Connexion IMAP refusée par ${emailConfig.imapHost}:${emailConfig.imapPort}.`
       } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout')) {
         userMessage = `Le serveur IMAP ${emailConfig.imapHost} ne répond pas.`
+      } else if (errorMsg.includes('Mailbox') && (errorMsg.includes('not found') || errorMsg.includes('doesn\'t exist') || errorMsg.includes('NONEXISTENT'))) {
+        userMessage = `Le dossier "${folder}" n'existe pas sur le serveur.`
       }
 
       return NextResponse.json(

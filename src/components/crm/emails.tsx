@@ -1069,11 +1069,13 @@ export default function EmailsModule() {
                       {getFolderIcon(folder.specialUse, folder.path)}
                     </span>
                     <span className="flex-1 truncate text-left">{getFolderLabel(folder.path)}</span>
-                    {folder.unseen > 0 && (
+                    {folder.unseen > 0 ? (
                       <Badge className="h-5 min-w-5 flex items-center justify-center rounded-full bg-[#F6852A] px-1 text-[10px] font-bold text-white border-0">
                         {folder.unseen}
                       </Badge>
-                    )}
+                    ) : folder.count > 0 ? (
+                      <span className="text-[10px] text-slate-400">{folder.count}</span>
+                    ) : null}
                   </button>
                 ))
               )}
