@@ -85,10 +85,12 @@ export async function POST(request: NextRequest) {
 
     // Test SMTP
     try {
+      // Avertissement : Vercel bloque le port 465 (SSL direct). Utiliser 587 (STARTTLS).
+      const effectiveSmtpPort = smtpPort || 587
       const transporter = nodemailer.createTransport({
         host: smtpHost,
-        port: smtpPort || 587,
-        secure: (smtpPort || 587) === 465,
+        port: effectiveSmtpPort,
+        secure: effectiveSmtpPort === 465,
         auth: {
           user: email,
           pass: emailPassword,
@@ -117,6 +119,8 @@ export async function POST(request: NextRequest) {
         userMessage = `Délai d'attente dépassé pour ${smtpHost}. Le serveur ne répond pas.`
       } else if (errorMsg.includes('SSL') || errorMsg.includes('TLS') || errorMsg.includes('certificate')) {
         userMessage = 'Erreur de certificat SSL/TLS. Essayez le port 465 avec SSL ou le port 587 avec STARTTLS.'
+      } else if (errorMsg.includes('EHOSTUNREACH') || errorMsg.includes('EPIPE') || errorMsg.includes('connection reset') || errorMsg.includes('socket hang up')) {
+        userMessage = `Impossible de se connecter à ${smtpHost}:${smtpPort || 587}. Le port ${smtpPort} peut être bloqué par l'hébergeur. Essayez le port 587 (STARTTLS) au lieu de 465 (SSL).`
       }
 
       results.smtp = { success: false, message: userMessage }

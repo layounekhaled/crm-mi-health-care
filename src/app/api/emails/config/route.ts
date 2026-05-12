@@ -136,7 +136,8 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[EMAIL_CONFIG_POST]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    return NextResponse.json({ error: 'Erreur serveur', details: message }, { status: 500 })
   }
 }
 

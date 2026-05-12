@@ -147,8 +147,8 @@ const emailPresets: Record<string, Partial<EmailConfig> & { helpUrl?: string; he
   },
   lws: {
     imapHost: 'mail.wistyty.com', imapPort: 993, imapTls: true,
-    smtpHost: 'mail.wistyty.com', smtpPort: 465, smtpTls: true,
-    helpText: 'Hébergement LWS Panel : Utilisez le mot de passe de votre compte de messagerie. IMAP port 993 (SSL), SMTP port 465 (SSL). Vous pouvez aussi utiliser mail67.lwspanel.com comme serveur.',
+    smtpHost: 'mail.wistyty.com', smtpPort: 587, smtpTls: true,
+    helpText: 'Hébergement LWS Panel : Utilisez le mot de passe de votre compte de messagerie. IMAP port 993 (SSL), SMTP port 587 (STARTTLS). Vous pouvez aussi utiliser mail67.lwspanel.com comme serveur.',
   },
   custom: {},
 }
@@ -629,7 +629,7 @@ export default function EmailsModule() {
         setShowConfig(false)
       } else {
         const err = await res.json().catch(() => ({}))
-        toast.error('Erreur', { description: err.error || 'Impossible de sauvegarder la configuration' })
+        toast.error('Erreur', { description: err.error || err.details || 'Impossible de sauvegarder la configuration', duration: 10000 })
       }
     } catch {
       toast.error('Erreur réseau')
