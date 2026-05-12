@@ -129,11 +129,13 @@ export async function POST(request: NextRequest) {
         )
 
         if (sentFolder) {
-          await imapClient.append(rawMessage, {
-            flags: ['\\Seen'],
-            target: sentFolder.path,
-          })
+          // ImapFlow.append(path, content, flags, idate)
+          // path = dossier cible, content = Buffer du message MIME, flags = tableau de flags
+          const contentBuffer = Buffer.from(rawMessage, 'utf-8')
+          await imapClient.append(sentFolder.path, contentBuffer, ['\\Seen'], new Date())
           savedToImap = true
+        } else {
+          console.warn('[EMAIL_SEND_IMAP_APPEND] Dossier Envoyés non trouvé. Dossiers disponibles:', mailboxes.map(m => m.path).join(', '))
         }
 
         await imapClient.logout()
