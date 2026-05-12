@@ -570,15 +570,15 @@ export default function EmailsModule() {
           toast.error('Échec de connexion', { description: failedParts.join(' | ') || data.error || 'Échec', duration: 15000 })
         }
       } else {
-        // Erreur serveur - afficher les détails
+        // Erreur serveur - afficher les détails avec steps de diagnostic
         const errorDetail = data.details || data.error || 'Erreur inconnue'
         const errorCode = data.code || ''
-        const desc = errorCode ? `${errorDetail} (code: ${errorCode})` : errorDetail
-        toast.error(data.error || 'Erreur de test', { description: desc, duration: 15000 })
+        const steps = (data.steps || []).join(' → ')
+        let desc = errorCode ? `${errorDetail} (code: ${errorCode})` : errorDetail
+        if (steps) desc += ` | Étapes: ${steps}`
+        toast.error(data.error || 'Erreur de test', { description: desc, duration: 20000 })
         // Mettre à jour testResult avec l'erreur
-        if (data.results) {
-          setTestResult(data)
-        }
+        setTestResult(data)
       }
     } catch {
       toast.error('Erreur réseau', { description: 'Impossible de joindre le serveur' })
