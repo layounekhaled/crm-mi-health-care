@@ -10,6 +10,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/debug') ||
+    pathname.startsWith('/api/documents/debug-supabase') ||
     pathname.startsWith('/api/emails/ping') ||
     pathname.startsWith('/_next')
   ) {
