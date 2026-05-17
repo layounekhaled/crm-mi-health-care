@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser, canAccess } from '@/lib/auth-helpers'
+import { getAuthUser, canAccess, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import { createSupabaseAdmin, BUCKET_NAME } from '@/lib/supabase'
+import { deleteFile } from '@/lib/storage'
 
-// GET /api/documents/[id] - Détail d'un document
+export const dynamic = 'force-dynamic'
+
+// GET /api/documents/[id]
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -26,11 +28,6 @@ export async function GET(
       return NextResponse.json({ error: 'Document non trouvé' }, { status: 404 })
     }
 
-    // Employees can only see active documents
-    if (authUser.role !== 'admin' && document.status !== 'active') {
-      return NextResponse.json({ error: 'Document non trouvé' }, { status: 404 })
-    }
-
     return NextResponse.json({ data: document })
   } catch (error) {
     console.error('[DOCUMENT_GET]', error)
@@ -38,7 +35,7 @@ export async function GET(
   }
 }
 
-// PUT /api/documents/[id] - Modifier un document
+// PUT /api/documents/[id] - Update document
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -46,57 +43,23 @@ export async function PUT(
   try {
     const authUser = await getAuthUser(request)
     if (!authUser || !canAccess(authUser, ['admin'])) {
-      return NextResponse.json({ error: 'Accès refusé. Admin uniquement.' }, { status: 403 })
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
+    if (!authUser.employeId) return staleSessionResponse()
 
     const { id } = await params
     const body = await request.json()
-    const { title, description, brand, productName, documentType, status } = body
-
-    const existing = await db.document.findUnique({ where: { id } })
-    if (!existing) {
-      return NextResponse.json({ error: 'Document non trouvé' }, { status: 404 })
-    }
-
-    // If changing brand, move file in storage
-    if (brand && brand !== existing.brand) {
-      const supabase = createSupabaseAdmin()
-      const BRAND_FOLDERS: Record<string, string> = {
-        'MIR': 'mir', 'BOS': 'bos', 'Löwenstein': 'lowenstein',
-        'Yuwell': 'yuwell', 'Gelenke': 'gelenke', 'Autres': 'autres',
-      }
-      const newFolder = BRAND_FOLDERS[brand] || 'autres'
-      const fileName = existing.filePath.split('/').pop()!
-      const newPath = `${newFolder}/${fileName}`
-
-      // Move file
-      const { error: moveError } = await supabase.storage
-        .from(BUCKET_NAME)
-        .move(existing.filePath, newPath)
-
-      if (!moveError) {
-        const { data: urlData } = supabase.storage
-          .from(BUCKET_NAME)
-          .getPublicUrl(newPath)
-
-        await db.document.update({
-          where: { id },
-          data: { filePath: newPath, fileUrl: urlData.publicUrl },
-        })
-      }
-    }
-
-    const updateData: any = {}
-    if (title !== undefined) updateData.title = title
-    if (description !== undefined) updateData.description = description
-    if (brand !== undefined) updateData.brand = brand
-    if (productName !== undefined) updateData.productName = productName
-    if (documentType !== undefined) updateData.documentType = documentType
-    if (status !== undefined) updateData.status = status
 
     const document = await db.document.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...(body.title && { title: body.title }),
+        ...(body.description !== undefined && { description: body.description || null }),
+        ...(body.brand && { brand: body.brand }),
+        ...(body.productName !== undefined && { productName: body.productName || null }),
+        ...(body.documentType && { documentType: body.documentType }),
+        ...(body.status && { status: body.status }),
+      },
       include: {
         uploader: { select: { id: true, nom: true } },
       },
@@ -109,7 +72,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/documents/[id] - Supprimer un document
+// DELETE /api/documents/[id]
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -117,23 +80,22 @@ export async function DELETE(
   try {
     const authUser = await getAuthUser(request)
     if (!authUser || !canAccess(authUser, ['admin'])) {
-      return NextResponse.json({ error: 'Accès refusé. Admin uniquement.' }, { status: 403 })
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
     const { id } = await params
-    const existing = await db.document.findUnique({ where: { id } })
-    if (!existing) {
+    const document = await db.document.findUnique({ where: { id } })
+
+    if (!document) {
       return NextResponse.json({ error: 'Document non trouvé' }, { status: 404 })
     }
 
-    // Delete from Supabase Storage
-    const supabase = createSupabaseAdmin()
-    const { error: deleteError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .remove([existing.filePath])
-
-    if (deleteError) {
-      console.error('[SUPABASE_DELETE_ERROR]', deleteError)
+    // Delete file from Vercel Blob
+    try {
+      await deleteFile(document.fileUrl)
+    } catch (delError) {
+      console.error('[DOCUMENT_DELETE_BLOB]', delError)
+      // Continue even if blob deletion fails
     }
 
     // Delete from database

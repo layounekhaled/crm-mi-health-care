@@ -4,45 +4,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 import { getAuthUser, canAccess, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import { createSupabaseAdmin, BUCKET_NAME, BRAND_FOLDERS } from '@/lib/supabase'
-
-// Ensure the Supabase bucket exists, create it if missing
-async function ensureBucket(supabase: ReturnType<typeof createSupabaseAdmin>) {
-  const { data: buckets, error: listError } = await supabase.storage.listBuckets()
-  
-  if (listError) {
-    console.error('[SUPABASE_LIST_BUCKETS_ERROR]', listError)
-    return { ok: false, error: `Erreur Supabase listBuckets: ${listError.message}` }
-  }
-  
-  const bucketExists = buckets?.some((b) => b.name === BUCKET_NAME)
-  
-  if (!bucketExists) {
-    console.log('[SUPABASE] Creating bucket:', BUCKET_NAME)
-    const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
-      public: true,
-      fileSizeLimit: 20 * 1024 * 1024,
-      allowedMimeTypes: ['application/pdf'],
-    })
-    
-    if (createError) {
-      console.error('[SUPABASE_CREATE_BUCKET_ERROR]', createError)
-      return { ok: false, error: `Erreur création bucket: ${createError.message}` }
-    }
-    
-    // Create brand folders
-    const folders = Object.values(BRAND_FOLDERS)
-    for (const folder of folders) {
-      await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(`${folder}/.keep`, new Blob([''], { type: 'text/plain' }), { upsert: true })
-    }
-    
-    console.log('[SUPABASE] Bucket created successfully with folders')
-  }
-  
-  return { ok: true, error: null }
-}
+import { uploadFile, BRAND_FOLDERS } from '@/lib/storage'
 
 // GET /api/documents - Liste des documents
 export async function GET(request: NextRequest) {
@@ -143,41 +105,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Upload to Supabase Storage
+    // Upload to Vercel Blob Storage
     const folder = BRAND_FOLDERS[brand] || 'autres'
     const timestamp = Date.now()
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const filePath = `${folder}/${timestamp}_${safeName}`
 
-    const supabase = createSupabaseAdmin()
-    
-    // Auto-create bucket if it doesn't exist
-    const bucketCheck = await ensureBucket(supabase)
-    if (!bucketCheck.ok) {
-      return NextResponse.json({ error: bucketCheck.error }, { status: 500 })
-    }
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(filePath, file, {
-        contentType: 'application/pdf',
-        upsert: false,
-      })
-
-    if (uploadError) {
-      console.error('[SUPABASE_UPLOAD_ERROR]', uploadError)
-      return NextResponse.json(
-        { error: `Erreur upload: ${uploadError.message}` },
-        { status: 500 }
-      )
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(filePath)
-
-    const fileUrl = urlData.publicUrl
+    const { url: fileUrl, pathname } = await uploadFile(filePath, file, 'application/pdf')
 
     // Create document record
     const document = await db.document.create({
@@ -188,7 +122,7 @@ export async function POST(request: NextRequest) {
         productName: productName || null,
         documentType,
         fileUrl,
-        filePath,
+        filePath: pathname,
         fileName: file.name,
         fileSize: file.size,
         uploadedBy: authUser.employeId,
@@ -200,8 +134,11 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ data: document }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[DOCUMENTS_POST]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json(
+      { error: `Erreur upload: ${error.message || 'Erreur serveur'}` },
+      { status: 500 }
+    )
   }
 }
