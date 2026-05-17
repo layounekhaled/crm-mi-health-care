@@ -227,8 +227,9 @@ export default function DocumentsModule() {
       setUploadForm({ title: '', description: '', brand: 'MIR', productName: '', documentType: 'catalogue' })
       setUploadFile(null)
       fetchDocuments()
-    } catch (error) {
-      toast.error('Erreur lors de l\'upload')
+    } catch (error: any) {
+      console.error('Upload error:', error)
+      toast.error(error?.message || 'Erreur lors de l\'upload — vérifiez la connexion réseau')
     } finally {
       setUploading(false)
     }
