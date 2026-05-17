@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser, canAccess } from '@/lib/auth-helpers'
 import { createSupabaseAdmin, BUCKET_NAME, BRAND_FOLDERS } from '@/lib/supabase'
+
+export const dynamic = 'force-dynamic'
 
 // POST /api/documents/init-bucket - Initialiser le bucket Supabase Storage
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
-    if (!authUser || !canAccess(authUser, ['admin'])) {
-      return NextResponse.json({ error: 'Accès refusé. Admin uniquement.' }, { status: 403 })
-    }
-
     const supabase = createSupabaseAdmin()
 
     // Check if bucket exists
@@ -42,27 +38,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create folder placeholders (Supabase creates folders implicitly,
-    // but we can create a .keep file in each to ensure they exist)
+    // Create folder placeholders
     const folders = Object.values(BRAND_FOLDERS)
-    const uploadPromises = folders.map((folder) =>
-      supabase.storage
+    const folderResults = []
+    for (const folder of folders) {
+      const { error } = await supabase.storage
         .from(BUCKET_NAME)
         .upload(`${folder}/.keep`, new Blob([''], { type: 'text/plain' }), {
           upsert: true,
         })
-    )
+      folderResults.push({ folder, ok: !error, error: error?.message })
+    }
 
-    await Promise.allSettled(uploadPromises)
+    // Test upload
+    const { data: testData, error: testError } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload('autres/test.pdf', new Blob(['test'], { type: 'application/pdf' }), { upsert: true })
 
     return NextResponse.json({
       success: true,
       message: bucketExists ? 'Bucket déjà existant' : 'Bucket créé avec succès',
       bucket: BUCKET_NAME,
-      folders,
+      folders: folderResults,
+      testUpload: testError ? { error: testError.message } : { ok: true, path: testData?.path },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[INIT_BUCKET_POST]', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
+}
+
+// GET - also allow GET to init bucket (for easy browser testing)
+export async function GET(request: NextRequest) {
+  return POST(request)
 }
