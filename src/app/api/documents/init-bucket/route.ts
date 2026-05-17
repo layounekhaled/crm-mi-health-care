@@ -1,44 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseAdmin, BUCKET_NAME, BRAND_FOLDERS } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-// POST /api/documents/init-bucket - Initialiser le bucket Supabase Storage
+// Diagnostic endpoint to test Supabase connection and create bucket
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createSupabaseAdmin()
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    // Check if bucket exists
+    // Diagnostic: check env vars
+    const diagnostics: Record<string, any> = {
+      supabaseUrl: supabaseUrl || 'MISSING',
+      serviceKeyPresent: !!supabaseServiceKey,
+      serviceKeyPrefix: supabaseServiceKey?.substring(0, 20) + '...',
+      serviceKeyLength: supabaseServiceKey?.length || 0,
+      anonKeyPresent: !!supabaseAnonKey,
+      anonKeyPrefix: supabaseAnonKey?.substring(0, 20) + '...',
+      anonKeyLength: supabaseAnonKey?.length || 0,
+    }
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json({
+        error: 'Variables Supabase manquantes',
+        diagnostics,
+      }, { status: 500 })
+    }
+
+    // Create client directly here for full control
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+
+    // Test basic connectivity - try to list buckets
     const { data: buckets, error: listError } = await supabase.storage.listBuckets()
 
     if (listError) {
       console.error('[SUPABASE_LIST_BUCKETS_ERROR]', listError)
-      return NextResponse.json(
-        { error: `Erreur Supabase: ${listError.message}` },
-        { status: 500 }
-      )
+      return NextResponse.json({
+        error: `Erreur Supabase listBuckets: ${listError.message}`,
+        diagnostics,
+        listErrorDetails: {
+          name: listError.name,
+          message: listError.message,
+          status: (listError as any).status,
+        },
+      }, { status: 500 })
     }
 
+    const BUCKET_NAME = 'Documents'
     const bucketExists = buckets?.some((b) => b.name === BUCKET_NAME)
+
+    diagnostics.bucketsFound = buckets?.map((b: any) => b.name) || []
+    diagnostics.bucketExists = bucketExists
 
     if (!bucketExists) {
       // Create the bucket as public
       const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
         public: true,
-        fileSizeLimit: 20 * 1024 * 1024, // 20MB
+        fileSizeLimit: 20 * 1024 * 1024,
         allowedMimeTypes: ['application/pdf'],
       })
 
       if (createError) {
         console.error('[SUPABASE_CREATE_BUCKET_ERROR]', createError)
-        return NextResponse.json(
-          { error: `Erreur création bucket: ${createError.message}` },
-          { status: 500 }
-        )
+        return NextResponse.json({
+          error: `Erreur création bucket: ${createError.message}`,
+          diagnostics,
+        }, { status: 500 })
       }
+
+      diagnostics.bucketCreated = true
     }
 
     // Create folder placeholders
+    const BRAND_FOLDERS = {
+      'MIR': 'mir',
+      'BOS': 'bos',
+      'Löwenstein': 'lowenstein',
+      'Yuwell': 'yuwell',
+      'Gelenke': 'gelenke',
+      'Autres': 'autres',
+    }
+
     const folders = Object.values(BRAND_FOLDERS)
     const folderResults = []
     for (const folder of folders) {
@@ -59,12 +107,16 @@ export async function POST(request: NextRequest) {
       success: true,
       message: bucketExists ? 'Bucket déjà existant' : 'Bucket créé avec succès',
       bucket: BUCKET_NAME,
+      diagnostics,
       folders: folderResults,
       testUpload: testError ? { error: testError.message } : { ok: true, path: testData?.path },
     })
   } catch (error: any) {
     console.error('[INIT_BUCKET_POST]', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({
+      error: error.message,
+      stack: error.cause?.message || error.stack?.split('\n')[0],
+    }, { status: 500 })
   }
 }
 
