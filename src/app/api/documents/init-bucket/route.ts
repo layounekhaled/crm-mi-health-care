@@ -14,10 +14,10 @@ export async function POST(request: NextRequest) {
     const diagnostics: Record<string, any> = {
       supabaseUrl: supabaseUrl || 'MISSING',
       serviceKeyPresent: !!supabaseServiceKey,
-      serviceKeyPrefix: supabaseServiceKey?.substring(0, 20) + '...',
+      serviceKeyPrefix: supabaseServiceKey?.substring(0, 30) + '...',
       serviceKeyLength: supabaseServiceKey?.length || 0,
       anonKeyPresent: !!supabaseAnonKey,
-      anonKeyPrefix: supabaseAnonKey?.substring(0, 20) + '...',
+      anonKeyPrefix: supabaseAnonKey?.substring(0, 30) + '...',
       anonKeyLength: supabaseAnonKey?.length || 0,
     }
 
@@ -28,88 +28,113 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Create client directly here for full control
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-
-    // Test basic connectivity - try to list buckets
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets()
-
-    if (listError) {
-      console.error('[SUPABASE_LIST_BUCKETS_ERROR]', listError)
-      return NextResponse.json({
-        error: `Erreur Supabase listBuckets: ${listError.message}`,
-        diagnostics,
-        listErrorDetails: {
-          name: listError.name,
-          message: listError.message,
-          status: (listError as any).status,
+    // Test 1: Direct HTTP request to Supabase (bypass SDK)
+    let directFetchResult: Record<string, any> = {}
+    try {
+      const healthUrl = `${supabaseUrl}/rest/v1/`
+      const healthRes = await fetch(healthUrl, {
+        headers: {
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
         },
-      }, { status: 500 })
-    }
-
-    const BUCKET_NAME = 'Documents'
-    const bucketExists = buckets?.some((b) => b.name === BUCKET_NAME)
-
-    diagnostics.bucketsFound = buckets?.map((b: any) => b.name) || []
-    diagnostics.bucketExists = bucketExists
-
-    if (!bucketExists) {
-      // Create the bucket as public
-      const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
-        public: true,
-        fileSizeLimit: 20 * 1024 * 1024,
-        allowedMimeTypes: ['application/pdf'],
+        signal: AbortSignal.timeout(10000),
       })
-
-      if (createError) {
-        console.error('[SUPABASE_CREATE_BUCKET_ERROR]', createError)
-        return NextResponse.json({
-          error: `Erreur création bucket: ${createError.message}`,
-          diagnostics,
-        }, { status: 500 })
+      directFetchResult = {
+        url: healthUrl,
+        status: healthRes.status,
+        statusText: healthRes.statusText,
+        ok: healthRes.ok,
+        body: (await healthRes.text()).substring(0, 200),
       }
-
-      diagnostics.bucketCreated = true
+    } catch (fetchErr: any) {
+      directFetchResult = {
+        error: fetchErr.message,
+        cause: fetchErr.cause?.message || fetchErr.cause?.code || 'unknown',
+      }
     }
 
-    // Create folder placeholders
-    const BRAND_FOLDERS = {
-      'MIR': 'mir',
-      'BOS': 'bos',
-      'Löwenstein': 'lowenstein',
-      'Yuwell': 'yuwell',
-      'Gelenke': 'gelenke',
-      'Autres': 'autres',
+    // Test 2: Direct HTTP to Storage API
+    let storageFetchResult: Record<string, any> = {}
+    try {
+      const storageUrl = `${supabaseUrl}/storage/v1/bucket`
+      const storageRes = await fetch(storageUrl, {
+        headers: {
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        signal: AbortSignal.timeout(10000),
+      })
+      storageFetchResult = {
+        url: storageUrl,
+        status: storageRes.status,
+        statusText: storageRes.statusText,
+        ok: storageRes.ok,
+        body: (await storageRes.text()).substring(0, 500),
+      }
+    } catch (fetchErr: any) {
+      storageFetchResult = {
+        error: fetchErr.message,
+        cause: fetchErr.cause?.message || fetchErr.cause?.code || 'unknown',
+      }
     }
 
-    const folders = Object.values(BRAND_FOLDERS)
-    const folderResults = []
-    for (const folder of folders) {
-      const { error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(`${folder}/.keep`, new Blob([''], { type: 'text/plain' }), {
-          upsert: true,
-        })
-      folderResults.push({ folder, ok: !error, error: error?.message })
-    }
+    // Test 3: Try Supabase SDK
+    let sdkResult: Record<string, any> = {}
+    try {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      })
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets()
 
-    // Test upload
-    const { data: testData, error: testError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload('autres/test.pdf', new Blob(['test'], { type: 'application/pdf' }), { upsert: true })
+      if (listError) {
+        sdkResult = { error: listError.message, name: listError.name }
+      } else {
+        sdkResult = {
+          ok: true,
+          buckets: buckets?.map((b: any) => b.name) || [],
+        }
+
+        // If SDK works, create bucket if needed
+        const BUCKET_NAME = 'Documents'
+        const bucketExists = buckets?.some((b: any) => b.name === BUCKET_NAME)
+
+        if (!bucketExists) {
+          const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
+            public: true,
+            fileSizeLimit: 20 * 1024 * 1024,
+            allowedMimeTypes: ['application/pdf'],
+          })
+
+          if (createError) {
+            sdkResult.createBucketError = createError.message
+          } else {
+            sdkResult.bucketCreated = true
+          }
+        }
+
+        // Create folders
+        const BRAND_FOLDERS = ['mir', 'bos', 'lowenstein', 'yuwell', 'gelenke', 'autres']
+        const folderResults = []
+        for (const folder of BRAND_FOLDERS) {
+          const { error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .upload(`${folder}/.keep`, new Blob([''], { type: 'text/plain' }), { upsert: true })
+          folderResults.push({ folder, ok: !error, error: error?.message })
+        }
+        sdkResult.folders = folderResults
+      }
+    } catch (sdkErr: any) {
+      sdkResult = { error: sdkErr.message, cause: sdkErr.cause?.message }
+    }
 
     return NextResponse.json({
-      success: true,
-      message: bucketExists ? 'Bucket déjà existant' : 'Bucket créé avec succès',
-      bucket: BUCKET_NAME,
       diagnostics,
-      folders: folderResults,
-      testUpload: testError ? { error: testError.message } : { ok: true, path: testData?.path },
+      directFetch: directFetchResult,
+      storageFetch: storageFetchResult,
+      sdk: sdkResult,
     })
   } catch (error: any) {
     console.error('[INIT_BUCKET_POST]', error)
@@ -120,7 +145,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - also allow GET to init bucket (for easy browser testing)
+// GET - also allow GET for easy browser testing
 export async function GET(request: NextRequest) {
   return POST(request)
 }
