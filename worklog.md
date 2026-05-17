@@ -125,3 +125,25 @@ Stage Summary:
 - With improved error reporting, the user will now see the actual error details
 - User needs to test again and report the specific error message
 
+---
+Task ID: 1
+Agent: Main Agent
+Task: Create new Neon database "CRM dalia" and connect project to it
+
+Work Log:
+- Created new database "crm_dalia" on existing Neon instance via SQL (CREATE DATABASE crm_dalia)
+- Ran prisma db push to create all tables in the new database
+- Seeded the database with initial data (5 employees, 5 users, 10 prospects, etc.)
+- Updated .env file with new database connection strings (pooled and direct)
+- Updated Vercel environment variables (DATABASE_URL, DIRECT_URL) on old project to point to crm_dalia
+- Added environment variables to new Vercel project (crm-dalia) on old account
+- Redeployed old project (crm-mi-health-care) to pick up new database URL
+- Deployment is READY and working
+
+Stage Summary:
+- New database: crm_dalia on Neon (ep-divine-darkness-an3iu4co.c-6.us-east-1.aws.neon.tech)
+- DATABASE_URL (pooled): postgresql://neondb_owner:npg_N2ESji9uVPfL@ep-divine-darkness-an3iu4co-pooler.c-6.us-east-1.aws.neon.tech/crm_dalia?sslmode=require
+- DIRECT_URL (unpooled): postgresql://neondb_owner:npg_N2ESji9uVPfL@ep-divine-darkness-an3iu4co.c-6.us-east-1.aws.neon.tech/crm_dalia?sslmode=require
+- Old project (crm-mi-health-care) now uses new database
+- New project (crm-dalia) created on Vercel but user's token (vck_) has limited permissions
+- User needs to either: (1) create project manually on their Vercel account, or (2) get a token with project creation permissions
