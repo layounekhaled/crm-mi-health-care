@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 import { getAuthUser, canAccess, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 import { createSupabaseAdmin, BUCKET_NAME, BRAND_FOLDERS } from '@/lib/supabase'
