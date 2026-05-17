@@ -3,7 +3,6 @@ import { createSupabaseAdmin, BUCKET_NAME, BRAND_FOLDERS } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/documents/debug-supabase - Test Supabase connection (temp debug)
 export async function GET() {
   try {
     const supabase = createSupabaseAdmin()
@@ -15,12 +14,12 @@ export async function GET() {
       return NextResponse.json({ 
         step: 'listBuckets', 
         error: listError.message,
-        keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10) + '...'
+        keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 15) + '...'
       }, { status: 500 })
     }
     
-    const bucketNames = buckets?.map(b => b.name) || []
-    const docBucket = buckets?.find(b => b.name === BUCKET_NAME)
+    const bucketNames = buckets?.map((b: any) => b.name) || []
+    const docBucket = buckets?.find((b: any) => b.name === BUCKET_NAME)
     
     // 2. If bucket doesn't exist, create it
     let bucketCreated = false
@@ -52,8 +51,8 @@ export async function GET() {
       folderResults.push({ folder, ok: !error, error: error?.message })
     }
     
-    // 4. Test upload a small file
-    const testContent = new Blob(['test'], { type: 'application/pdf' })
+    // 4. Test upload
+    const testContent = new Blob(['test pdf'], { type: 'application/pdf' })
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
       .upload('autres/test_connection.pdf', testContent, {
@@ -74,12 +73,11 @@ export async function GET() {
       bucketCreated,
       folders: folderResults,
       testUpload: uploadError ? { error: uploadError.message } : { path: uploadData?.path, url: testUrl },
-      keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10) + '...',
+      keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 15) + '...',
     })
   } catch (error: any) {
     return NextResponse.json({ 
       error: error.message,
-      stack: error.stack?.split('\n').slice(0, 3)
     }, { status: 500 })
   }
 }
