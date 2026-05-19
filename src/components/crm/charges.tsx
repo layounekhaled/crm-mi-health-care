@@ -429,7 +429,12 @@ export default function ChargesModule() {
           const uploadData = await uploadRes.json()
           justificatifUrl = uploadData.url
         } else {
-          toast.error("Erreur lors de l'upload du justificatif")
+          let errorMsg = "Erreur lors de l'upload du justificatif"
+          try {
+            const errData = await uploadRes.json()
+            if (errData.error) errorMsg = errData.error
+          } catch {}
+          toast.error(errorMsg)
           setUploading(false)
           setSaving(false)
           return
