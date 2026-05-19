@@ -147,3 +147,35 @@ Stage Summary:
 - Old project (crm-mi-health-care) now uses new database
 - New project (crm-dalia) created on Vercel but user's token (vck_) has limited permissions
 - User needs to either: (1) create project manually on their Vercel account, or (2) get a token with project creation permissions
+---
+Task ID: 1
+Agent: Main Agent
+Task: Update Charges module - employee-scoped access + receipt upload (justificatif)
+
+Work Log:
+- Read existing code: charges.tsx, API routes, Prisma schema, sidebar, auth-context
+- Added `justificatifUrl` field to Charge model in Prisma schema
+- Ran `prisma db push` to sync schema with Neon database
+- Created `/api/charges/upload` route for file uploads using Vercel Blob
+- Updated `/api/charges` GET route: non-admin users only see their own charges
+- Updated `/api/charges` POST route: non-admin users auto-assign their employeId
+- Updated `/api/charges/[id]` routes: ownership check for GET/PUT/DELETE, blob cleanup on delete
+- Rewrote charges.tsx UI component:
+  - Added useAuth() to detect admin vs employee
+  - Employee view: no employee selector, no "Par Employé" tab, simplified filters
+  - Added justificatif upload (drag & drop area, file validation, preview)
+  - Added JustificatifThumbnail component with preview dialog
+  - Justificatif column in table with thumbnail preview
+  - Upload progress indicator during save
+- Updated sidebar: Charges now accessible by admin, commercial, and technicien roles
+- Built successfully with `next build`
+- Committed and pushed to GitHub
+- Deployed to Vercel production (deployment READY)
+
+Stage Summary:
+- Charge model now has `justificatifUrl` field for receipt/justificatif storage
+- Employees can add their own charges without seeing others' charges
+- Receipt upload supports images (JPEG, PNG, WebP, GIF) and PDFs up to 10MB
+- Justificatif preview available in dialog with zoom capability
+- Delete charge also removes the associated file from Vercel Blob
+- Deployed at https://crm-dalia.vercel.app
