@@ -71,7 +71,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
-import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { toast } from 'sonner'
@@ -604,9 +604,35 @@ export default function OpportunitiesModule() {
     setActiveId(event.active.id as string)
   }
 
+  // Track which column is being hovered during drag
+  const [hoveredColumn, setHoveredColumn] = useState<string | null>(null)
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event
+    if (!over) return
+
+    // Find the column the dragged item is over
+    const overId = over.id as string
+    let targetColumn: string | null = null
+
+    // Check if over a column directly
+    if (PIPELINE_STAGES.some(s => s.value === overId)) {
+      targetColumn = overId
+    } else {
+      // Check if over a card - find which column that card belongs to
+      const overOpp = opportunities.find(o => o.id === overId)
+      if (overOpp) {
+        targetColumn = overOpp.statut
+      }
+    }
+
+    setHoveredColumn(targetColumn)
+  }
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
+    setHoveredColumn(null)
 
     if (!over) return
 
@@ -614,11 +640,21 @@ export default function OpportunitiesModule() {
     if (!activeOpp) return
 
     // Find which column the item was dropped on
-    const overStage = PIPELINE_STAGES.find(s => s.value === over.id)
-    if (!overStage) return
+    let newStatut: string | null = null
 
-    const newStatut = overStage.value
-    if (activeOpp.statut === newStatut) return // No change
+    // Check if dropped on a column directly
+    const overStage = PIPELINE_STAGES.find(s => s.value === over.id)
+    if (overStage) {
+      newStatut = overStage.value
+    } else {
+      // Dropped on another card - find that card's column
+      const overOpp = opportunities.find(o => o.id === over.id)
+      if (overOpp) {
+        newStatut = overOpp.statut
+      }
+    }
+
+    if (!newStatut || activeOpp.statut === newStatut) return // No change
 
     // If moving to "Perdu", show motif dialog
     if (newStatut === 'Perdu') {
@@ -629,7 +665,7 @@ export default function OpportunitiesModule() {
     }
 
     // Optimistic update
-    setOpportunities(prev => prev.map(o => o.id === active.id ? { ...o, statut: newStatut } : o))
+    setOpportunities(prev => prev.map(o => o.id === active.id ? { ...o, statut: newStatut! } : o))
 
     try {
       const res = await fetch(`/api/opportunities/${active.id}`, {
@@ -638,7 +674,8 @@ export default function OpportunitiesModule() {
         body: JSON.stringify({ statut: newStatut }),
       })
       if (!res.ok) throw new Error('Move failed')
-      toast.success(`Opportunité déplacée vers "${overStage.label}"`)
+      const targetLabel = PIPELINE_STAGES.find(s => s.value === newStatut)?.label || newStatut
+      toast.success(`Opportunité déplacée vers "${targetLabel}"`)
       await fetchOpportunities()
     } catch {
       toast.error('Erreur lors du déplacement')
@@ -796,15 +833,17 @@ export default function OpportunitiesModule() {
                 sensors={sensors}
                 collisionDetection={closestCorners}
                 onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
               >
                 <div className="overflow-x-auto pb-4">
                   <div className="flex gap-4" style={{ minWidth: `${PIPELINE_STAGES.length * 296}px` }}>
                     {kanbanData.map(stage => (
-                      <div
+                      <DroppableColumn
                         key={stage.value}
                         id={stage.value}
-                        className="flex w-[280px] flex-shrink-0 flex-col rounded-xl border border-slate-200/80 bg-white/50 dark:border-slate-800/80 dark:bg-slate-900/50"
+                        isHovered={hoveredColumn === stage.value}
+                        isDragging={!!activeId}
                       >
                         {/* Column Header */}
                         <div className={`rounded-t-xl px-3 py-2.5 ${stage.headerBg}`}>
@@ -855,7 +894,7 @@ export default function OpportunitiesModule() {
                             )}
                           </div>
                         </ScrollArea>
-                      </div>
+                      </DroppableColumn>
                     ))}
                   </div>
                 </div>
@@ -1783,7 +1822,29 @@ export default function OpportunitiesModule() {
   )
 }
 
-// ─── Kanban Card Component ───────────────────────────────────────
+// ─── Droppable Column Component ──────────────────────────────────
+
+function DroppableColumn({ id, isHovered, isDragging, children }: {
+  id: string
+  isHovered: boolean
+  isDragging: boolean
+  children: React.ReactNode
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex w-[280px] flex-shrink-0 flex-col rounded-xl border transition-all duration-200 ${
+        isHovered || isOver
+          ? 'border-[#F6852A]/60 bg-orange-50/50 shadow-md shadow-[#F6852A]/10 dark:border-[#F6852A]/40 dark:bg-orange-950/20'
+          : 'border-slate-200/80 bg-white/50 dark:border-slate-800/80 dark:bg-slate-900/50'
+      } ${isDragging ? '' : ''}`}
+    >
+      {children}
+    </div>
+  )
+}
 
 function KanbanCard({
   opportunity,
@@ -1791,12 +1852,14 @@ function KanbanCard({
   onClick,
   onEdit,
   onDelete,
+  dragHandleProps,
 }: {
   opportunity: Opportunity
   onMove: (id: string, statut: string) => Promise<void>
   onClick: () => void
   onEdit: () => void
   onDelete: () => void
+  dragHandleProps?: Record<string, unknown>
 }) {
   const stage = getStageConfig(opportunity.statut)
 
@@ -1884,7 +1947,13 @@ function KanbanCard({
               <Calendar className="size-3" />
               {formatDate(opportunity.createdAt)}
             </div>
-            <GripVertical className="size-3.5 text-muted-foreground/40" />
+            <button
+              className="cursor-grab rounded p-0.5 text-muted-foreground/40 transition-colors hover:text-[#F6852A] active:cursor-grabbing"
+              {...(dragHandleProps || {})}
+              onClick={e => e.stopPropagation()}
+            >
+              <GripVertical className="size-3.5" />
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -1909,12 +1978,20 @@ function SortableKanbanCard({ opportunity, onMove, onClick, onEdit, onDelete }: 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined,
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <KanbanCard opportunity={opportunity} onMove={onMove} onClick={onClick} onEdit={onEdit} onDelete={onDelete} />
+    <div ref={setNodeRef} style={style}>
+      <KanbanCard
+        opportunity={opportunity}
+        onMove={onMove}
+        onClick={onClick}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
     </div>
   )
 }
