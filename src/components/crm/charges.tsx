@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Plus,
   Search,
@@ -20,6 +20,11 @@ import {
   Calendar,
   ArrowUpDown,
   Filter,
+  Upload,
+  X,
+  Eye,
+  ImageIcon,
+  FileText,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -63,6 +68,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
+import { useAuth } from '@/lib/auth-context'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -82,6 +88,7 @@ interface Charge {
   employeId: string
   opportunityId?: string | null
   createdBy?: string | null
+  justificatifUrl?: string | null
   createdAt: string
   updatedAt: string
   employe: { id: string; nom: string; role: string }
@@ -145,6 +152,11 @@ function getTypeLabel(type: string): string {
   return getTypeConfig(type).label
 }
 
+function isImageFile(url: string | null | undefined): boolean {
+  if (!url) return false
+  return /\.(jpg|jpeg|png|webp|gif)$/i.test(url)
+}
+
 // ─── Type Badge Component ────────────────────────────────────────
 
 function TypeBadge({ type }: { type: string }) {
@@ -158,9 +170,61 @@ function TypeBadge({ type }: { type: string }) {
   )
 }
 
+// ─── Justificatif Preview Component ──────────────────────────────
+
+function JustificatifThumbnail({ url }: { url: string }) {
+  const [showPreview, setShowPreview] = useState(false)
+
+  return (
+    <>
+      <button
+        onClick={() => setShowPreview(true)}
+        className="group relative flex size-9 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 transition-all hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-600 dark:hover:bg-blue-950/30"
+      >
+        {isImageFile(url) ? (
+          <img src={url} alt="Justificatif" className="size-full object-cover" />
+        ) : (
+          <FileText className="size-4 text-slate-400" />
+        )}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
+          <Eye className="size-4 text-white" />
+        </div>
+      </button>
+
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Justificatif</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center overflow-auto rounded-lg bg-slate-100 p-4 dark:bg-slate-800">
+            {isImageFile(url) ? (
+              <img src={url} alt="Justificatif" className="max-h-[70vh] rounded-md object-contain" />
+            ) : (
+              <iframe src={url} className="h-[70vh] w-full rounded-md" title="Justificatif PDF" />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreview(false)}>
+              Fermer
+            </Button>
+            <Button asChild>
+              <a href={url} target="_blank" rel="noopener noreferrer">
+                Ouvrir dans un nouvel onglet
+              </a>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 // ─── Main Component ──────────────────────────────────────────────
 
 export default function ChargesModule() {
+  const { user } = useAuth()
+  const isAdminUser = user?.role === 'admin'
+
   // State
   const [charges, setCharges] = useState<Charge[]>([])
   const [stats, setStats] = useState<ChargeStats | null>(null)
@@ -190,10 +254,16 @@ export default function ChargesModule() {
     employeId: '',
     opportunityId: '',
   })
+  const [justificatifFile, setJustificatifFile] = useState<File | null>(null)
+  const [justificatifPreview, setJustificatifPreview] = useState<string | null>(null)
+  const [existingJustificatifUrl, setExistingJustificatifUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ─── Data Fetching ─────────────────────────────────────────────
 
@@ -201,7 +271,7 @@ export default function ChargesModule() {
     try {
       const params = new URLSearchParams()
       if (filterType !== 'all') params.set('type', filterType)
-      if (filterEmploye !== 'all') params.set('employeId', filterEmploye)
+      if (isAdminUser && filterEmploye !== 'all') params.set('employeId', filterEmploye)
       if (filterDateFrom) params.set('dateFrom', filterDateFrom)
       if (filterDateTo) params.set('dateTo', filterDateTo)
 
@@ -221,9 +291,10 @@ export default function ChargesModule() {
     } catch (err) {
       toast.error('Erreur lors du chargement des charges')
     }
-  }, [filterType, filterEmploye, filterDateFrom, filterDateTo])
+  }, [filterType, filterEmploye, filterDateFrom, filterDateTo, isAdminUser])
 
   const fetchEmployees = useCallback(async () => {
+    if (!isAdminUser) return // non-admin don't need employee list
     try {
       const res = await fetch('/api/employees?actif=true')
       if (res.ok) {
@@ -233,7 +304,7 @@ export default function ChargesModule() {
     } catch (err) {
       toast.error('Erreur lors du chargement des employés')
     }
-  }, [])
+  }, [isAdminUser])
 
   const fetchOpportunities = useCallback(async () => {
     try {
@@ -260,6 +331,44 @@ export default function ChargesModule() {
     load()
   }, [fetchCharges, fetchEmployees, fetchOpportunities])
 
+  // ─── File Upload Handler ────────────────────────────────────────
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Type de fichier non autorisé (images et PDF uniquement)')
+      return
+    }
+
+    // Max 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Fichier trop volumineux (max 10 Mo)')
+      return
+    }
+
+    setJustificatifFile(file)
+
+    // Generate preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (ev) => setJustificatifPreview(ev.target?.result as string)
+      reader.readAsDataURL(file)
+    } else {
+      setJustificatifPreview(null)
+    }
+  }
+
+  const removeJustificatif = () => {
+    setJustificatifFile(null)
+    setJustificatifPreview(null)
+    setExistingJustificatifUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   // ─── Form Handlers ─────────────────────────────────────────────
 
   const openCreateDialog = () => {
@@ -269,9 +378,12 @@ export default function ChargesModule() {
       montant: '',
       description: '',
       date: new Date().toISOString().split('T')[0],
-      employeId: employees[0]?.id || '',
+      employeId: isAdminUser ? (employees[0]?.id || '') : (user?.employeId || ''),
       opportunityId: '',
     })
+    setJustificatifFile(null)
+    setJustificatifPreview(null)
+    setExistingJustificatifUrl(null)
     setShowFormDialog(true)
   }
 
@@ -285,23 +397,55 @@ export default function ChargesModule() {
       employeId: charge.employeId,
       opportunityId: charge.opportunityId || '',
     })
+    setJustificatifFile(null)
+    setJustificatifPreview(charge.justificatifUrl && isImageFile(charge.justificatifUrl) ? charge.justificatifUrl : null)
+    setExistingJustificatifUrl(charge.justificatifUrl || null)
     setShowFormDialog(true)
   }
 
   const handleSave = async () => {
-    if (!formData.type || !formData.montant || !formData.employeId) {
+    if (!formData.type || !formData.montant) {
       toast.error('Veuillez remplir tous les champs obligatoires')
       return
     }
+    if (isAdminUser && !formData.employeId) {
+      toast.error('Veuillez sélectionner un employé')
+      return
+    }
     setSaving(true)
+    setUploading(true)
     try {
+      // Upload justificatif first if a new file was selected
+      let justificatifUrl: string | null = existingJustificatifUrl
+
+      if (justificatifFile) {
+        const uploadFormData = new FormData()
+        uploadFormData.append('file', justificatifFile)
+        const uploadRes = await fetch('/api/charges/upload', {
+          method: 'POST',
+          body: uploadFormData,
+        })
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json()
+          justificatifUrl = uploadData.url
+        } else {
+          toast.error("Erreur lors de l'upload du justificatif")
+          setUploading(false)
+          setSaving(false)
+          return
+        }
+      }
+
+      setUploading(false)
+
       const payload = {
         type: formData.type,
         montant: formData.montant,
         description: formData.description || null,
         date: formData.date || new Date().toISOString().split('T')[0],
-        employeId: formData.employeId,
+        employeId: isAdminUser ? formData.employeId : (user?.employeId || ''),
         opportunityId: formData.opportunityId || null,
+        justificatifUrl,
       }
 
       if (editingId) {
@@ -328,6 +472,7 @@ export default function ChargesModule() {
       toast.error("Erreur lors de l'enregistrement")
     } finally {
       setSaving(false)
+      setUploading(false)
     }
   }
 
@@ -392,7 +537,6 @@ export default function ChargesModule() {
   })
   const totalThisMonth = chargesThisMonth.reduce((sum, c) => sum + c.montant, 0)
   const totalAll = charges.reduce((sum, c) => sum + c.montant, 0)
-  const avgPerEmployee = employees.length > 0 ? totalAll / employees.length : 0
 
   // ─── Sort Toggle ───────────────────────────────────────────────
 
@@ -404,6 +548,9 @@ export default function ChargesModule() {
       setSortDir('asc')
     }
   }
+
+  // ─── Subtitle based on role ────────────────────────────────────
+  const subtitle = isAdminUser ? 'Suivi des dépenses' : 'Mes dépenses'
 
   // ─── Render ────────────────────────────────────────────────────
 
@@ -420,7 +567,7 @@ export default function ChargesModule() {
                   Charges
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  Suivi des dépenses
+                  {subtitle}
                 </p>
               </div>
             </div>
@@ -486,11 +633,11 @@ export default function ChargesModule() {
           <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Users className="size-3.5 text-purple-500" />
-                Charge moy. / employé
+                <ImageIcon className="size-3.5 text-purple-500" />
+                Justificatifs
               </div>
               <p className="mt-1 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
-                {formatDZD(avgPerEmployee)}
+                {charges.filter(c => c.justificatifUrl).length} avec justificatif
               </p>
             </CardContent>
           </Card>
@@ -509,10 +656,12 @@ export default function ChargesModule() {
                 <TrendingUp className="size-3.5" />
                 Vue Globale
               </TabsTrigger>
-              <TabsTrigger value="byEmployee" className="gap-1.5">
-                <Users className="size-3.5" />
-                Par Employé
-              </TabsTrigger>
+              {isAdminUser && (
+                <TabsTrigger value="byEmployee" className="gap-1.5">
+                  <Users className="size-3.5" />
+                  Par Employé
+                </TabsTrigger>
+              )}
               <TabsTrigger value="byOpportunity" className="gap-1.5">
                 <Briefcase className="size-3.5" />
                 Par Opportunité
@@ -540,19 +689,21 @@ export default function ChargesModule() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Select value={filterEmploye} onValueChange={setFilterEmploye}>
-                      <SelectTrigger className="h-8 w-44 text-xs">
-                        <SelectValue placeholder="Employé" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les employés</SelectItem>
-                        {employees.map(e => (
-                          <SelectItem key={e.id} value={e.id}>
-                            {e.nom}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {isAdminUser && (
+                      <Select value={filterEmploye} onValueChange={setFilterEmploye}>
+                        <SelectTrigger className="h-8 w-44 text-xs">
+                          <SelectValue placeholder="Employé" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tous les employés</SelectItem>
+                          {employees.map(e => (
+                            <SelectItem key={e.id} value={e.id}>
+                              {e.nom}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                     <div className="flex items-center gap-1">
                       <Input
                         type="date"
@@ -570,7 +721,7 @@ export default function ChargesModule() {
                         placeholder="Au"
                       />
                     </div>
-                    {(filterType !== 'all' || filterEmploye !== 'all' || filterDateFrom || filterDateTo) && (
+                    {(filterType !== 'all' || (isAdminUser && filterEmploye !== 'all') || filterDateFrom || filterDateTo) && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -603,12 +754,15 @@ export default function ChargesModule() {
                             </span>
                           </TableHead>
                           <TableHead>Description</TableHead>
-                          <TableHead className="cursor-pointer" onClick={() => toggleSort('employe')}>
-                            <span className="flex items-center gap-1">
-                              Employé <ArrowUpDown className="size-3" />
-                            </span>
-                          </TableHead>
+                          {isAdminUser && (
+                            <TableHead className="cursor-pointer" onClick={() => toggleSort('employe')}>
+                              <span className="flex items-center gap-1">
+                                Employé <ArrowUpDown className="size-3" />
+                              </span>
+                            </TableHead>
+                          )}
                           <TableHead>Opportunité</TableHead>
+                          <TableHead>Justificatif</TableHead>
                           <TableHead className="cursor-pointer" onClick={() => toggleSort('montant')}>
                             <span className="flex items-center gap-1">
                               Montant <ArrowUpDown className="size-3" />
@@ -620,7 +774,7 @@ export default function ChargesModule() {
                       <TableBody>
                         {sortedCharges.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                            <TableCell colSpan={isAdminUser ? 8 : 7} className="h-32 text-center text-muted-foreground">
                               <div className="flex flex-col items-center">
                                 <Receipt className="mb-2 size-8 opacity-20" />
                                 Aucune charge trouvée
@@ -638,9 +792,18 @@ export default function ChargesModule() {
                               <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
                                 {charge.description || '—'}
                               </TableCell>
-                              <TableCell className="text-sm font-medium">{charge.employe.nom}</TableCell>
+                              {isAdminUser && (
+                                <TableCell className="text-sm font-medium">{charge.employe.nom}</TableCell>
+                              )}
                               <TableCell className="text-sm text-muted-foreground">
                                 {charge.opportunity?.nomProjet || '—'}
+                              </TableCell>
+                              <TableCell>
+                                {charge.justificatifUrl ? (
+                                  <JustificatifThumbnail url={charge.justificatifUrl} />
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
                               </TableCell>
                               <TableCell className="font-mono text-sm font-semibold">
                                 {formatDZD(charge.montant)}
@@ -679,98 +842,103 @@ export default function ChargesModule() {
               </Card>
             </TabsContent>
 
-            {/* ─── Par Employé Tab ─────────────────────────────── */}
-            <TabsContent value="byEmployee">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <AnimatePresence mode="popLayout">
-                  {(stats?.byEmployee || []).map((emp, index) => (
-                    <motion.div
-                      key={emp.employeId}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="flex size-9 items-center justify-center rounded-full bg-[#134885]/10 dark:bg-[#134885]/20">
-                                <Users className="size-4 text-[#134885] dark:text-[#F6852A]" />
+            {/* ─── Par Employé Tab (Admin only) ────────────────── */}
+            {isAdminUser && (
+              <TabsContent value="byEmployee">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <AnimatePresence mode="popLayout">
+                    {(stats?.byEmployee || []).map((emp, index) => (
+                      <motion.div
+                        key={emp.employeId}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="flex size-9 items-center justify-center rounded-full bg-[#134885]/10 dark:bg-[#134885]/20">
+                                  <Users className="size-4 text-[#134885] dark:text-[#F6852A]" />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-sm font-semibold">{emp.nom}</CardTitle>
+                                  <p className="text-xs text-muted-foreground">{emp.count} charge{emp.count !== 1 ? 's' : ''}</p>
+                                </div>
                               </div>
-                              <div>
-                                <CardTitle className="text-sm font-semibold">{emp.nom}</CardTitle>
-                                <p className="text-xs text-muted-foreground">{emp.count} charge{emp.count !== 1 ? 's' : ''}</p>
+                              <div className="text-right">
+                                <p className="text-sm font-bold text-[#134885] dark:text-[#F6852A]">
+                                  {formatDZD(emp.total)}
+                                </p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm font-bold text-[#134885] dark:text-[#F6852A]">
-                                {formatDZD(emp.total)}
-                              </p>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          {/* Breakdown by type */}
-                          <div className="space-y-2">
-                            {CHARGE_TYPES.map(typeConfig => {
-                              const typeData = emp.byType.find(bt => bt.type === typeConfig.value)
-                              const total = typeData?.total || 0
-                              const percentage = emp.total > 0 ? (total / emp.total) * 100 : 0
-                              return (
-                                <div key={typeConfig.value} className="space-y-1">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-1.5">
-                                      <div className={`size-2 rounded-full ${typeConfig.dotColor}`} />
-                                      <span className="text-muted-foreground">{typeConfig.label}</span>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            {/* Breakdown by type */}
+                            <div className="space-y-2">
+                              {CHARGE_TYPES.map(typeConfig => {
+                                const typeData = emp.byType.find(bt => bt.type === typeConfig.value)
+                                const total = typeData?.total || 0
+                                const percentage = emp.total > 0 ? (total / emp.total) * 100 : 0
+                                return (
+                                  <div key={typeConfig.value} className="space-y-1">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <div className="flex items-center gap-1.5">
+                                        <div className={`size-2 rounded-full ${typeConfig.dotColor}`} />
+                                        <span className="text-muted-foreground">{typeConfig.label}</span>
+                                      </div>
+                                      <span className="font-medium">{formatDZD(total)}</span>
                                     </div>
-                                    <span className="font-medium">{formatDZD(total)}</span>
+                                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                                      <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${percentage}%` }}
+                                        transition={{ duration: 0.5, delay: index * 0.05 }}
+                                        className={`h-full rounded-full ${typeConfig.dotColor}`}
+                                      />
+                                    </div>
                                   </div>
-                                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                                    <motion.div
-                                      initial={{ width: 0 }}
-                                      animate={{ width: `${percentage}%` }}
-                                      transition={{ duration: 0.5, delay: index * 0.05 }}
-                                      className={`h-full rounded-full ${typeConfig.dotColor}`}
-                                    />
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
+                                )
+                              })}
+                            </div>
 
-                          <Separator className="my-3" />
+                            <Separator className="my-3" />
 
-                          {/* Recent charges for this employee */}
-                          <div className="space-y-1.5">
-                            <p className="text-xs font-medium text-muted-foreground">Charges récentes</p>
-                            {sortedCharges
-                              .filter(c => c.employeId === emp.employeId)
-                              .slice(0, 3)
-                              .map(c => (
-                                <div key={c.id} className="flex items-center justify-between text-xs">
-                                  <div className="flex items-center gap-1.5">
-                                    <TypeBadge type={c.type} />
-                                    <span className="text-muted-foreground">{formatDate(c.date)}</span>
+                            {/* Recent charges for this employee */}
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground">Charges récentes</p>
+                              {sortedCharges
+                                .filter(c => c.employeId === emp.employeId)
+                                .slice(0, 3)
+                                .map(c => (
+                                  <div key={c.id} className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-1.5">
+                                      <TypeBadge type={c.type} />
+                                      <span className="text-muted-foreground">{formatDate(c.date)}</span>
+                                      {c.justificatifUrl && (
+                                        <ImageIcon className="size-3 text-emerald-500" />
+                                      )}
+                                    </div>
+                                    <span className="font-medium">{formatDZD(c.montant)}</span>
                                   </div>
-                                  <span className="font-medium">{formatDZD(c.montant)}</span>
-                                </div>
-                              ))
-                            }
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {(!stats?.byEmployee || stats.byEmployee.length === 0) && (
-                  <div className="col-span-full flex flex-col items-center justify-center py-16 text-muted-foreground">
-                    <Receipt className="mb-3 size-12 opacity-20" />
-                    <p>Aucune charge par employé</p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
+                                ))
+                              }
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  {(!stats?.byEmployee || stats.byEmployee.length === 0) && (
+                    <div className="col-span-full flex flex-col items-center justify-center py-16 text-muted-foreground">
+                      <Receipt className="mb-3 size-12 opacity-20" />
+                      <p>Aucune charge par employé</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            )}
 
             {/* ─── Par Opportunité Tab ──────────────────────────── */}
             <TabsContent value="byOpportunity">
@@ -867,7 +1035,12 @@ export default function ChargesModule() {
                                   <div key={c.id} className="flex items-center justify-between text-xs">
                                     <div className="flex items-center gap-1.5">
                                       <TypeBadge type={c.type} />
-                                      <span className="text-muted-foreground">{c.employe.nom}</span>
+                                      {isAdminUser && (
+                                        <span className="text-muted-foreground">{c.employe.nom}</span>
+                                      )}
+                                      {c.justificatifUrl && (
+                                        <ImageIcon className="size-3 text-emerald-500" />
+                                      )}
                                     </div>
                                     <span className="font-medium">{formatDZD(c.montant)}</span>
                                   </div>
@@ -988,22 +1161,24 @@ export default function ChargesModule() {
               />
             </div>
 
-            {/* Employé */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Employé *</Label>
-              <Select value={formData.employeId} onValueChange={v => setFormData(prev => ({ ...prev, employeId: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner l'employé" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map(e => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.nom}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Employé (admin only) */}
+            {isAdminUser && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Employé *</Label>
+                <Select value={formData.employeId} onValueChange={v => setFormData(prev => ({ ...prev, employeId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner l'employé" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map(e => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Opportunité */}
             <div className="space-y-2">
@@ -1022,6 +1197,80 @@ export default function ChargesModule() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Justificatif Upload */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Justificatif (bon, ticket, reçu)</Label>
+              <div className="space-y-2">
+                {(justificatifPreview || existingJustificatifUrl) ? (
+                  <div className="relative flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+                    {(justificatifPreview || (existingJustificatifUrl && isImageFile(existingJustificatifUrl))) ? (
+                      <img
+                        src={justificatifPreview || existingJustificatifUrl || ''}
+                        alt="Aperçu"
+                        className="size-16 rounded-md object-cover"
+                      />
+                    ) : existingJustificatifUrl ? (
+                      <div className="flex size-16 items-center justify-center rounded-md bg-slate-200 dark:bg-slate-700">
+                        <FileText className="size-8 text-slate-400" />
+                      </div>
+                    ) : null}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {justificatifFile ? justificatifFile.name : 'Justificatif existant'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {justificatifFile
+                          ? `${(justificatifFile.size / 1024).toFixed(1)} Ko`
+                          : 'Cliquez sur X pour supprimer'
+                        }
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="size-8 p-0 text-red-500 hover:text-red-700"
+                      onClick={removeJustificatif}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/50 p-6 transition-colors hover:border-blue-400 hover:bg-blue-50/50 dark:border-slate-600 dark:bg-slate-800/50 dark:hover:border-blue-500 dark:hover:bg-blue-950/30"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="size-8 text-slate-400" />
+                    <p className="text-sm text-muted-foreground">
+                      Cliquez pour ajouter un justificatif
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Image ou PDF (max 10 Mo)
+                    </p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                {!justificatifPreview && !existingJustificatifUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="size-4" />
+                    Ajouter un justificatif
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1030,10 +1279,18 @@ export default function ChargesModule() {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={saving || !formData.type || !formData.montant || !formData.employeId}
+              disabled={saving || !formData.type || !formData.montant || (isAdminUser && !formData.employeId)}
               className="gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885]"
             >
-              {saving && <Loader2 className="size-4 animate-spin" />}
+              {saving && (
+                <>
+                  {uploading ? (
+                    <><Loader2 className="size-4 animate-spin" /> Upload...</>
+                  ) : (
+                    <><Loader2 className="size-4 animate-spin" /></>
+                  )}
+                </>
+              )}
               {editingId ? 'Mettre à jour' : 'Créer'}
             </Button>
           </DialogFooter>

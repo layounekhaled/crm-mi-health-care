@@ -404,16 +404,17 @@ model DocumentSend {
 }
 
 model Charge {
-  id            String    @id @default(cuid())
-  type          String    // hotel / restaurant / transport / divers
-  montant       Float     // amount in DZD
-  description   String?
-  date          DateTime  @default(now())
-  employeId     String    // the employee who incurred the expense
-  opportunityId String?   // optional: link to an opportunity
-  createdBy     String?   // employeId of who recorded it
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  type           String    // hotel / restaurant / transport / divers
+  montant        Float     // amount in DZD
+  description    String?
+  date           DateTime  @default(now())
+  employeId      String    // the employee who incurred the expense
+  opportunityId  String?   // optional: link to an opportunity
+  createdBy      String?   // employeId of who recorded it
+  justificatifUrl String?  // URL du justificatif (bon, ticket, reçu)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   employe     Employee     @relation("EmployeeCharges", fields: [employeId], references: [id])
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id])

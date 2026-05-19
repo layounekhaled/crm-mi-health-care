@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    if (!canAccess(authUser, ['admin', 'commercial', 'technicien'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const { searchParams } = new URL(request.url);
     const employeId = searchParams.get('employeId');
@@ -18,7 +18,13 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {};
 
-    if (employeId) where.employeId = employeId;
+    // If user is NOT admin, they can only see their own charges
+    if (!isAdmin(authUser)) {
+      where.employeId = authUser.employeId;
+    } else if (employeId) {
+      where.employeId = employeId;
+    }
+
     if (opportunityId) where.opportunityId = opportunityId;
     if (type) where.type = type;
 
@@ -52,7 +58,7 @@ export async function GET(request: NextRequest) {
       }
       const byType = Array.from(byTypeMap.entries()).map(([type, data]) => ({ type, ...data }));
 
-      // By employee
+      // By employee (admin only gets this)
       const byEmployeeMap = new Map<string, { employeId: string; nom: string; total: number; count: number; byType: Map<string, number> }>();
       for (const c of charges) {
         const eId = c.employeId;
@@ -124,17 +130,24 @@ export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    if (!canAccess(authUser, ['admin', 'commercial', 'technicien'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { type, montant, description, date, employeId, opportunityId } = body;
+    const { type, montant, description, date, employeId, opportunityId, justificatifUrl } = body;
 
-    if (!type || !montant || !employeId) {
-      return NextResponse.json({ error: 'type, montant et employeId sont requis' }, { status: 400 });
+    if (!type || !montant) {
+      return NextResponse.json({ error: 'type et montant sont requis' }, { status: 400 });
     }
 
     if (!['hotel', 'restaurant', 'transport', 'divers'].includes(type)) {
       return NextResponse.json({ error: 'Type invalide (hotel, restaurant, transport, divers)' }, { status: 400 });
+    }
+
+    // For non-admin, force employeId to their own
+    const finalEmployeId = isAdmin(authUser) ? (employeId || authUser.employeId) : authUser.employeId;
+
+    if (!finalEmployeId) {
+      return NextResponse.json({ error: 'employeId requis' }, { status: 400 });
     }
 
     const charge = await db.charge.create({
@@ -143,9 +156,10 @@ export async function POST(request: NextRequest) {
         montant: parseFloat(montant),
         description: description || null,
         date: date ? new Date(date) : new Date(),
-        employeId,
+        employeId: finalEmployeId,
         opportunityId: opportunityId || null,
         createdBy: authUser.employeId,
+        justificatifUrl: justificatifUrl || null,
       },
       include: {
         employe: { select: { id: true, nom: true } },
