@@ -38,6 +38,12 @@ export async function GET(
           orderBy: { createdAt: 'desc' },
           include: { assigneA: { select: { id: true, nom: true } } },
         },
+        photos: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            uploader: { select: { id: true, nom: true } },
+          },
+        },
       },
     });
 

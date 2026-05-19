@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Search,
   Plus,
@@ -20,6 +20,11 @@ import {
   ChevronRight,
   PhoneCall,
   CalendarDays,
+  Camera,
+  Upload,
+  ImagePlus,
+  Download,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -92,10 +97,23 @@ interface Prospect {
   }
 }
 
+interface ProspectPhoto {
+  id: string
+  url: string
+  pathname: string
+  fileName: string
+  fileSize: number
+  legend: string | null
+  uploadedBy: string | null
+  createdAt: string
+  uploader?: { id: string; nom: string } | null
+}
+
 interface ProspectDetail extends Prospect {
   interactions: Interaction[]
   opportunities: Opportunity[]
   afterSales: AfterSale[]
+  photos: ProspectPhoto[]
 }
 
 interface Interaction {
@@ -317,6 +335,11 @@ export default function ProspectsModule() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [duplicateExistingId, setDuplicateExistingId] = useState<string | null>(null)
 
+  // Photo gallery state
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+
   // ─── Fetch prospects ────────────────────────────────────────────────────
 
   const fetchProspects = useCallback(async () => {
@@ -490,6 +513,67 @@ export default function ProspectsModule() {
       }
     } catch {
       toast.error('Erreur lors de la conversion')
+    }
+  }
+
+  // ─── Photo handlers ────────────────────────────────────────────────────
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedProspect) return
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Type de fichier non autorisé (images uniquement)')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Fichier trop volumineux (max 10 Mo)')
+      return
+    }
+
+    setUploadingPhoto(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('prospectId', selectedProspect.id)
+
+      const res = await fetch('/api/prospects/photos', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (res.ok) {
+        toast.success('Photo ajoutée avec succès')
+        fetchDetail(selectedProspect.id)
+      } else {
+        let errorMsg = "Erreur lors de l'upload de la photo"
+        try {
+          const errData = await res.json()
+          if (errData.error) errorMsg = errData.error
+        } catch {}
+        toast.error(errorMsg)
+      }
+    } catch {
+      toast.error("Erreur lors de l'upload de la photo")
+    } finally {
+      setUploadingPhoto(false)
+      if (photoInputRef.current) photoInputRef.current.value = ''
+    }
+  }
+
+  const handlePhotoDelete = async (photoId: string) => {
+    if (!selectedProspect) return
+    try {
+      const res = await fetch(`/api/prospects/photos/${photoId}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Photo supprimée avec succès')
+        fetchDetail(selectedProspect.id)
+      } else {
+        toast.error('Erreur lors de la suppression')
+      }
+    } catch {
+      toast.error('Erreur lors de la suppression')
     }
   }
 
@@ -1292,6 +1376,101 @@ export default function ProspectsModule() {
                   )}
                 </div>
 
+                {/* ── Photos Gallery ────────────────────────────────────────────── */}
+                <Separator className="my-4" />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Camera className="size-4 text-[#134885]" />
+                      <h3 className="text-sm font-semibold">Photos</h3>
+                      <Badge variant="secondary" className="text-xs">
+                        {selectedProspect.photos?.length || 0}
+                      </Badge>
+                    </div>
+                    <div>
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="hidden"
+                        onChange={handlePhotoUpload}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs"
+                        disabled={uploadingPhoto}
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        {uploadingPhoto ? (
+                          <>
+                            <Loader2 className="size-3.5 animate-spin" />
+                            Upload...
+                          </>
+                        ) : (
+                          <>
+                            <ImagePlus className="size-3.5" />
+                            Ajouter
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Photo Grid */}
+                  {selectedProspect.photos && selectedProspect.photos.length > 0 ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {selectedProspect.photos.map((photo) => (
+                        <div
+                          key={photo.id}
+                          className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50 cursor-pointer transition-all hover:shadow-md hover:border-[#134885]/30"
+                          onClick={() => setPhotoPreview(photo.url)}
+                        >
+                          <img
+                            src={photo.url}
+                            alt={photo.legend || photo.fileName}
+                            className="size-full object-cover transition-transform group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100">
+                            <div className="absolute bottom-0 left-0 right-0 p-1.5">
+                              {photo.legend && (
+                                <p className="text-[10px] text-white truncate font-medium">{photo.legend}</p>
+                              )}
+                              <p className="text-[9px] text-white/70">
+                                {photo.uploader?.nom || '—'} · {new Date(photo.createdAt).toLocaleDateString('fr-FR')}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            className="absolute top-1 right-1 size-6 flex items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handlePhotoDelete(photo.id)
+                            }}
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 rounded-lg border border-dashed border-slate-200 bg-slate-50/50">
+                      <Camera className="size-8 text-slate-300 mb-2" />
+                      <p className="text-xs text-muted-foreground">Aucune photo</p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="mt-2 text-xs text-[#134885]"
+                        disabled={uploadingPhoto}
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        <Upload className="size-3 mr-1" />
+                        Ajouter une photo
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Footer actions */}
                 <DialogFooter className="gap-2 sm:gap-0">
                   <Button
@@ -1325,6 +1504,34 @@ export default function ProspectsModule() {
                 Aucune donnée disponible
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Photo Preview Dialog ──────────────────────────────────────── */}
+        <Dialog open={!!photoPreview} onOpenChange={(open) => { if (!open) setPhotoPreview(null) }}>
+          <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black">
+            <div className="relative flex items-center justify-center min-h-[50vh]">
+              {photoPreview && (
+                <img
+                  src={photoPreview}
+                  alt="Aperçu"
+                  className="max-h-[80vh] w-full object-contain"
+                />
+              )}
+            </div>
+            <div className="absolute top-3 right-12">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1"
+                onClick={() => {
+                  if (photoPreview) window.open(photoPreview, '_blank')
+                }}
+              >
+                <Download className="size-3.5" />
+                Télécharger
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
 

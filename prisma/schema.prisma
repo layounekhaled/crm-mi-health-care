@@ -28,6 +28,7 @@ model Prospect {
   eventLinks    EventProspect[]
   tasks         Task[]
   documentSends DocumentSend[]
+  photos        ProspectPhoto[]
 }
 
 model Event {
@@ -185,6 +186,7 @@ model Employee {
   documentSends    DocumentSend[]
   chargesAsEmployee  Charge[] @relation("EmployeeCharges")
   chargesAsCreator   Charge[] @relation("ChargeCreator")
+  uploadedPhotos     ProspectPhoto[]
 }
 
 model Objective {
@@ -424,4 +426,22 @@ model Charge {
   @@index([opportunityId])
   @@index([type])
   @@index([date])
+}
+
+model ProspectPhoto {
+  id          String   @id @default(cuid())
+  prospectId  String
+  url         String   // Vercel Blob URL
+  pathname    String   // Blob pathname for deletion
+  fileName    String   // Original file name
+  fileSize    Int      // Size in bytes
+  legend      String?  // Optional caption/description
+  uploadedBy  String?  // employeId
+  createdAt   DateTime @default(now())
+
+  prospect Prospect  @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  uploader Employee? @relation(fields: [uploadedBy], references: [id])
+
+  @@index([prospectId])
+  @@index([createdAt])
 }
