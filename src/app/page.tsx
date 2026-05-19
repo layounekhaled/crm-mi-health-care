@@ -9,6 +9,7 @@ import ClientsModule from '@/components/crm/clients'
 import EventsModule from '@/components/crm/events'
 import OpportunitiesModule from '@/components/crm/opportunities'
 import OperationsModule from '@/components/crm/operations'
+import CatalogModule from '@/components/crm/catalog'
 import TasksModule from '@/components/crm/tasks'
 import AfterSalesModule from '@/components/crm/after-sales'
 import EmployeesModule from '@/components/crm/employees'
@@ -57,6 +58,8 @@ export default function Home() {
         return <OpportunitiesModule />
       case 'operations':
         return <OperationsModule />
+      case 'catalog':
+        return <CatalogModule />
       case 'tasks':
         return <TasksModule />
       case 'after-sales':

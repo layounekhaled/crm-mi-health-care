@@ -7,6 +7,7 @@ export type Page =
   | 'events' 
   | 'opportunities' 
   | 'operations' 
+  | 'catalog'
   | 'tasks' 
   | 'after-sales' 
   | 'employees'

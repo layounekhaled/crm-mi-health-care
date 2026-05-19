@@ -341,6 +341,23 @@ model CalendarDay {
   @@index([type])
 }
 
+model Product {
+  id             String   @id @default(cuid())
+  nom            String
+  marque         String   // MIR / BOS / Löwenstein / Yuwell / Gelenke / Autres
+  categorie      String?  // monitorage / ventilation / chirurgie / imagerie / etc.
+  reference      String?
+  description    String?
+  prixReference  Float?
+  actif          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([marque])
+  @@index([categorie])
+  @@index([actif])
+}
+
 model Document {
   id            String   @id @default(cuid())
   title         String
