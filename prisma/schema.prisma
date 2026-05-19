@@ -74,6 +74,7 @@ model Opportunity {
   operations   Operation[]
   tasks        Task[]
   interactions Interaction[]
+  charges      Charge[]
 }
 
 model Operation {
@@ -182,6 +183,8 @@ model Employee {
   leaveMovements   LeaveMovement[]
   documents        Document[]
   documentSends    DocumentSend[]
+  chargesAsEmployee  Charge[] @relation("EmployeeCharges")
+  chargesAsCreator   Charge[] @relation("ChargeCreator")
 }
 
 model Objective {
@@ -398,4 +401,26 @@ model DocumentSend {
   @@index([sentBy])
   @@index([recipientId])
   @@index([sentAt])
+}
+
+model Charge {
+  id            String    @id @default(cuid())
+  type          String    // hotel / restaurant / transport / divers
+  montant       Float     // amount in DZD
+  description   String?
+  date          DateTime  @default(now())
+  employeId     String    // the employee who incurred the expense
+  opportunityId String?   // optional: link to an opportunity
+  createdBy     String?   // employeId of who recorded it
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  employe     Employee     @relation("EmployeeCharges", fields: [employeId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  creator     Employee?    @relation("ChargeCreator", fields: [createdBy], references: [id])
+
+  @@index([employeId])
+  @@index([opportunityId])
+  @@index([type])
+  @@index([date])
 }

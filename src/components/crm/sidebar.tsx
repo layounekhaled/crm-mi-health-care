@@ -24,6 +24,7 @@ import {
   CalendarDays,
   CalendarClock,
   FileText,
+  Receipt,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -48,6 +49,7 @@ const navItems: { page: Page; label: string; icon: React.ComponentType<{ classNa
   { page: 'tasks', label: 'Tâches', icon: CheckSquare, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'after-sales', label: 'Après-vente', icon: Wrench, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'employees', label: 'Employés', icon: Users, roles: ['admin'] },
+  { page: 'charges', label: 'Charges', icon: Receipt, roles: ['admin'] },
   { page: 'calendar', label: 'Calendrier', icon: CalendarClock, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'rh', label: 'RH', icon: CalendarDays, roles: ['admin', 'commercial', 'technicien'] },
   { page: 'emails', label: 'Emails', icon: Mail, roles: ['admin', 'commercial', 'technicien'] },

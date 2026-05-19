@@ -17,6 +17,7 @@ import CalendarModule from '@/components/crm/calendar'
 import EmailsModule from '@/components/crm/emails'
 import RHModule from '@/components/crm/rh'
 import DocumentsModule from '@/components/crm/documents'
+import ChargesModule from '@/components/crm/charges'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Loader2 } from 'lucide-react'
 import ChatWidget from '@/components/crm/chat'
@@ -74,6 +75,8 @@ export default function Home() {
         return <EmailsModule />
       case 'documents':
         return <DocumentsModule />
+      case 'charges':
+        return <ChargesModule />
       default:
         return <Dashboard />
     }
