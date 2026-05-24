@@ -138,7 +138,20 @@ export async function POST(request: NextRequest) {
           type: { in: ['weekend', 'holiday'] },
         },
       })
-      if (calendarDays.length === 0) {
+
+      // Also check via JavaScript date logic (Algeria: Friday=5, Saturday=6)
+      let hasWeekendByLogic = false
+      const current = new Date(start)
+      while (current <= end) {
+        const dayOfWeek = current.getDay()
+        if (dayOfWeek === 5 || dayOfWeek === 6) { // Friday or Saturday
+          hasWeekendByLogic = true
+          break
+        }
+        current.setDate(current.getDate() + 1)
+      }
+
+      if (calendarDays.length === 0 && !hasWeekendByLogic) {
         return NextResponse.json(
           { error: 'Au moins un jour dans la plage doit être un week-end ou un jour férié pour une récupération' },
           { status: 400 }
