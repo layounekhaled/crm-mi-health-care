@@ -53,8 +53,8 @@ server.log
 # skills
 skills/
 
-# upload
-upload/
+# upload (root only)
+/upload/
 
 # examples
 examples/
