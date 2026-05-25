@@ -87,6 +87,7 @@ interface Client {
   specialite: string | null
   wilaya: string | null
   telephone: string | null
+  telephone2: string | null
   whatsapp: string | null
   etablissement: string | null
   source: string | null
@@ -417,6 +418,7 @@ export default function ClientsModule() {
     specialite: '',
     wilaya: '',
     telephone: '',
+    telephone2: '',
     whatsapp: '',
     etablissement: '',
     source: 'prospection',
@@ -508,6 +510,7 @@ export default function ClientsModule() {
       specialite: '',
       wilaya: '',
       telephone: '',
+      telephone2: '',
       whatsapp: '',
       etablissement: '',
       source: 'prospection',
@@ -525,6 +528,7 @@ export default function ClientsModule() {
       specialite: client.specialite || '',
       wilaya: client.wilaya || '',
       telephone: client.telephone || '',
+      telephone2: client.telephone2 || '',
       whatsapp: client.whatsapp || '',
       etablissement: client.etablissement || '',
       source: client.source || 'prospection',
@@ -654,6 +658,16 @@ export default function ClientsModule() {
                   <Phone className="size-3.5" />
                 </a>
               )}
+              {client.telephone2 && (
+                <a
+                  href={`tel:${client.telephone2}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center justify-center size-7 rounded-md hover:bg-slate-50 text-slate-500 transition-colors"
+                  title="Tél 2"
+                >
+                  <Phone className="size-3.5" />
+                </a>
+              )}
               {client.whatsapp && (
                 <a
                   href={`https://wa.me/${cleanPhoneNumber(client.whatsapp)}`}
@@ -767,6 +781,20 @@ export default function ClientsModule() {
               </a>
             </div>
           )}
+          {selectedClient.telephone2 && (
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="size-4 text-slate-400 shrink-0" />
+              <span className="text-muted-foreground">Tél 2:</span>
+              <span className="font-mono">{selectedClient.telephone2}</span>
+              <a
+                href={`tel:${selectedClient.telephone2}`}
+                className="inline-flex items-center justify-center size-6 rounded-md hover:bg-slate-50 text-slate-500 transition-colors"
+                title="Appeler"
+              >
+                <PhoneCall className="size-3.5" />
+              </a>
+            </div>
+          )}
           {selectedClient.whatsapp && (
             <div className="flex items-center gap-2 text-sm">
               <MessageCircle className="size-4 text-green-500 shrink-0" />
@@ -808,6 +836,14 @@ export default function ClientsModule() {
               <Button variant="outline" size="sm" className="h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50">
                 <PhoneCall className="size-3.5 mr-1.5" />
                 Appeler
+              </Button>
+            </a>
+          )}
+          {selectedClient.telephone2 && (
+            <a href={`tel:${selectedClient.telephone2}`}>
+              <Button variant="outline" size="sm" className="h-8 text-xs border-slate-200 text-slate-600 hover:bg-slate-50">
+                <PhoneCall className="size-3.5 mr-1.5" />
+                Appeler Tél 2
               </Button>
             </a>
           )}
@@ -1601,8 +1637,8 @@ export default function ClientsModule() {
                 </div>
               </div>
 
-              {/* Téléphone + WhatsApp */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Téléphone + Téléphone 2 + WhatsApp */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="telephone" className="flex items-center gap-1">
                     <Phone className="size-3.5" />
@@ -1613,6 +1649,19 @@ export default function ClientsModule() {
                     placeholder="0X XX XX XX XX"
                     value={formData.telephone}
                     onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="telephone2" className="flex items-center gap-1">
+                    <Phone className="size-3.5 text-slate-400" />
+                    Téléphone 2
+                  </Label>
+                  <Input
+                    id="telephone2"
+                    placeholder="0X XX XX XX XX"
+                    value={formData.telephone2}
+                    onChange={(e) => setFormData({ ...formData, telephone2: e.target.value })}
                   />
                 </div>
 
