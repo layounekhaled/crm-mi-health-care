@@ -25,6 +25,8 @@ import {
   Eye,
   ImageIcon,
   FileText,
+  Lock,
+  LockOpen,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -67,6 +69,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 
@@ -89,6 +92,7 @@ interface Charge {
   opportunityId?: string | null
   createdBy?: string | null
   justificatifUrl?: string | null
+  isPrivate: boolean
   createdAt: string
   updatedAt: string
   employe: { id: string; nom: string; role: string }
@@ -253,6 +257,7 @@ export default function ChargesModule() {
     date: new Date().toISOString().split('T')[0],
     employeId: '',
     opportunityId: '',
+    isPrivate: false,
   })
   const [justificatifFile, setJustificatifFile] = useState<File | null>(null)
   const [justificatifPreview, setJustificatifPreview] = useState<string | null>(null)
@@ -380,6 +385,7 @@ export default function ChargesModule() {
       date: new Date().toISOString().split('T')[0],
       employeId: isAdminUser ? (employees[0]?.id || '') : (user?.employeId || ''),
       opportunityId: '',
+      isPrivate: false,
     })
     setJustificatifFile(null)
     setJustificatifPreview(null)
@@ -396,6 +402,7 @@ export default function ChargesModule() {
       date: new Date(charge.date).toISOString().split('T')[0],
       employeId: charge.employeId,
       opportunityId: charge.opportunityId || '',
+      isPrivate: charge.isPrivate || false,
     })
     setJustificatifFile(null)
     setJustificatifPreview(charge.justificatifUrl && isImageFile(charge.justificatifUrl) ? charge.justificatifUrl : null)
@@ -451,6 +458,7 @@ export default function ChargesModule() {
         employeId: isAdminUser ? formData.employeId : (user?.employeId || ''),
         opportunityId: formData.opportunityId || null,
         justificatifUrl,
+        isPrivate: formData.isPrivate,
       }
 
       if (editingId) {
@@ -601,7 +609,7 @@ export default function ChargesModule() {
 
       <main className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
         {/* Summary Cards */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className={`mb-6 grid grid-cols-2 gap-3 ${isAdminUser ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
           <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -646,6 +654,19 @@ export default function ChargesModule() {
               </p>
             </CardContent>
           </Card>
+          {isAdminUser && (
+            <Card className="border-0 bg-amber-50/70 shadow-sm dark:bg-amber-950/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Lock className="size-3.5 text-amber-500" />
+                  Personnelles
+                </div>
+                <p className="mt-1 text-base font-bold text-amber-700 dark:text-amber-400 sm:text-lg">
+                  {charges.filter(c => c.isPrivate).length} charge{charges.filter(c => c.isPrivate).length !== 1 ? 's' : ''} perso
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Loading */}
@@ -790,10 +811,17 @@ export default function ChargesModule() {
                           sortedCharges.map(charge => (
                             <TableRow
                               key={charge.id}
-                              className="hover:bg-blue-50/50 dark:hover:bg-blue-950/20"
+                              className={`hover:bg-blue-50/50 dark:hover:bg-blue-950/20 ${charge.isPrivate ? 'bg-amber-50/30 dark:bg-amber-950/10' : ''}`}
                             >
                               <TableCell className="text-sm">{formatDate(charge.date)}</TableCell>
-                              <TableCell><TypeBadge type={charge.type} /></TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                  <TypeBadge type={charge.type} />
+                                  {charge.isPrivate && (
+                                    <Lock className="size-3.5 text-amber-500" title="Charge personnelle" />
+                                  )}
+                                </div>
+                              </TableCell>
                               <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
                                 {charge.description || '—'}
                               </TableCell>
@@ -1276,6 +1304,32 @@ export default function ChargesModule() {
                 )}
               </div>
             </div>
+
+            {/* Charge personnelle (admin only) */}
+            {isAdminUser && (
+              <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-950/20">
+                <div className="flex items-center gap-2">
+                  {formData.isPrivate ? (
+                    <Lock className="size-4 text-amber-600 dark:text-amber-400" />
+                  ) : (
+                    <LockOpen className="size-4 text-muted-foreground" />
+                  )}
+                  <div>
+                    <Label htmlFor="isPrivate" className="cursor-pointer text-sm font-medium">
+                      Charge personnelle
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Visible uniquement par l&apos;administrateur
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="isPrivate"
+                  checked={formData.isPrivate}
+                  onCheckedChange={(checked: boolean) => setFormData(prev => ({ ...prev, isPrivate: checked }))}
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>

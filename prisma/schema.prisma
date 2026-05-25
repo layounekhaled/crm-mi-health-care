@@ -415,6 +415,7 @@ model Charge {
   opportunityId  String?   // optional: link to an opportunity
   createdBy      String?   // employeId of who recorded it
   justificatifUrl String?  // URL du justificatif (bon, ticket, reçu)
+  isPrivate      Boolean   @default(false) // admin-only: personal charge invisible to others
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

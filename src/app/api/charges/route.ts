@@ -18,11 +18,19 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {};
 
-    // If user is NOT admin, they can only see their own charges
+    // If user is NOT admin, they can only see their own charges AND non-private charges
     if (!isAdmin(authUser)) {
       where.employeId = authUser.employeId;
-    } else if (employeId) {
-      where.employeId = employeId;
+      where.isPrivate = false;
+    } else {
+      // Admin can see all, but can filter by private status
+      const isPrivate = searchParams.get('isPrivate');
+      if (isPrivate !== null) {
+        where.isPrivate = isPrivate === 'true';
+      }
+      if (employeId) {
+        where.employeId = employeId;
+      }
     }
 
     if (opportunityId) where.opportunityId = opportunityId;
@@ -133,7 +141,7 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial', 'technicien'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { type, montant, description, date, employeId, opportunityId, justificatifUrl } = body;
+    const { type, montant, description, date, employeId, opportunityId, justificatifUrl, isPrivate } = body;
 
     if (!type || !montant) {
       return NextResponse.json({ error: 'type et montant sont requis' }, { status: 400 });
@@ -150,6 +158,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'employeId requis' }, { status: 400 });
     }
 
+    // Only admin can set isPrivate
+    const finalIsPrivate = isAdmin(authUser) ? (isPrivate === true) : false;
+
     const charge = await db.charge.create({
       data: {
         type,
@@ -160,6 +171,7 @@ export async function POST(request: NextRequest) {
         opportunityId: opportunityId || null,
         createdBy: authUser.employeId,
         justificatifUrl: justificatifUrl || null,
+        isPrivate: finalIsPrivate,
       },
       include: {
         employe: { select: { id: true, nom: true } },

@@ -27,9 +27,11 @@ export async function GET(
       return NextResponse.json({ error: 'Charge not found' }, { status: 404 });
     }
 
-    // Non-admin can only see their own charges
-    if (!isAdmin(authUser) && charge.employeId !== authUser.employeId) {
-      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    // Non-admin can only see their own charges, and cannot see private charges from others
+    if (!isAdmin(authUser)) {
+      if (charge.employeId !== authUser.employeId || charge.isPrivate) {
+        return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+      }
     }
 
     return NextResponse.json(charge);
@@ -50,16 +52,18 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { type, montant, description, date, employeId, opportunityId, justificatifUrl } = body;
+    const { type, montant, description, date, employeId, opportunityId, justificatifUrl, isPrivate } = body;
 
     const existing = await db.charge.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Charge not found' }, { status: 404 });
     }
 
-    // Non-admin can only edit their own charges
-    if (!isAdmin(authUser) && existing.employeId !== authUser.employeId) {
-      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    // Non-admin can only edit their own charges, and cannot see/edit private charges from others
+    if (!isAdmin(authUser)) {
+      if (existing.employeId !== authUser.employeId || existing.isPrivate) {
+        return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+      }
     }
 
     if (type && !['hotel', 'restaurant', 'transport', 'divers'].includes(type)) {
@@ -79,6 +83,8 @@ export async function PUT(
         ...(finalEmployeId !== undefined && { employeId: finalEmployeId }),
         ...(opportunityId !== undefined && { opportunityId: opportunityId || null }),
         ...(justificatifUrl !== undefined && { justificatifUrl: justificatifUrl || null }),
+        // Only admin can toggle isPrivate
+        ...(isAdmin(authUser) && isPrivate !== undefined && { isPrivate: isPrivate === true }),
       },
       include: {
         employe: { select: { id: true, nom: true } },
