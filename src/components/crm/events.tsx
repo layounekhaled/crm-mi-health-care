@@ -58,6 +58,15 @@ import { useIsMobile } from '@/hooks/use-mobile'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+interface EventEmployee {
+  id: string
+  eventId: string
+  employeeId: string
+  notified: boolean
+  createdAt: string
+  employee: { id: string; nom: string; role: string }
+}
+
 interface EventItem {
   id: string
   nom: string
@@ -72,7 +81,9 @@ interface EventItem {
   _count?: {
     prospects: number
     tasks: number
+    employees: number
   }
+  employees?: EventEmployee[]
 }
 
 interface EventProspectLink {
@@ -219,6 +230,7 @@ export default function EventsModule() {
   // ── Form dialog state ───────────────────────────────────────────────────
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [employees, setEmployees] = useState<{ id: string; nom: string; role: string }[]>([])
   const [formData, setFormData] = useState({
     nom: '',
     type: 'congres',
@@ -226,6 +238,7 @@ export default function EventsModule() {
     date: '',
     marques: [] as string[],
     equipe: '',
+    employeeIds: [] as string[],
     notes: '',
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
@@ -281,6 +294,22 @@ export default function EventsModule() {
   useEffect(() => {
     fetchEvents()
   }, [fetchEvents])
+
+  // ── Fetch employees for assignment ──────────────────────────────────────
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const res = await fetch('/api/employees?actif=true')
+        if (res.ok) {
+          const data = await res.json()
+          setEmployees(data)
+        }
+      } catch {
+        // Silent fail for employees list
+      }
+    }
+    fetchEmployees()
+  }, [])
 
   // ── Fetch event prospects ───────────────────────────────────────────────
 
@@ -340,6 +369,7 @@ export default function EventsModule() {
       date: '',
       marques: [],
       equipe: '',
+      employeeIds: [],
       notes: '',
     })
     setFormErrors({})
@@ -355,6 +385,7 @@ export default function EventsModule() {
       date: event.date ? new Date(event.date).toISOString().split('T')[0] : '',
       marques: event.marques ? event.marques.split(',').map(m => m.trim()) : [],
       equipe: event.equipe || '',
+      employeeIds: event.employees ? event.employees.map(e => e.employeeId) : [],
       notes: event.notes || '',
     })
     setFormErrors({})
@@ -381,6 +412,7 @@ export default function EventsModule() {
         date: formData.date,
         marques: formData.marques.length > 0 ? formData.marques.join(',') : null,
         equipe: formData.equipe.trim() || null,
+        employeeIds: formData.employeeIds,
         notes: formData.notes.trim() || null,
       }
 
@@ -523,6 +555,17 @@ export default function EventsModule() {
       marques: prev.marques.includes(marque)
         ? prev.marques.filter(m => m !== marque)
         : [...prev.marques, marque],
+    }))
+  }
+
+  // ── Toggle employee selection ──────────────────────────────────────────
+
+  const toggleEmployee = (empId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      employeeIds: prev.employeeIds.includes(empId)
+        ? prev.employeeIds.filter(id => id !== empId)
+        : [...prev.employeeIds, empId],
     }))
   }
 
@@ -747,11 +790,24 @@ export default function EventsModule() {
                         <Users className="size-3" />
                         {event._count?.prospects || 0} prospect{(event._count?.prospects || 0) !== 1 ? 's' : ''}
                       </span>
-                      {event.equipe && (
+                      {event.employees && event.employees.length > 0 ? (
+                        <div className="flex items-center gap-1">
+                          {event.employees.slice(0, 3).map(ee => (
+                            <Badge key={ee.employeeId} variant="secondary" className="text-[10px] px-1.5 py-0">
+                              {ee.employee.nom.split(' ')[0]}
+                            </Badge>
+                          ))}
+                          {event.employees.length > 3 && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              +{event.employees.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : event.equipe ? (
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                           {event.equipe}
                         </Badge>
-                      )}
+                      ) : null}
                     </div>
 
                     <Separator className="mb-3" />
@@ -918,18 +974,56 @@ export default function EventsModule() {
               </p>
             </div>
 
-            {/* Équipe assignée */}
+            {/* Équipe assignée — Multi-select employees */}
             <div className="grid gap-2">
-              <Label htmlFor="event-equipe" className="flex items-center gap-1">
+              <Label className="flex items-center gap-1">
                 <Users className="size-3.5" />
                 Équipe assignée
               </Label>
-              <Input
-                id="event-equipe"
-                placeholder="Ex: Équipe Nord, Commercial Alger..."
-                value={formData.equipe}
-                onChange={e => setFormData({ ...formData, equipe: e.target.value })}
-              />
+              <div className="rounded-md border border-input bg-background p-3 max-h-48 overflow-y-auto space-y-2">
+                {employees.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2 text-center">Aucun employé actif</p>
+                ) : (
+                  employees.map(emp => (
+                    <label
+                      key={emp.id}
+                      className="flex items-center gap-2.5 cursor-pointer rounded-md px-2 py-1.5 hover:bg-accent transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.employeeIds.includes(emp.id)}
+                        onChange={() => toggleEmployee(emp.id)}
+                        className="size-4 rounded border-gray-300 text-[#134885] focus:ring-[#134885]"
+                      />
+                      <span className="text-sm font-medium">{emp.nom}</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto">
+                        {emp.role === 'admin' ? 'Admin' : emp.role === 'commercial' ? 'Commercial' : emp.role === 'technicien' ? 'Technicien' : emp.role}
+                      </Badge>
+                    </label>
+                  ))
+                )}
+              </div>
+              {formData.employeeIds.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {formData.employeeIds.map(empId => {
+                    const emp = employees.find(e => e.id === empId)
+                    return emp ? (
+                      <Badge
+                        key={empId}
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0 gap-1 cursor-pointer hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => toggleEmployee(empId)}
+                      >
+                        {emp.nom}
+                        <X className="size-2.5" />
+                      </Badge>
+                    ) : null
+                  })}
+                  <p className="text-[10px] text-muted-foreground w-full mt-1">
+                    Ils recevront une notification et l&apos;événement sera ajouté à leur agenda
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Notes */}

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { Bell, AlertTriangle, Clock, TrendingDown, FileText, Info, Check, CheckCheck, Trash2 } from 'lucide-react'
+import { Bell, AlertTriangle, Clock, TrendingDown, FileText, Info, Check, CheckCheck, Trash2, CalendarDays } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -28,6 +28,7 @@ const notificationConfig: Record<string, { icon: React.ComponentType<{ className
   tache_bientot: { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
   opp_stagnante: { icon: TrendingDown, color: 'text-orange-500', bg: 'bg-orange-50' },
   devis_sans_suivi: { icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
+  evenement_assigne: { icon: CalendarDays, color: 'text-violet-500', bg: 'bg-violet-50' },
   info: { icon: Info, color: 'text-slate-500', bg: 'bg-slate-50' },
 }
 

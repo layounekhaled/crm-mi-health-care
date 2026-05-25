@@ -43,8 +43,9 @@ model Event {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  prospects EventProspect[]
-  tasks     Task[]
+  prospects  EventProspect[]
+  employees  EventEmployee[]
+  tasks      Task[]
 }
 
 model EventProspect {
@@ -57,6 +58,20 @@ model EventProspect {
   prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, prospectId])
+}
+
+model EventEmployee {
+  id         String   @id @default(cuid())
+  eventId    String
+  employeeId String
+  notified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, employeeId])
+  @@index([employeeId])
 }
 
 model Opportunity {
@@ -187,6 +202,7 @@ model Employee {
   chargesAsEmployee  Charge[] @relation("EmployeeCharges")
   chargesAsCreator   Charge[] @relation("ChargeCreator")
   uploadedPhotos     ProspectPhoto[]
+  eventParticipations EventEmployee[]
 }
 
 model Objective {

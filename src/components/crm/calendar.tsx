@@ -66,6 +66,7 @@ interface CRMEvent {
   marques: string | null
   equipe: string | null
   notes: string | null
+  employees?: { employeeId: string; employee: { id: string; nom: string; role: string } }[]
 }
 
 interface Interaction {
@@ -626,7 +627,21 @@ function EventDetailDialog({
                   </div>
                 </div>
               )}
-              {item.data.equipe && (
+              {(item.data.employees && item.data.employees.length > 0) ? (
+                <div className="flex items-start gap-3">
+                  <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Équipe assignée</p>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {item.data.employees.map(ee => (
+                        <span key={ee.employeeId} className="inline-flex items-center rounded-md bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-700">
+                          {ee.employee.nom}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : item.data.equipe ? (
                 <div className="flex items-start gap-3">
                   <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
@@ -634,7 +649,7 @@ function EventDetailDialog({
                     <p className="text-sm font-medium">{item.data.equipe}</p>
                   </div>
                 </div>
-              )}
+              ) : null}
             </>
           )}
 

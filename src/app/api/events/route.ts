@@ -29,7 +29,12 @@ export async function GET(request: NextRequest) {
       orderBy: { date: 'desc' },
       include: {
         _count: {
-          select: { prospects: true, tasks: true },
+          select: { prospects: true, tasks: true, employees: true },
+        },
+        employees: {
+          include: {
+            employee: { select: { id: true, nom: true, role: true } },
+          },
         },
       },
     });
@@ -48,12 +53,13 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { nom, ville, date, type, marques, equipe, notes } = body;
+    const { nom, ville, date, type, marques, equipe, notes, employeeIds } = body;
 
     if (!nom || !date) {
       return NextResponse.json({ error: 'Nom and date are required' }, { status: 400 });
     }
 
+    // Create event with employee assignments
     const event = await db.event.create({
       data: {
         nom,
@@ -63,8 +69,65 @@ export async function POST(request: NextRequest) {
         marques: marques || null,
         equipe: equipe || null,
         notes: notes || null,
+        employees: employeeIds && employeeIds.length > 0
+          ? {
+              create: employeeIds.map((empId: string) => ({
+                employeeId: empId,
+                notified: false,
+              })),
+            }
+          : undefined,
+      },
+      include: {
+        employees: {
+          include: {
+            employee: { select: { id: true, nom: true } },
+          },
+        },
       },
     });
+
+    // Send notifications to assigned employees
+    if (employeeIds && employeeIds.length > 0) {
+      try {
+        const users = await db.user.findMany({
+          where: {
+            employeId: { in: employeeIds },
+            actif: true,
+          },
+          select: { id: true, employeId: true },
+        });
+
+        const dateStr = new Date(date).toLocaleDateString('fr-FR', {
+          day: 'numeric', month: 'long', year: 'numeric',
+        });
+
+        for (const user of users) {
+          await db.notification.create({
+            data: {
+              userId: user.id,
+              type: 'evenement_assigne',
+              titre: 'Événement assigné',
+              message: `Vous avez été assigné(e) à l'événement « ${nom} » le ${dateStr}${ville ? ` à ${ville}` : ''}.`,
+              lien: '/?page=calendar',
+              referenceId: event.id,
+            },
+          });
+        }
+
+        // Mark as notified
+        await db.eventEmployee.updateMany({
+          where: {
+            eventId: event.id,
+            employeeId: { in: employeeIds },
+          },
+          data: { notified: true },
+        });
+      } catch (notifErr) {
+        console.error('[EVENTS_POST_NOTIFY]', notifErr);
+        // Don't fail the request if notification fails
+      }
+    }
 
     return NextResponse.json(event, { status: 201 });
   } catch (error) {
