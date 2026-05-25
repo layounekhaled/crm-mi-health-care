@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { nom: { contains: search } },
         { telephone: { contains: search } },
+        { telephone2: { contains: search } },
         { whatsapp: { contains: search } },
         { etablissement: { contains: search } },
         { specialite: { contains: search } },
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { nom, specialite, wilaya, telephone, whatsapp, etablissement, source, isClient, notes } = body;
+    const { nom, specialite, wilaya, telephone, telephone2, whatsapp, etablissement, source, isClient, notes } = body;
 
     if (!nom) {
       return NextResponse.json({ error: 'Nom is required' }, { status: 400 });
@@ -102,6 +103,7 @@ export async function POST(request: NextRequest) {
         specialite: specialite || null,
         wilaya: wilaya || null,
         telephone: telephone || null,
+        telephone2: telephone2 || null,
         whatsapp: whatsapp || null,
         etablissement: etablissement || null,
         source: source || 'prospection',

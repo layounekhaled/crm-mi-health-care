@@ -83,6 +83,7 @@ interface Prospect {
   specialite: string | null
   wilaya: string | null
   telephone: string | null
+  telephone2: string | null
   whatsapp: string | null
   etablissement: string | null
   source: string | null
@@ -320,6 +321,7 @@ export default function ProspectsModule() {
     specialite: '',
     wilaya: '',
     telephone: '',
+    telephone2: '',
     whatsapp: '',
     etablissement: '',
     source: 'prospection',
@@ -393,6 +395,7 @@ export default function ProspectsModule() {
       specialite: '',
       wilaya: '',
       telephone: '',
+      telephone2: '',
       whatsapp: '',
       etablissement: '',
       source: 'prospection',
@@ -410,6 +413,7 @@ export default function ProspectsModule() {
       specialite: prospect.specialite || '',
       wilaya: prospect.wilaya || '',
       telephone: prospect.telephone || '',
+      telephone2: prospect.telephone2 || '',
       whatsapp: prospect.whatsapp || '',
       etablissement: prospect.etablissement || '',
       source: prospect.source || 'prospection',
@@ -629,6 +633,12 @@ export default function ProspectsModule() {
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Phone className="size-3" />
               {prospect.telephone}
+            </p>
+          )}
+          {prospect.telephone2 && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Phone className="size-3 text-slate-400" />
+              {prospect.telephone2}
             </p>
           )}
         </div>
@@ -1030,8 +1040,8 @@ export default function ProspectsModule() {
                 </div>
               </div>
 
-              {/* Téléphone + WhatsApp */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Téléphone + Téléphone 2 + WhatsApp */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="telephone" className="flex items-center gap-1">
                     <Phone className="size-3.5" />
@@ -1042,6 +1052,19 @@ export default function ProspectsModule() {
                     placeholder="0X XX XX XX XX"
                     value={formData.telephone}
                     onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="telephone2" className="flex items-center gap-1">
+                    <Phone className="size-3.5 text-slate-400" />
+                    Téléphone 2
+                  </Label>
+                  <Input
+                    id="telephone2"
+                    placeholder="0X XX XX XX XX"
+                    value={formData.telephone2}
+                    onChange={(e) => setFormData({ ...formData, telephone2: e.target.value })}
                   />
                 </div>
 
@@ -1203,6 +1226,13 @@ export default function ProspectsModule() {
                       <Phone className="size-4 text-blue-500 shrink-0" />
                       <span className="text-muted-foreground">Tél:</span>
                       <span className="font-mono">{selectedProspect.telephone}</span>
+                    </div>
+                  )}
+                  {selectedProspect.telephone2 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="size-4 text-slate-400 shrink-0" />
+                      <span className="text-muted-foreground">Tél 2:</span>
+                      <span className="font-mono">{selectedProspect.telephone2}</span>
                     </div>
                   )}
                   {selectedProspect.whatsapp && (
