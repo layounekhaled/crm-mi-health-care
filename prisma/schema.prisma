@@ -18,8 +18,9 @@ model Prospect {
   whatsapp      String?
   etablissement String?
   source        String?   @default("prospection")
-  recommandePar String?
-  isClient      Boolean   @default(false)
+  recommandePar   String?
+  recommandeParId String?
+  isClient        Boolean   @default(false)
   notes         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

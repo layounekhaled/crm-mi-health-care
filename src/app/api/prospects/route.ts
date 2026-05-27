@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { nom, specialite, wilaya, telephone, telephone2, whatsapp, etablissement, source, recommandePar, isClient, notes } = body;
+    const { nom, specialite, wilaya, telephone, telephone2, whatsapp, etablissement, source, recommandePar, recommandeParId, isClient, notes } = body;
 
     if (!nom) {
       return NextResponse.json({ error: 'Nom is required' }, { status: 400 });
@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
         etablissement: etablissement || null,
         source: source || 'prospection',
         recommandePar: recommandePar || null,
+        recommandeParId: recommandeParId || null,
         isClient: isClient ?? false,
         notes: notes || null,
       },

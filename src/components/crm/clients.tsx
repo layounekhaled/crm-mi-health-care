@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Search,
   Plus,
@@ -31,6 +31,7 @@ import {
   TrendingUp,
   Users,
   CircleDot,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -93,6 +94,7 @@ interface Client {
   etablissement: string | null
   source: string | null
   recommandePar: string | null
+  recommandeParId: string | null
   isClient: true
   notes: string | null
   createdAt: string
@@ -460,11 +462,19 @@ export default function ClientsModule() {
     etablissement: '',
     source: 'prospection',
     recommandePar: '',
+    recommandeParId: '',
     notes: '',
     isClient: true as true,
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  // Recommandé par search state
+  const [recoSearch, setRecoSearch] = useState('')
+  const [recoResults, setRecoResults] = useState<Client[]>([])
+  const [recoDropdownOpen, setRecoDropdownOpen] = useState(false)
+  const [recoSearching, setRecoSearching] = useState(false)
+  const recoSearchTimeout = useRef<NodeJS.Timeout | null>(null)
 
   // Detail state
   const [selectedClient, setSelectedClient] = useState<ClientDetail | null>(null)
@@ -543,6 +553,45 @@ export default function ClientsModule() {
 
   // ─── Form handlers ──────────────────────────────────────────────────────
 
+  // Search prospects/clients for "Recommandé par" field
+  const searchRecommandeurs = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setRecoResults([])
+      setRecoDropdownOpen(false)
+      return
+    }
+    setRecoSearching(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('search', query)
+      params.set('limit', '20')
+      const res = await fetch(`/api/prospects?${params.toString()}`)
+      if (res.ok) {
+        const json = await res.json()
+        const filtered = (json.data || []).filter((p: Client) => p.id !== editingId)
+        setRecoResults(filtered)
+        setRecoDropdownOpen(filtered.length > 0)
+      }
+    } catch {
+      // silent
+    } finally {
+      setRecoSearching(false)
+    }
+  }, [editingId])
+
+  const handleRecoSearch = (value: string) => {
+    setRecoSearch(value)
+    setFormData({ ...formData, recommandePar: value, recommandeParId: '' })
+    if (recoSearchTimeout.current) clearTimeout(recoSearchTimeout.current)
+    recoSearchTimeout.current = setTimeout(() => searchRecommandeurs(value), 300)
+  }
+
+  const selectRecommandeur = (client: Client) => {
+    setFormData({ ...formData, recommandePar: client.nom, recommandeParId: client.id })
+    setRecoSearch(client.nom)
+    setRecoDropdownOpen(false)
+  }
+
   const openAddForm = () => {
     setEditingId(null)
     setFormData({
@@ -555,6 +604,7 @@ export default function ClientsModule() {
       etablissement: '',
       source: 'prospection',
       recommandePar: '',
+      recommandeParId: '',
       notes: '',
       isClient: true,
     })
@@ -574,6 +624,7 @@ export default function ClientsModule() {
       etablissement: client.etablissement || '',
       source: client.source || 'prospection',
       recommandePar: (client as Client & { recommandePar?: string | null }).recommandePar || '',
+      recommandeParId: (client as Client & { recommandeParId?: string | null }).recommandeParId || '',
       notes: client.notes || '',
       isClient: true,
     })
@@ -886,14 +937,27 @@ export default function ClientsModule() {
               </div>
             </div>
           )}
-          {selectedClient.source === 'recommandation' && (selectedClient as ClientDetail & { recommandePar?: string | null }).recommandePar && (
-            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+          {selectedClient.source === 'recommandation' && (selectedClient as ClientDetail & { recommandePar?: string | null; recommandeParId?: string | null }).recommandePar && (
+            <div
+              className={`flex items-center gap-3 p-3 rounded-lg border bg-white ${(selectedClient as ClientDetail & { recommandeParId?: string | null }).recommandeParId ? 'cursor-pointer hover:bg-green-50/50 transition-colors' : ''}`}
+              onClick={() => {
+                const recoId = (selectedClient as ClientDetail & { recommandeParId?: string | null }).recommandeParId
+                if (recoId) {
+                  fetchDetail(recoId)
+                }
+              }}
+            >
               <div className="flex items-center justify-center size-9 rounded-full bg-green-50 shrink-0">
                 <UserCheck className="size-4 text-green-500" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Recommandé par</p>
-                <p className="text-sm font-medium text-green-700">{(selectedClient as ClientDetail & { recommandePar?: string | null }).recommandePar}</p>
+                <p className="text-sm font-medium text-green-700">
+                  {(selectedClient as ClientDetail & { recommandePar?: string | null }).recommandePar}
+                  {(selectedClient as ClientDetail & { recommandeParId?: string | null }).recommandeParId && (
+                    <Eye className="size-3 inline ml-1 text-green-500" />
+                  )}
+                </p>
               </div>
             </div>
           )}
@@ -1878,7 +1942,7 @@ export default function ClientsModule() {
                 <Label>Source</Label>
                 <Select
                   value={formData.source}
-                  onValueChange={(v) => setFormData({ ...formData, source: v, recommandePar: v === 'recommandation' ? formData.recommandePar : '' })}
+                  onValueChange={(v) => setFormData({ ...formData, source: v, recommandePar: v === 'recommandation' ? formData.recommandePar : '', recommandeParId: v === 'recommandation' ? formData.recommandeParId : '' })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner la source" />
@@ -1895,17 +1959,84 @@ export default function ClientsModule() {
 
               {/* Recommandé par (conditional) */}
               {formData.source === 'recommandation' && (
-                <div className="grid gap-2">
+                <div className="grid gap-2 relative">
                   <Label htmlFor="recommandePar" className="flex items-center gap-1">
                     <UserCheck className="size-3.5 text-green-500" />
                     Recommandé par <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    id="recommandePar"
-                    placeholder="Nom de la personne qui a recommandé"
-                    value={formData.recommandePar}
-                    onChange={(e) => setFormData({ ...formData, recommandePar: e.target.value })}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="recommandePar"
+                      placeholder="Rechercher un prospect ou client..."
+                      value={formData.recommandeParId ? recoSearch : formData.recommandePar}
+                      onChange={(e) => handleRecoSearch(e.target.value)}
+                      onFocus={() => {
+                        if (recoResults.length > 0) setRecoDropdownOpen(true)
+                        else if (formData.recommandePar && formData.recommandePar.length >= 2) searchRecommandeurs(formData.recommandePar)
+                      }}
+                      onBlur={() => setTimeout(() => setRecoDropdownOpen(false), 200)}
+                      className="pr-8"
+                    />
+                    {recoSearching && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+                    )}
+                    {formData.recommandeParId && (
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setFormData({ ...formData, recommandePar: '', recommandeParId: '' })
+                          setRecoSearch('')
+                          setRecoResults([])
+                        }}
+                      >
+                        <X className="size-4" />
+                      </button>
+                    )}
+                    {recoDropdownOpen && recoResults.length > 0 && (
+                      <div className="absolute z-50 top-full mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {recoResults.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors border-b last:border-b-0 flex items-center gap-3"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => selectRecommandeur(p)}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{p.nom}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {p.specialite && (
+                                  <span className="text-xs text-muted-foreground">{p.specialite}</span>
+                                )}
+                                {p.wilaya && (
+                                  <span className="text-xs text-muted-foreground">· {p.wilaya}</span>
+                                )}
+                                {p.telephone && (
+                                  <span className="text-xs text-muted-foreground font-mono">· {p.telephone}</span>
+                                )}
+                              </div>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={p.isClient
+                                ? 'text-[10px] bg-green-50 text-green-700 border-green-200 shrink-0'
+                                : 'text-[10px] bg-slate-50 text-slate-600 border-slate-200 shrink-0'
+                              }
+                            >
+                              {p.isClient ? 'Client' : 'Prospect'}
+                            </Badge>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {formData.recommandeParId && (
+                    <p className="text-xs text-green-600 flex items-center gap-1">
+                      <UserCheck className="size-3" />
+                      Lié à un prospect/client existant
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1976,8 +2107,14 @@ export default function ClientsModule() {
                           Client
                         </Badge>
                         <SourceBadge source={selectedClient.source} />
-                        {selectedClient.source === 'recommandation' && (selectedClient as ClientDetail & { recommandePar?: string | null }).recommandePar && (
-                          <Badge className="bg-green-500/30 text-green-100 border-green-400/30 hover:bg-green-500/30 border">
+                        {selectedClient.source === 'recommandation' && (selectedClient as ClientDetail & { recommandePar?: string | null; recommandeParId?: string | null }).recommandePar && (
+                          <Badge
+                            className={`bg-green-500/30 text-green-100 border-green-400/30 border ${((selectedClient as ClientDetail & { recommandeParId?: string | null }).recommandeParId) ? 'hover:bg-green-500/40 cursor-pointer' : 'hover:bg-green-500/30'}`}
+                            onClick={() => {
+                              const recoId = (selectedClient as ClientDetail & { recommandeParId?: string | null }).recommandeParId
+                              if (recoId) fetchDetail(recoId)
+                            }}
+                          >
                             <UserCheck className="size-3 mr-1" />
                             {(selectedClient as ClientDetail & { recommandePar?: string | null }).recommandePar}
                           </Badge>
