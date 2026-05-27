@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Filter,
   X,
+  ChevronLeft,
   ChevronRight,
   PhoneCall,
   CalendarDays,
@@ -400,6 +401,11 @@ export default function ClientsModule() {
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
 
+  // Pagination state
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(50)
+  const totalPages = Math.ceil(total / limit)
+
   // Filter state
   const [search, setSearch] = useState('')
   const [wilayaFilter, setWilayaFilter] = useState<string>('tous')
@@ -459,6 +465,8 @@ export default function ClientsModule() {
     try {
       const params = new URLSearchParams()
       params.set('isClient', 'true')
+      params.set('page', String(page))
+      params.set('limit', String(limit))
       if (search) params.set('search', search)
       if (wilayaFilter && wilayaFilter !== 'tous') params.set('wilaya', wilayaFilter)
       if (specialiteFilter && specialiteFilter !== 'tous') params.set('specialite', specialiteFilter)
@@ -473,7 +481,7 @@ export default function ClientsModule() {
     } finally {
       setLoading(false)
     }
-  }, [search, wilayaFilter, specialiteFilter])
+  }, [search, wilayaFilter, specialiteFilter, page, limit])
 
   useEffect(() => {
     fetchClients()
@@ -1268,7 +1276,7 @@ export default function ClientsModule() {
                 <Input
                   placeholder="Rechercher par nom, téléphone, établissement..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                   className="pl-9 w-full"
                 />
                 {search && (
@@ -1289,7 +1297,7 @@ export default function ClientsModule() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 flex-1">
-                  <Select value={wilayaFilter} onValueChange={setWilayaFilter}>
+                  <Select value={wilayaFilter} onValueChange={(v) => { setWilayaFilter(v); setPage(1) }}>
                     <SelectTrigger className="w-[160px]" size="sm">
                       <SelectValue placeholder="Wilaya" />
                     </SelectTrigger>
@@ -1303,7 +1311,7 @@ export default function ClientsModule() {
                     </SelectContent>
                   </Select>
 
-                  <Select value={specialiteFilter} onValueChange={setSpecialiteFilter}>
+                  <Select value={specialiteFilter} onValueChange={(v) => { setSpecialiteFilter(v); setPage(1) }}>
                     <SelectTrigger className="w-[180px]" size="sm">
                       <SelectValue placeholder="Spécialité" />
                     </SelectTrigger>
@@ -1552,6 +1560,64 @@ export default function ClientsModule() {
               ))
             )}
           </div>
+        )}
+
+        {/* ── Pagination ──────────────────────────────────────────────────── */}
+        {!loading && total > 0 && (
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                {/* Left: items per page + count */}
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span>Afficher</span>
+                    <Select
+                      value={String(limit)}
+                      onValueChange={(v) => { setLimit(Number(v)); setPage(1) }}
+                    >
+                      <SelectTrigger className="w-[72px] h-8" size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="200">200</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span>par page</span>
+                  </div>
+                  <span className="hidden sm:inline text-slate-300">|</span>
+                  <span>{clients.length} sur {total} enregistrement{total !== 1 ? 's' : ''}</span>
+                </div>
+
+                {/* Right: page navigation */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={page <= 1}
+                    onClick={() => setPage(page - 1)}
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <span className="text-sm font-medium min-w-[100px] text-center">
+                    Page {page} sur {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(page + 1)}
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* ── Add/Edit Dialog ─────────────────────────────────────────────── */}

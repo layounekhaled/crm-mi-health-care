@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     const wilaya = searchParams.get('wilaya');
     const isClient = searchParams.get('isClient');
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const rawLimit = parseInt(searchParams.get('limit') || '200');
+    const limit = Math.min(rawLimit, 500);
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
