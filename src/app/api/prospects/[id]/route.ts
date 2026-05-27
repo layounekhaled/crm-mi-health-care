@@ -69,7 +69,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { nom, specialite, wilaya, telephone, telephone2, whatsapp, etablissement, source, recommandePar, recommandeParId, isClient, notes } = body;
+    const { nom, specialite, wilaya, telephone, telephone2, whatsapp, email, adresse, etablissement, source, recommandePar, recommandeParId, isClient, notes } = body;
 
     // Check if prospect exists
     const existing = await db.prospect.findUnique({ where: { id } });
@@ -99,6 +99,8 @@ export async function PUT(
         ...(telephone !== undefined && { telephone }),
         ...(telephone2 !== undefined && { telephone2 }),
         ...(whatsapp !== undefined && { whatsapp }),
+        ...(email !== undefined && { email }),
+        ...(adresse !== undefined && { adresse }),
         ...(etablissement !== undefined && { etablissement }),
         ...(source !== undefined && { source }),
         ...(recommandePar !== undefined && { recommandePar }),

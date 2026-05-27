@@ -91,6 +91,8 @@ interface Client {
   telephone: string | null
   telephone2: string | null
   whatsapp: string | null
+  email: string | null
+  adresse: string | null
   etablissement: string | null
   source: string | null
   recommandePar: string | null
@@ -459,6 +461,8 @@ export default function ClientsModule() {
     telephone: '',
     telephone2: '',
     whatsapp: '',
+    email: '',
+    adresse: '',
     etablissement: '',
     source: 'prospection',
     recommandePar: '',
@@ -601,6 +605,8 @@ export default function ClientsModule() {
       telephone: '',
       telephone2: '',
       whatsapp: '',
+      email: '',
+      adresse: '',
       etablissement: '',
       source: 'prospection',
       recommandePar: '',
@@ -621,6 +627,8 @@ export default function ClientsModule() {
       telephone: client.telephone || '',
       telephone2: client.telephone2 || '',
       whatsapp: client.whatsapp || '',
+      email: client.email || '',
+      adresse: client.adresse || '',
       etablissement: client.etablissement || '',
       source: client.source || 'prospection',
       recommandePar: (client as Client & { recommandePar?: string | null }).recommandePar || '',
@@ -781,15 +789,12 @@ export default function ClientsModule() {
               <span className="truncate">{client.etablissement}</span>
             </p>
           )}
-          {(() => {
-            const email = extractEmail(client.notes)
-            return email ? (
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                <Mail className="size-3" />
-                <span className="truncate">{email}</span>
-              </p>
-            ) : null
-          })()}
+          {client.email && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+              <Mail className="size-3" />
+              <span className="truncate">{client.email}</span>
+            </p>
+          )}
 
           <div className="mt-2 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -910,22 +915,19 @@ export default function ClientsModule() {
               </div>
             </div>
           )}
-          {(() => {
-            const email = extractEmail(selectedClient.notes)
-            return email ? (
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-purple-50/30 transition-colors">
-                <div className="flex items-center justify-center size-9 rounded-full bg-purple-50 shrink-0">
-                  <Mail className="size-4 text-purple-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Email</p>
-                  <a href={`mailto:${email}`} className="text-sm font-medium text-purple-600 hover:underline block truncate">
-                    {email}
-                  </a>
-                </div>
+          {selectedClient.email && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-purple-50/30 transition-colors">
+              <div className="flex items-center justify-center size-9 rounded-full bg-purple-50 shrink-0">
+                <Mail className="size-4 text-purple-500" />
               </div>
-            ) : null
-          })()}
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Email</p>
+                <a href={`mailto:${selectedClient.email}`} className="text-sm font-medium text-purple-600 hover:underline block truncate">
+                  {selectedClient.email}
+                </a>
+              </div>
+            </div>
+          )}
           {selectedClient.wilaya && (
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
               <div className="flex items-center justify-center size-9 rounded-full bg-orange-50 shrink-0">
@@ -934,6 +936,17 @@ export default function ClientsModule() {
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Wilaya</p>
                 <p className="text-sm font-medium">{selectedClient.wilaya}</p>
+              </div>
+            </div>
+          )}
+          {selectedClient.adresse && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white sm:col-span-2">
+              <div className="flex items-center justify-center size-9 rounded-full bg-amber-50 shrink-0">
+                <MapPin className="size-4 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Adresse</p>
+                <p className="text-sm font-medium">{selectedClient.adresse}</p>
               </div>
             </div>
           )}
@@ -1020,17 +1033,14 @@ export default function ClientsModule() {
               </Button>
             </a>
           )}
-          {(() => {
-            const email = extractEmail(selectedClient.notes)
-            return email ? (
-              <a href={`mailto:${email}`}>
-                <Button variant="outline" size="sm" className="h-8 text-xs border-purple-200 text-purple-600 hover:bg-purple-50">
-                  <Mail className="size-3.5 mr-1.5" />
-                  Envoyer email
-                </Button>
-              </a>
-            ) : null
-          })()}
+          {selectedClient.email && (
+            <a href={`mailto:${selectedClient.email}`}>
+              <Button variant="outline" size="sm" className="h-8 text-xs border-purple-200 text-purple-600 hover:bg-purple-50">
+                <Mail className="size-3.5 mr-1.5" />
+                Envoyer email
+              </Button>
+            </a>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -1044,17 +1054,7 @@ export default function ClientsModule() {
 
         {/* Notes */}
         {(() => {
-          const email = extractEmail(selectedClient.notes)
-          const cleanedNotes = selectedClient.notes
-            ?.split('\n')
-            .filter(line => {
-              const trimmed = line.trim()
-              if (!trimmed) return true
-              if (email && trimmed.match(/^Email:\s*/i)) return false
-              return true
-            })
-            .join('\n')
-            .trim()
+          const cleanedNotes = selectedClient.notes?.trim()
           return cleanedNotes ? (
             <>
               <Separator />
@@ -1570,22 +1570,19 @@ export default function ClientsModule() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {(() => {
-                            const email = extractEmail(client.notes)
-                            return email ? (
-                              <a
-                                href={`mailto:${email}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#134885] transition-colors"
-                                title={email}
-                              >
-                                <Mail className="size-3.5 text-slate-400 shrink-0" />
-                                <span className="truncate max-w-[160px]">{email}</span>
-                              </a>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )
-                          })()}
+                          {client.email ? (
+                            <a
+                              href={`mailto:${client.email}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#134885] transition-colors"
+                              title={client.email}
+                            >
+                              <Mail className="size-3.5 text-slate-400 shrink-0" />
+                              <span className="truncate max-w-[160px]">{client.email}</span>
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -1919,6 +1916,36 @@ export default function ClientsModule() {
                     placeholder="Numéro WhatsApp"
                     value={formData.whatsapp}
                     onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Email & Adresse row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="email" className="flex items-center gap-1">
+                    <Mail className="size-3.5 text-purple-500" />
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="email@exemple.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="adresse" className="flex items-center gap-1">
+                    <MapPin className="size-3.5 text-orange-500" />
+                    Adresse
+                  </Label>
+                  <Input
+                    id="adresse"
+                    placeholder="Adresse complète"
+                    value={formData.adresse}
+                    onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
                   />
                 </div>
               </div>

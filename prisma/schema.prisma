@@ -16,6 +16,8 @@ model Prospect {
   telephone     String?
   telephone2    String?
   whatsapp      String?
+  email         String?
+  adresse       String?
   etablissement String?
   source        String?   @default("prospection")
   recommandePar   String?
