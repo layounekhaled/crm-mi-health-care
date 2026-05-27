@@ -176,14 +176,15 @@ model AfterSale {
 }
 
 model Employee {
-  id        String   @id @default(cuid())
-  nom       String
-  email     String?
-  telephone String?
-  role      String   @default("commercial")
-  actif     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  nom         String
+  email       String?
+  telephone   String?
+  role        String   @default("commercial")
+  permissions Json?    // Granular permissions: { module: { action: true/false } }
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   opportunities  Opportunity[]
   operations     Operation[]
@@ -227,6 +228,7 @@ model User {
   motDePasse   String
   employeId    String?  @unique
   role         String   @default("commercial")
+  permissions  Json?    // Cached permissions from Employee
   actif        Boolean  @default(true)
   derniereConnexion DateTime?
   createdAt    DateTime @default(now())
