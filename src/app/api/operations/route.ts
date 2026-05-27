@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { opportunityId, produit, marque, responsableId, prixEstime, marge, statut, datePrevue, priorite } = body;
+    const { opportunityId, produit, marque, produitId, responsableId, prixEstime, marge, statut, datePrevue, priorite } = body;
 
     if (!opportunityId || !produit || !marque) {
       return NextResponse.json(
@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
         opportunityId,
         produit,
         marque,
+        produitId: produitId || null,
         responsableId: responsableId || null,
         prixEstime: prixEstime ?? null,
         marge: marge ?? null,

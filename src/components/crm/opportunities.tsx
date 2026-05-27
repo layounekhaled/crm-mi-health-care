@@ -85,6 +85,7 @@ interface Prospect {
   wilaya?: string | null
   telephone?: string | null
   isClient: boolean
+  tarif?: number | null
 }
 
 interface Employee {
@@ -279,6 +280,7 @@ export default function OpportunitiesModule() {
 
   // Operation form
   const [operationForm, setOperationForm] = useState({
+    produitId: '',
     produit: '',
     marque: '',
     prixEstime: '',
@@ -286,6 +288,9 @@ export default function OpportunitiesModule() {
     priorite: 'moyenne',
     statut: 'en_attente',
   })
+
+  // Products for operation form
+  const [products, setProducts] = useState<{ id: string; nom: string; marque: string; prix1: number | null; prix2: number | null; prix3: number | null }[]>([])
 
   // Task form
   const [taskForm, setTaskForm] = useState({
@@ -344,6 +349,18 @@ export default function OpportunitiesModule() {
     }
   }, [])
 
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/products?actif=true')
+      if (res.ok) {
+        const data = await res.json()
+        setProducts(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch products:', err)
+    }
+  }, [])
+
   const fetchOpportunityDetail = useCallback(async (id: string) => {
     setDetailLoading(true)
     try {
@@ -362,11 +379,11 @@ export default function OpportunitiesModule() {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      await Promise.all([fetchOpportunities(), fetchClients(), fetchCommercials()])
+      await Promise.all([fetchOpportunities(), fetchClients(), fetchCommercials(), fetchProducts()])
       setLoading(false)
     }
     load()
-  }, [fetchOpportunities, fetchClients, fetchCommercials])
+  }, [fetchOpportunities, fetchClients, fetchCommercials, fetchProducts])
 
   // ─── Form Handlers ─────────────────────────────────────────────
 
@@ -482,6 +499,7 @@ export default function OpportunitiesModule() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           opportunityId: selectedOpportunity.id,
+          produitId: operationForm.produitId || null,
           produit: operationForm.produit,
           marque: operationForm.marque,
           prixEstime: operationForm.prixEstime ? parseFloat(operationForm.prixEstime) : null,
@@ -492,7 +510,7 @@ export default function OpportunitiesModule() {
       })
       if (res.ok) {
         setShowAddOperationDialog(false)
-        setOperationForm({ produit: '', marque: '', prixEstime: '', marge: '', priorite: 'moyenne', statut: 'en_attente' })
+        setOperationForm({ produitId: '', produit: '', marque: '', prixEstime: '', marge: '', priorite: 'moyenne', statut: 'en_attente' })
         await fetchOpportunityDetail(selectedOpportunity.id)
         await fetchOpportunities()
       }
@@ -1623,19 +1641,46 @@ export default function OpportunitiesModule() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label className="text-sm">Produit <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="Nom du produit"
-                value={operationForm.produit}
-                onChange={e => setOperationForm(f => ({ ...f, produit: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm">Marque <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="Nom de la marque"
-                value={operationForm.marque}
-                onChange={e => setOperationForm(f => ({ ...f, marque: e.target.value }))}
-              />
+              <Select
+                value={operationForm.produitId}
+                onValueChange={v => {
+                  const product = products.find(p => p.id === v)
+                  if (product) {
+                    const clientTarif = selectedOpportunity?.client?.tarif
+                    const price = clientTarif === 2 ? product.prix2 : clientTarif === 3 ? product.prix3 : product.prix1
+                    setOperationForm(f => ({
+                      ...f,
+                      produitId: product.id,
+                      produit: product.nom,
+                      marque: product.marque,
+                      prixEstime: price?.toString() || f.prixEstime,
+                    }))
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un produit du catalogue" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.length === 0 ? (
+                    <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                      Aucun produit dans le catalogue
+                    </div>
+                  ) : (
+                    products.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nom} — {p.marque}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {operationForm.produitId && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="text-xs">{operationForm.marque}</Badge>
+                  <span className="text-xs text-muted-foreground">{operationForm.produit}</span>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -1692,7 +1737,7 @@ export default function OpportunitiesModule() {
             </Button>
             <Button
               onClick={handleAddOperation}
-              disabled={!operationForm.produit || !operationForm.marque}
+              disabled={!operationForm.produitId}
               className="gap-1 bg-[#1A5A9E] hover:bg-[#134885]"
             >
               <Plus className="size-4" /> Ajouter

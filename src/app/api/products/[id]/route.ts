@@ -32,7 +32,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { nom, marque, categorie, reference, description, prixReference, actif } = body;
+    const { nom, marque, categorie, reference, description, prixReference, prix1, prix2, prix3, actif } = body;
 
     const product = await db.product.update({
       where: { id },
@@ -43,6 +43,9 @@ export async function PUT(
         ...(reference !== undefined && { reference }),
         ...(description !== undefined && { description }),
         ...(prixReference !== undefined && { prixReference }),
+        ...(prix1 !== undefined && { prix1 }),
+        ...(prix2 !== undefined && { prix2 }),
+        ...(prix3 !== undefined && { prix3 }),
         ...(actif !== undefined && { actif }),
       },
     });

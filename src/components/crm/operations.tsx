@@ -75,6 +75,7 @@ interface Operation {
   opportunityId: string
   produit: string
   marque: string
+  produitId: string | null
   prixEstime: number | null
   marge: number | null
   statut: string
@@ -90,11 +91,23 @@ interface Operation {
   responsable?: { id: string; nom: string; role: string } | null
 }
 
+interface Product {
+  id: string
+  nom: string
+  marque: string
+  categorie: string | null
+  reference: string | null
+  prix1: number | null
+  prix2: number | null
+  prix3: number | null
+  actif: boolean
+}
+
 interface Opportunity {
   id: string
   nomProjet: string
   statut: string
-  client?: { id: string; nom: string } | null
+  client?: { id: string; nom: string; tarif?: number | null } | null
 }
 
 interface Employee {
@@ -365,6 +378,7 @@ function CardSkeleton() {
 
 interface OperationFormData {
   opportunityId: string
+  produitId: string
   produit: string
   marque: string
   responsableId: string
@@ -377,6 +391,7 @@ interface OperationFormData {
 
 const emptyForm: OperationFormData = {
   opportunityId: '',
+  produitId: '',
   produit: '',
   marque: '',
   responsableId: '',
@@ -396,6 +411,8 @@ export default function OperationsModule() {
   const [operations, setOperations] = useState<Operation[]>([])
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [productSearch, setProductSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -470,14 +487,26 @@ export default function OperationsModule() {
     }
   }, [])
 
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/products?actif=true')
+      if (res.ok) {
+        const data = await res.json()
+        setProducts(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch products:', err)
+    }
+  }, [])
+
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      await Promise.all([fetchOperations(), fetchOpportunities(), fetchEmployees()])
+      await Promise.all([fetchOperations(), fetchOpportunities(), fetchEmployees(), fetchProducts()])
       setLoading(false)
     }
     load()
-  }, [fetchOperations, fetchOpportunities, fetchEmployees])
+  }, [fetchOperations, fetchOpportunities, fetchEmployees, fetchProducts])
 
   // ─── Computed Data ─────────────────────────────────────────────
 
@@ -525,6 +554,7 @@ export default function OperationsModule() {
     setCurrentStatut(op.statut)  // Track current status for transition guards
     setFormData({
       opportunityId: op.opportunityId,
+      produitId: op.produitId || '',
       produit: op.produit,
       marque: op.marque,
       responsableId: op.responsable?.id || '',
@@ -534,6 +564,7 @@ export default function OperationsModule() {
       datePrevue: op.datePrevue ? new Date(op.datePrevue).toISOString().split('T')[0] : '',
       priorite: op.priorite,
     })
+    setProductSearch('')
     setFormErrors({})
     setFormOpen(true)
   }
@@ -547,6 +578,13 @@ export default function OperationsModule() {
     return Object.keys(errors).length === 0
   }
 
+  // Helper to get the price for a given product based on client's tarif
+  const getPriceForTarif = (product: Product, tarif?: number | null): number | null => {
+    if (tarif === 2) return product.prix2
+    if (tarif === 3) return product.prix3
+    return product.prix1  // default tarif 1
+  }
+
   const handleSubmit = async () => {
     if (!validateForm()) return
 
@@ -554,6 +592,7 @@ export default function OperationsModule() {
     try {
       const payload = {
         opportunityId: formData.opportunityId,
+        produitId: formData.produitId || null,
         produit: formData.produit.trim(),
         marque: formData.marque,
         responsableId: formData.responsableId || null,
@@ -1270,47 +1309,63 @@ export default function OperationsModule() {
               )}
             </div>
 
-            {/* Produit */}
+            {/* Produit - Sélection depuis le catalogue */}
             <div className="space-y-1.5">
               <Label className="text-sm">
                 Produit <span className="text-red-500">*</span>
               </Label>
-              <Input
-                placeholder="Ex: Respirateur, Moniteur, Table opératoire..."
-                value={formData.produit}
-                onChange={e => setFormData(f => ({ ...f, produit: e.target.value }))}
-                className={formErrors.produit ? 'border-red-500' : ''}
-              />
-              {formErrors.produit && (
-                <p className="text-xs text-red-500">{formErrors.produit}</p>
-              )}
-            </div>
-
-            {/* Marque */}
-            <div className="space-y-1.5">
-              <Label className="text-sm">
-                Marque <span className="text-red-500">*</span>
-              </Label>
               <Select
-                value={formData.marque}
-                onValueChange={v => setFormData(f => ({ ...f, marque: v }))}
+                value={formData.produitId}
+                onValueChange={v => {
+                  const product = products.find(p => p.id === v)
+                  if (product) {
+                    // Find the client's tarif from the selected opportunity
+                    const opp = opportunities.find(o => o.id === formData.opportunityId)
+                    const clientTarif = opp?.client?.tarif
+                    const price = getPriceForTarif(product, clientTarif)
+                    setFormData(f => ({
+                      ...f,
+                      produitId: product.id,
+                      produit: product.nom,
+                      marque: product.marque,
+                      prixEstime: price?.toString() || f.prixEstime,
+                    }))
+                  }
+                }}
               >
-                <SelectTrigger className={formErrors.marque ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Sélectionner une marque" />
+                <SelectTrigger className={formErrors.produit ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Sélectionner un produit du catalogue" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MARQUES.map(m => (
-                    <SelectItem key={m.value} value={m.value}>
-                      <span className="flex items-center gap-2">
-                        <span className={`inline-block size-2.5 rounded-full ${BRAND_COLORS[m.value]?.dot || 'bg-gray-400'}`} />
-                        {m.label}
-                      </span>
-                    </SelectItem>
-                  ))}
+                  {products.length === 0 ? (
+                    <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                      Aucun produit dans le catalogue
+                    </div>
+                  ) : (
+                    products.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <span className="flex items-center gap-2">
+                          <span className={`inline-block size-2 rounded-full ${BRAND_COLORS[p.marque]?.dot || 'bg-gray-400'}`} />
+                          {p.nom}
+                          <span className="text-xs text-muted-foreground">— {p.marque}</span>
+                          {p.prix1 && <span className="text-xs text-slate-500">{p.prix1.toLocaleString('fr-DZ')} DA</span>}
+                        </span>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
-              {formErrors.marque && (
-                <p className="text-xs text-red-500">{formErrors.marque}</p>
+              {formData.produitId && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="gap-1 text-xs">
+                    <span className={`inline-block size-1.5 rounded-full ${BRAND_COLORS[formData.marque]?.dot || 'bg-gray-400'}`} />
+                    {formData.marque}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">{formData.produit}</span>
+                </div>
+              )}
+              {formErrors.produit && (
+                <p className="text-xs text-red-500">{formErrors.produit}</p>
               )}
             </div>
 

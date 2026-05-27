@@ -32,6 +32,7 @@ import {
   Users,
   CircleDot,
   Loader2,
+  DollarSign,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -97,6 +98,7 @@ interface Client {
   source: string | null
   recommandePar: string | null
   recommandeParId: string | null
+  tarif: number | null
   isClient: true
   notes: string | null
   createdAt: string
@@ -467,6 +469,7 @@ export default function ClientsModule() {
     source: 'prospection',
     recommandePar: '',
     recommandeParId: '',
+    tarif: '',
     notes: '',
     isClient: true as true,
   })
@@ -611,6 +614,7 @@ export default function ClientsModule() {
       source: 'prospection',
       recommandePar: '',
       recommandeParId: '',
+      tarif: '',
       notes: '',
       isClient: true,
     })
@@ -633,6 +637,7 @@ export default function ClientsModule() {
       source: client.source || 'prospection',
       recommandePar: (client as Client & { recommandePar?: string | null }).recommandePar || '',
       recommandeParId: (client as Client & { recommandeParId?: string | null }).recommandeParId || '',
+      tarif: client.tarif?.toString() || '',
       notes: client.notes || '',
       isClient: true,
     })
@@ -947,6 +952,25 @@ export default function ClientsModule() {
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Adresse</p>
                 <p className="text-sm font-medium">{selectedClient.adresse}</p>
+              </div>
+            </div>
+          )}
+          {selectedClient.tarif && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+              <div className="flex items-center justify-center size-9 rounded-full bg-green-50 shrink-0">
+                <DollarSign className="size-4 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Tarif</p>
+                <p className="text-sm font-medium">
+                  <Badge variant="outline" className={
+                    selectedClient.tarif === 1 ? 'bg-slate-50 text-slate-700 border-slate-200' :
+                    selectedClient.tarif === 2 ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                    'bg-green-50 text-green-700 border-green-200'
+                  }>
+                    Tarif {selectedClient.tarif} (Prix {selectedClient.tarif})
+                  </Badge>
+                </p>
               </div>
             </div>
           )}
@@ -1948,6 +1972,44 @@ export default function ClientsModule() {
                     onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
                   />
                 </div>
+              </div>
+
+              {/* Tarif */}
+              <div className="grid gap-2">
+                <Label className="flex items-center gap-1">
+                  <DollarSign className="size-3.5 text-green-500" />
+                  Tarif applicable
+                </Label>
+                <Select
+                  value={formData.tarif || '_none'}
+                  onValueChange={(v) => setFormData({ ...formData, tarif: v === '_none' ? '' : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner le tarif" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Aucun tarif défini</SelectItem>
+                    <SelectItem value="1">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block size-2 rounded-full bg-slate-500" />
+                        Tarif 1 (Prix 1)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="2">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block size-2 rounded-full bg-blue-500" />
+                        Tarif 2 (Prix 2)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="3">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block size-2 rounded-full bg-green-500" />
+                        Tarif 3 (Prix 3)
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Détermine quel prix est appliqué lors de la création d&apos;une opération</p>
               </div>
 
               {/* Établissement */}

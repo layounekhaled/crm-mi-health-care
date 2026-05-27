@@ -57,7 +57,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { produit, marque, responsableId, prixEstime, marge, statut, datePrevue, priorite } = body;
+    const { produit, marque, produitId, responsableId, prixEstime, marge, statut, datePrevue, priorite } = body;
 
     const existing = await db.operation.findUnique({ where: { id } });
     if (!existing) {
@@ -85,6 +85,7 @@ export async function PUT(
       data: {
         ...(produit !== undefined && { produit }),
         ...(marque !== undefined && { marque }),
+        ...(produitId !== undefined && { produitId }),
         ...(responsableId !== undefined && { responsableId }),
         ...(prixEstime !== undefined && { prixEstime }),
         ...(marge !== undefined && { marge }),

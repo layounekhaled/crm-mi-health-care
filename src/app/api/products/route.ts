@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { nom, marque, categorie, reference, description, prixReference, actif } = body;
+    const { nom, marque, categorie, reference, description, prixReference, prix1, prix2, prix3, actif } = body;
 
     if (!nom || !marque) {
       return NextResponse.json(
@@ -131,6 +131,9 @@ export async function POST(request: NextRequest) {
         reference: reference || null,
         description: description || null,
         prixReference: prixReference ?? null,
+        prix1: prix1 ?? null,
+        prix2: prix2 ?? null,
+        prix3: prix3 ?? null,
         actif: actif !== undefined ? actif : true,
       },
     });

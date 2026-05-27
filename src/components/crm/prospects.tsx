@@ -28,6 +28,7 @@ import {
   Download,
   Loader2,
   FileText,
+  DollarSign,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -94,6 +95,7 @@ interface Prospect {
   source: string | null
   recommandePar: string | null
   recommandeParId: string | null
+  tarif: number | null
   isClient: boolean
   notes: string | null
   createdAt: string
@@ -372,6 +374,7 @@ export default function ProspectsModule() {
     source: 'prospection',
     recommandePar: '',
     recommandeParId: '',
+    tarif: '',
     notes: '',
     isClient: false,
   })
@@ -500,6 +503,7 @@ export default function ProspectsModule() {
       source: 'prospection',
       recommandePar: '',
       recommandeParId: '',
+      tarif: '',
       notes: '',
       isClient: false,
     })
@@ -522,6 +526,7 @@ export default function ProspectsModule() {
       source: prospect.source || 'prospection',
       recommandePar: (prospect as Prospect & { recommandePar?: string | null }).recommandePar || '',
       recommandeParId: (prospect as Prospect & { recommandeParId?: string | null }).recommandeParId || '',
+      tarif: prospect.tarif?.toString() || '',
       notes: prospect.notes || '',
       isClient: prospect.isClient,
     })
@@ -1313,6 +1318,44 @@ export default function ProspectsModule() {
                 </div>
               </div>
 
+              {/* Tarif */}
+              <div className="grid gap-2">
+                <Label className="flex items-center gap-1">
+                  <DollarSign className="size-3.5 text-green-500" />
+                  Tarif applicables
+                </Label>
+                <Select
+                  value={formData.tarif || '_none'}
+                  onValueChange={(v) => setFormData({ ...formData, tarif: v === '_none' ? '' : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner le tarif" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Aucun tarif défini</SelectItem>
+                    <SelectItem value="1">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block size-2 rounded-full bg-slate-500" />
+                        Tarif 1 (Prix 1)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="2">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block size-2 rounded-full bg-blue-500" />
+                        Tarif 2 (Prix 2)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="3">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block size-2 rounded-full bg-green-500" />
+                        Tarif 3 (Prix 3)
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Détermine quel prix est appliqué lors de la création d&apos;une opération</p>
+              </div>
+
               {/* Établissement */}
               <div className="grid gap-2">
                 <Label htmlFor="etablissement" className="flex items-center gap-1">
@@ -1626,6 +1669,25 @@ export default function ProspectsModule() {
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Adresse</p>
                           <p className="text-sm font-medium">{selectedProspect.adresse}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedProspect.tarif && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+                        <div className="flex items-center justify-center size-9 rounded-full bg-green-50 shrink-0">
+                          <DollarSign className="size-4 text-green-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Tarif</p>
+                          <p className="text-sm font-medium">
+                            <Badge variant="outline" className={
+                              selectedProspect.tarif === 1 ? 'bg-slate-50 text-slate-700 border-slate-200' :
+                              selectedProspect.tarif === 2 ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              'bg-green-50 text-green-700 border-green-200'
+                            }>
+                              Tarif {selectedProspect.tarif} (Prix {selectedProspect.tarif})
+                            </Badge>
+                          </p>
                         </div>
                       </div>
                     )}

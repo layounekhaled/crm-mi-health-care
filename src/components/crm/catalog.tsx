@@ -63,6 +63,9 @@ interface Product {
   reference: string | null
   description: string | null
   prixReference: number | null
+  prix1: number | null
+  prix2: number | null
+  prix3: number | null
   actif: boolean
   createdAt: string
   updatedAt: string
@@ -143,6 +146,9 @@ export default function CatalogModule() {
     reference: '',
     description: '',
     prixReference: '',
+    prix1: '',
+    prix2: '',
+    prix3: '',
     actif: true,
   })
 
@@ -183,6 +189,9 @@ export default function CatalogModule() {
         body: JSON.stringify({
           ...formData,
           prixReference: formData.prixReference ? parseFloat(formData.prixReference) : null,
+          prix1: formData.prix1 ? parseFloat(formData.prix1) : null,
+          prix2: formData.prix2 ? parseFloat(formData.prix2) : null,
+          prix3: formData.prix3 ? parseFloat(formData.prix3) : null,
         }),
       })
       if (res.ok) {
@@ -202,6 +211,9 @@ export default function CatalogModule() {
         body: JSON.stringify({
           ...formData,
           prixReference: formData.prixReference ? parseFloat(formData.prixReference) : null,
+          prix1: formData.prix1 ? parseFloat(formData.prix1) : null,
+          prix2: formData.prix2 ? parseFloat(formData.prix2) : null,
+          prix3: formData.prix3 ? parseFloat(formData.prix3) : null,
         }),
       })
       if (res.ok) {
@@ -228,7 +240,7 @@ export default function CatalogModule() {
   const resetForm = () => {
     setFormData({
       nom: '', marque: 'MIR', categorie: '', reference: '',
-      description: '', prixReference: '', actif: true,
+      description: '', prixReference: '', prix1: '', prix2: '', prix3: '', actif: true,
     })
   }
 
@@ -237,7 +249,11 @@ export default function CatalogModule() {
     setFormData({
       nom: p.nom, marque: p.marque, categorie: p.categorie || '',
       reference: p.reference || '', description: p.description || '',
-      prixReference: p.prixReference?.toString() || '', actif: p.actif,
+      prixReference: p.prixReference?.toString() || '',
+      prix1: p.prix1?.toString() || '',
+      prix2: p.prix2?.toString() || '',
+      prix3: p.prix3?.toString() || '',
+      actif: p.actif,
     })
     setShowEditDialog(true)
   }
@@ -403,7 +419,9 @@ export default function CatalogModule() {
                       <TableHead>Marque</TableHead>
                       <TableHead>Catégorie</TableHead>
                       <TableHead>Référence</TableHead>
-                      <TableHead className="text-right">Prix réf.</TableHead>
+                      <TableHead className="text-right">Prix 1</TableHead>
+                      <TableHead className="text-right">Prix 2</TableHead>
+                      <TableHead className="text-right">Prix 3</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead className="w-[50px]" />
                     </TableRow>
@@ -439,8 +457,18 @@ export default function CatalogModule() {
                             {product.reference || '—'}
                           </TableCell>
                           <TableCell className="text-right font-medium text-slate-700">
-                            {product.prixReference
-                              ? `${product.prixReference.toLocaleString('fr-DZ')} DA`
+                            {product.prix1
+                              ? `${product.prix1.toLocaleString('fr-DZ')} DA`
+                              : '—'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-blue-700">
+                            {product.prix2
+                              ? `${product.prix2.toLocaleString('fr-DZ')} DA`
+                              : '—'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-green-700">
+                            {product.prix3
+                              ? `${product.prix3.toLocaleString('fr-DZ')} DA`
                               : '—'}
                           </TableCell>
                           <TableCell>
@@ -731,6 +759,35 @@ export default function CatalogModule() {
                 />
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-slate-700 font-semibold">Prix 1 (DA)</Label>
+                <Input
+                  type="number"
+                  value={formData.prix1}
+                  onChange={(e) => setFormData({ ...formData, prix1: e.target.value })}
+                  placeholder="Tarif 1"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-blue-700 font-semibold">Prix 2 (DA)</Label>
+                <Input
+                  type="number"
+                  value={formData.prix2}
+                  onChange={(e) => setFormData({ ...formData, prix2: e.target.value })}
+                  placeholder="Tarif 2"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-green-700 font-semibold">Prix 3 (DA)</Label>
+                <Input
+                  type="number"
+                  value={formData.prix3}
+                  onChange={(e) => setFormData({ ...formData, prix3: e.target.value })}
+                  placeholder="Tarif 3"
+                />
+              </div>
+            </div>
             <div className="grid gap-2">
               <Label>Description</Label>
               <Textarea
@@ -806,6 +863,32 @@ export default function CatalogModule() {
                 />
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-slate-700 font-semibold">Prix 1 (DA)</Label>
+                <Input
+                  type="number"
+                  value={formData.prix1}
+                  onChange={(e) => setFormData({ ...formData, prix1: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-blue-700 font-semibold">Prix 2 (DA)</Label>
+                <Input
+                  type="number"
+                  value={formData.prix2}
+                  onChange={(e) => setFormData({ ...formData, prix2: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-green-700 font-semibold">Prix 3 (DA)</Label>
+                <Input
+                  type="number"
+                  value={formData.prix3}
+                  onChange={(e) => setFormData({ ...formData, prix3: e.target.value })}
+                />
+              </div>
+            </div>
             <div className="grid gap-2">
               <Label>Description</Label>
               <Textarea
@@ -866,10 +949,44 @@ export default function CatalogModule() {
                   <p className="font-mono text-sm text-slate-700">{selectedProduct.reference}</p>
                 </div>
               )}
-              {selectedProduct.prixReference && (
+              {(selectedProduct.prix1 || selectedProduct.prix2 || selectedProduct.prix3) && (
                 <div>
-                  <p className="text-xs text-slate-500">Prix de référence</p>
-                  <p className="text-lg font-bold text-slate-900">{selectedProduct.prixReference.toLocaleString('fr-DZ')} DA</p>
+                  <p className="text-xs text-slate-500 mb-2">Tarifs</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {selectedProduct.prix1 ? (
+                      <div className="bg-slate-50 rounded-lg p-2 text-center">
+                        <p className="text-xs text-slate-500">Prix 1</p>
+                        <p className="text-base font-bold text-slate-900">{selectedProduct.prix1.toLocaleString('fr-DZ')} DA</p>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 rounded-lg p-2 text-center">
+                        <p className="text-xs text-slate-500">Prix 1</p>
+                        <p className="text-sm text-slate-400">—</p>
+                      </div>
+                    )}
+                    {selectedProduct.prix2 ? (
+                      <div className="bg-blue-50 rounded-lg p-2 text-center">
+                        <p className="text-xs text-blue-600">Prix 2</p>
+                        <p className="text-base font-bold text-blue-700">{selectedProduct.prix2.toLocaleString('fr-DZ')} DA</p>
+                      </div>
+                    ) : (
+                      <div className="bg-blue-50 rounded-lg p-2 text-center">
+                        <p className="text-xs text-blue-600">Prix 2</p>
+                        <p className="text-sm text-blue-400">—</p>
+                      </div>
+                    )}
+                    {selectedProduct.prix3 ? (
+                      <div className="bg-green-50 rounded-lg p-2 text-center">
+                        <p className="text-xs text-green-600">Prix 3</p>
+                        <p className="text-base font-bold text-green-700">{selectedProduct.prix3.toLocaleString('fr-DZ')} DA</p>
+                      </div>
+                    ) : (
+                      <div className="bg-green-50 rounded-lg p-2 text-center">
+                        <p className="text-xs text-green-600">Prix 3</p>
+                        <p className="text-sm text-green-400">—</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {selectedProduct.description && (

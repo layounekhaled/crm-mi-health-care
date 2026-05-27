@@ -22,6 +22,7 @@ model Prospect {
   source        String?   @default("prospection")
   recommandePar   String?
   recommandeParId String?
+  tarif         Int?       // 1, 2, or 3 — which price tier to apply
   isClient        Boolean   @default(false)
   notes         String?
   createdAt     DateTime  @default(now())
@@ -103,6 +104,7 @@ model Operation {
   opportunityId String
   produit       String
   marque        String
+  produitId     String?  // Link to Product catalog
   responsableId String?
   prixEstime    Float?
   marge         Float?
@@ -114,6 +116,7 @@ model Operation {
 
   opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
   responsable Employee?  @relation(fields: [responsableId], references: [id])
+  produitRef  Product?   @relation(fields: [produitId], references: [id])
   tasks       Task[]
 }
 
@@ -377,9 +380,14 @@ model Product {
   reference      String?
   description    String?
   prixReference  Float?
+  prix1          Float?   // Tarif 1
+  prix2          Float?   // Tarif 2
+  prix3          Float?   // Tarif 3
   actif          Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  operations     Operation[]
 
   @@index([marque])
   @@index([categorie])
