@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const source = searchParams.get('source');
     const wilaya = searchParams.get('wilaya');
+    const specialite = searchParams.get('specialite');
     const isClient = searchParams.get('isClient');
     const page = parseInt(searchParams.get('page') || '1');
     const rawLimit = parseInt(searchParams.get('limit') || '200');
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
         { whatsapp: { contains: search } },
         { etablissement: { contains: search } },
         { specialite: { contains: search } },
+        { notes: { contains: search } },
       ];
     }
 
@@ -36,6 +38,10 @@ export async function GET(request: NextRequest) {
 
     if (wilaya) {
       where.wilaya = wilaya;
+    }
+
+    if (specialite) {
+      where.specialite = specialite;
     }
 
     if (isClient !== null) {

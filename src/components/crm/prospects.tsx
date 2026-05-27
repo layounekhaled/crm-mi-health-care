@@ -146,14 +146,44 @@ interface AfterSale {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const SPECIALITES = [
-  'Cardiologie',
-  'Orthopédie',
-  'Radiologie',
-  'Chirurgie',
-  'Anesthésie',
-  'Médecine générale',
+  'Distributeur',
+  'Pneumologue',
+  'Médecin divers',
+  'Médecin',
+  'Diabétologue',
+  'Particulier',
+  'Pédiatre',
+  'Médecine du travail',
+  'ORL',
+  'Pharmacie',
+  'Clinique',
+  'Laboratoire',
+  'Radiologue',
+  'Généraliste',
+  'Médecin interne',
+  'Endocrinologue',
+  'Gynécologue',
+  'Urologue',
+  'Cardiologue',
+  'Interniste',
+  'Physiologiste',
+  'Pharmacologue Clinicienne',
+  'Infirmier',
+  'Neurologue',
+  'Orthopédiste',
+  'Allergologue',
+  'Rééducateur',
+  'Anesthésiste',
   'Autre',
 ]
+
+// ─── Helper: Extract email from notes ───────────────────────────────────────
+
+function extractEmail(notes: string | null): string | null {
+  if (!notes) return null
+  const match = notes.match(/Email:\s*([^\s,;]+)/i)
+  return match ? match[1] : null
+}
 
 const WILAYAS = [
   'Adrar',
@@ -311,6 +341,7 @@ export default function ProspectsModule() {
   const [search, setSearch] = useState('')
   const [sourceFilter, setSourceFilter] = useState<string>('tous')
   const [wilayaFilter, setWilayaFilter] = useState<string>('tous')
+  const [specialiteFilter, setSpecialiteFilter] = useState<string>('tous')
   const [tabFilter, setTabFilter] = useState<string>('tous')
 
   // Dialog state
@@ -359,6 +390,7 @@ export default function ProspectsModule() {
       if (search) params.set('search', search)
       if (sourceFilter && sourceFilter !== 'tous') params.set('source', sourceFilter)
       if (wilayaFilter && wilayaFilter !== 'tous') params.set('wilaya', wilayaFilter)
+      if (specialiteFilter && specialiteFilter !== 'tous') params.set('specialite', specialiteFilter)
       if (tabFilter === 'prospects') params.set('isClient', 'false')
       if (tabFilter === 'clients') params.set('isClient', 'true')
 
@@ -372,7 +404,7 @@ export default function ProspectsModule() {
     } finally {
       setLoading(false)
     }
-  }, [search, sourceFilter, wilayaFilter, tabFilter, page, limit])
+  }, [search, sourceFilter, wilayaFilter, specialiteFilter, tabFilter, page, limit])
 
   useEffect(() => {
     fetchProspects()
@@ -631,22 +663,25 @@ export default function ProspectsModule() {
               {prospect.wilaya}
             </p>
           )}
-          {prospect.etablissement && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Building2 className="size-3" />
-              <span className="truncate">{prospect.etablissement}</span>
-            </p>
-          )}
           {prospect.telephone && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Phone className="size-3" />
               {prospect.telephone}
             </p>
           )}
-          {prospect.telephone2 && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Phone className="size-3 text-slate-400" />
-              {prospect.telephone2}
+          {(() => {
+            const email = extractEmail(prospect.notes)
+            return email ? (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Mail className="size-3" />
+                <span className="truncate">{email}</span>
+              </p>
+            ) : null
+          })()}
+          {prospect.whatsapp && (
+            <p className="text-xs text-green-600 flex items-center gap-1">
+              <MessageCircle className="size-3" />
+              <span className="truncate">{prospect.whatsapp}</span>
             </p>
           )}
         </div>
@@ -766,6 +801,20 @@ export default function ProspectsModule() {
                       ))}
                     </SelectContent>
                   </Select>
+
+                  <Select value={specialiteFilter} onValueChange={(v) => { setSpecialiteFilter(v); setPage(1) }}>
+                    <SelectTrigger className="w-[180px]" size="sm">
+                      <SelectValue placeholder="Spécialité" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tous">Toutes les spécialités</SelectItem>
+                      {SPECIALITES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Tabs for Tous / Prospects / Clients */}
@@ -820,8 +869,8 @@ export default function ProspectsModule() {
                       <TableHead className="font-semibold">Nom</TableHead>
                       <TableHead className="font-semibold">Spécialité</TableHead>
                       <TableHead className="font-semibold">Wilaya</TableHead>
-                      <TableHead className="font-semibold">Téléphone</TableHead>
-                      <TableHead className="font-semibold">Établissement</TableHead>
+                      <TableHead className="font-semibold">Tél / WhatsApp</TableHead>
+                      <TableHead className="font-semibold">Email</TableHead>
                       <TableHead className="font-semibold">Source</TableHead>
                       <TableHead className="font-semibold">Statut</TableHead>
                       <TableHead className="font-semibold text-right">Actions</TableHead>
@@ -859,24 +908,51 @@ export default function ProspectsModule() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {prospect.telephone ? (
-                            <span className="flex items-center gap-1.5 font-mono text-xs">
-                              <Phone className="size-3.5 text-slate-400" />
-                              {prospect.telephone}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {prospect.telephone ? (
+                              <a
+                                href={`tel:${prospect.telephone}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-blue-600 transition-colors"
+                                title="Appeler"
+                              >
+                                <Phone className="size-3.5 text-slate-400" />
+                                {prospect.telephone}
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                            {prospect.whatsapp && (
+                              <a
+                                href={`https://wa.me/${prospect.whatsapp.replace(/[\s\-\.]/g, '').replace(/^0/, '213')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center justify-center size-5 rounded hover:bg-green-50 text-green-500 transition-colors"
+                                title="WhatsApp"
+                              >
+                                <MessageCircle className="size-3.5" />
+                              </a>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          {prospect.etablissement ? (
-                            <span className="flex items-center gap-1.5 truncate max-w-[180px]">
-                              <Building2 className="size-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate">{prospect.etablissement}</span>
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                          {(() => {
+                            const email = extractEmail(prospect.notes)
+                            return email ? (
+                              <a
+                                href={`mailto:${email}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#134885] transition-colors"
+                                title={email}
+                              >
+                                <Mail className="size-3.5 text-slate-400 shrink-0" />
+                                <span className="truncate max-w-[160px]">{email}</span>
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )
+                          })()}
                         </TableCell>
                         <TableCell>
                           <SourceBadge source={prospect.source} />
@@ -1271,6 +1347,34 @@ export default function ProspectsModule() {
                   </div>
                 </DialogHeader>
 
+                {/* Email Banner */}
+                {(() => {
+                  const email = extractEmail(selectedProspect.notes)
+                  return email ? (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-[#134885]/5 border border-[#134885]/10">
+                      <div className="flex items-center justify-center size-9 rounded-full bg-[#134885]/10 shrink-0">
+                        <Mail className="size-4 text-[#134885]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground">Adresse email</p>
+                        <a
+                          href={`mailto:${email}`}
+                          className="text-sm font-medium text-[#134885] hover:underline truncate block"
+                        >
+                          {email}
+                        </a>
+                      </div>
+                      <a
+                        href={`mailto:${email}`}
+                        className="inline-flex items-center justify-center size-8 rounded-md hover:bg-[#134885]/10 text-[#134885] transition-colors shrink-0"
+                        title="Envoyer un email"
+                      >
+                        <Mail className="size-4" />
+                      </a>
+                    </div>
+                  ) : null
+                })()}
+
                 {/* Info Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2">
                   {selectedProspect.specialite && (
@@ -1292,6 +1396,13 @@ export default function ProspectsModule() {
                       <Phone className="size-4 text-blue-500 shrink-0" />
                       <span className="text-muted-foreground">Tél:</span>
                       <span className="font-mono">{selectedProspect.telephone}</span>
+                      <a
+                        href={`tel:${selectedProspect.telephone}`}
+                        className="inline-flex items-center justify-center size-6 rounded-md hover:bg-blue-50 text-blue-500 transition-colors"
+                        title="Appeler"
+                      >
+                        <PhoneCall className="size-3.5" />
+                      </a>
                     </div>
                   )}
                   {selectedProspect.telephone2 && (
@@ -1299,6 +1410,13 @@ export default function ProspectsModule() {
                       <Phone className="size-4 text-slate-400 shrink-0" />
                       <span className="text-muted-foreground">Tél 2:</span>
                       <span className="font-mono">{selectedProspect.telephone2}</span>
+                      <a
+                        href={`tel:${selectedProspect.telephone2}`}
+                        className="inline-flex items-center justify-center size-6 rounded-md hover:bg-slate-50 text-slate-500 transition-colors"
+                        title="Appeler"
+                      >
+                        <PhoneCall className="size-3.5" />
+                      </a>
                     </div>
                   )}
                   {selectedProspect.whatsapp && (
@@ -1306,6 +1424,15 @@ export default function ProspectsModule() {
                       <MessageCircle className="size-4 text-green-500 shrink-0" />
                       <span className="text-muted-foreground">WhatsApp:</span>
                       <span className="font-mono">{selectedProspect.whatsapp}</span>
+                      <a
+                        href={`https://wa.me/${selectedProspect.whatsapp.replace(/[\s\-\.]/g, '').replace(/^0/, '213')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center size-6 rounded-md hover:bg-green-50 text-green-500 transition-colors"
+                        title="WhatsApp"
+                      >
+                        <MessageCircle className="size-3.5" />
+                      </a>
                     </div>
                   )}
                   {selectedProspect.etablissement && (

@@ -146,12 +146,34 @@ interface ClientDetail extends Client {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const SPECIALITES = [
-  'Cardiologie',
-  'Orthopédie',
-  'Radiologie',
-  'Chirurgie',
-  'Anesthésie',
-  'Médecine générale',
+  'Distributeur',
+  'Pneumologue',
+  'Médecin divers',
+  'Médecin',
+  'Diabétologue',
+  'Particulier',
+  'Pédiatre',
+  'Médecine du travail',
+  'ORL',
+  'Pharmacie',
+  'Clinique',
+  'Laboratoire',
+  'Radiologue',
+  'Généraliste',
+  'Médecin interne',
+  'Endocrinologue',
+  'Gynécologue',
+  'Urologue',
+  'Cardiologue',
+  'Interniste',
+  'Physiologiste',
+  'Pharmacologue Clinicienne',
+  'Infirmier',
+  'Neurologue',
+  'Orthopédiste',
+  'Allergologue',
+  'Rééducateur',
+  'Anesthésiste',
   'Autre',
 ]
 
@@ -238,6 +260,14 @@ function getClientHealthLabel(daysSinceLastInteraction: number | null): string {
 
 function cleanPhoneNumber(phone: string): string {
   return phone.replace(/[\s\-\.]/g, '').replace(/^0/, '213')
+}
+
+// ─── Helper: Extract email from notes ───────────────────────────────────────
+
+function extractEmail(notes: string | null): string | null {
+  if (!notes) return null
+  const match = notes.match(/Email:\s*([^\s,;]+)/i)
+  return match ? match[1] : null
 }
 
 // ─── Helper: Source badge color ─────────────────────────────────────────────
@@ -696,6 +726,15 @@ export default function ClientsModule() {
               <span className="truncate">{client.etablissement}</span>
             </p>
           )}
+          {(() => {
+            const email = extractEmail(client.notes)
+            return email ? (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                <Mail className="size-3" />
+                <span className="truncate">{email}</span>
+              </p>
+            ) : null
+          })()}
 
           <div className="mt-2 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -758,6 +797,34 @@ export default function ClientsModule() {
             Client
           </Badge>
         </div>
+
+        {/* Email Banner */}
+        {(() => {
+          const email = extractEmail(selectedClient.notes)
+          return email ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-[#134885]/5 border border-[#134885]/10">
+              <div className="flex items-center justify-center size-9 rounded-full bg-[#134885]/10 shrink-0">
+                <Mail className="size-4 text-[#134885]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">Adresse email</p>
+                <a
+                  href={`mailto:${email}`}
+                  className="text-sm font-medium text-[#134885] hover:underline truncate block"
+                >
+                  {email}
+                </a>
+              </div>
+              <a
+                href={`mailto:${email}`}
+                className="inline-flex items-center justify-center size-8 rounded-md hover:bg-[#134885]/10 text-[#134885] transition-colors shrink-0"
+                title="Envoyer un email"
+              >
+                <Mail className="size-4" />
+              </a>
+            </div>
+          ) : null
+        })()}
 
         {/* Info Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -839,6 +906,17 @@ export default function ClientsModule() {
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-2">
+          {(() => {
+            const email = extractEmail(selectedClient.notes)
+            return email ? (
+              <a href={`mailto:${email}`}>
+                <Button variant="outline" size="sm" className="h-8 text-xs border-[#134885]/20 text-[#134885] hover:bg-[#134885]/5">
+                  <Mail className="size-3.5 mr-1.5" />
+                  Email
+                </Button>
+              </a>
+            ) : null
+          })()}
           {selectedClient.telephone && (
             <a href={`tel:${selectedClient.telephone}`}>
               <Button variant="outline" size="sm" className="h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50">
@@ -1362,7 +1440,7 @@ export default function ClientsModule() {
                     <TableRow className="bg-slate-50/80">
                       <TableHead className="font-semibold">Nom</TableHead>
                       <TableHead className="font-semibold">Spécialité / Wilaya</TableHead>
-                      <TableHead className="font-semibold">Établissement</TableHead>
+                      <TableHead className="font-semibold">Email</TableHead>
                       <TableHead className="font-semibold">Contact</TableHead>
                       <TableHead className="font-semibold text-center">Opp.</TableHead>
                       <TableHead className="font-semibold text-center">SAV</TableHead>
@@ -1400,14 +1478,22 @@ export default function ClientsModule() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {client.etablissement ? (
-                            <span className="flex items-center gap-1.5 truncate max-w-[180px]">
-                              <Building2 className="size-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate">{client.etablissement}</span>
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                          {(() => {
+                            const email = extractEmail(client.notes)
+                            return email ? (
+                              <a
+                                href={`mailto:${email}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#134885] transition-colors"
+                                title={email}
+                              >
+                                <Mail className="size-3.5 text-slate-400 shrink-0" />
+                                <span className="truncate max-w-[160px]">{email}</span>
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )
+                          })()}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
