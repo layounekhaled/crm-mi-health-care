@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { nom, email, telephone, role, actif } = body;
+    const { nom, email, telephone, role, actif, permissions } = body;
 
     if (!nom) {
       return NextResponse.json({ error: 'Nom is required' }, { status: 400 });
@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
         email: email || null,
         telephone: telephone || null,
         role: role || 'commercial',
+        permissions: permissions || null,
         actif: actif ?? true,
       },
     });

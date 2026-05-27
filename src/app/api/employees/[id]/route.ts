@@ -61,7 +61,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { nom, email, telephone, role, actif } = body;
+    const { nom, email, telephone, role, actif, permissions } = body;
 
     const existing = await db.employee.findUnique({ where: { id } });
     if (!existing) {
@@ -88,9 +88,21 @@ export async function PUT(
         ...(email !== undefined && { email }),
         ...(telephone !== undefined && { telephone }),
         ...(role !== undefined && { role }),
+        ...(permissions !== undefined && { permissions }),
         ...(actif !== undefined && { actif }),
       },
     });
+
+    // Sync permissions to linked User account
+    if (existing.employeId) {
+      const linkedUser = await db.user.findUnique({ where: { employeId: existing.id } });
+      if (linkedUser && permissions !== undefined) {
+        await db.user.update({
+          where: { id: linkedUser.id },
+          data: { role: role || existing.role, permissions },
+        });
+      }
+    }
 
     return NextResponse.json(employee);
   } catch (error) {

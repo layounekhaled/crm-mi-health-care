@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useCRMStore, type Page } from '@/lib/store'
 import { useAuth } from '@/lib/auth-context'
+import { canViewModule, type PermissionModule } from '@/lib/permissions'
 import {
   LayoutDashboard,
   UserRound,
@@ -38,22 +39,22 @@ import {
 import { NotificationsBell } from '@/components/crm/notifications-bell'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const navItems: { page: Page; label: string; icon: React.ComponentType<{ className?: string }>; roles: string[] }[] = [
-  { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'commercial', 'technicien'] },
-  { page: 'prospects', label: 'Prospects', icon: UserRound, roles: ['admin', 'commercial'] },
-  { page: 'clients', label: 'Clients', icon: UserCheck, roles: ['admin', 'commercial'] },
-  { page: 'events', label: 'Événements', icon: Calendar, roles: ['admin', 'commercial'] },
-  { page: 'opportunities', label: 'Opportunités', icon: Briefcase, roles: ['admin', 'commercial'] },
-  { page: 'operations', label: 'Opérations', icon: Package, roles: ['admin', 'commercial', 'technicien'] },
-  { page: 'catalog', label: 'Catalogue', icon: BookOpen, roles: ['admin', 'commercial', 'technicien'] },
-  { page: 'tasks', label: 'Tâches', icon: CheckSquare, roles: ['admin', 'commercial', 'technicien'] },
-  { page: 'after-sales', label: 'Après-vente', icon: Wrench, roles: ['admin', 'commercial', 'technicien'] },
-  { page: 'employees', label: 'Employés', icon: Users, roles: ['admin'] },
-  { page: 'charges', label: 'Charges', icon: Receipt, roles: ['admin', 'commercial', 'technicien'] },
-  { page: 'calendar', label: 'Calendrier', icon: CalendarClock, roles: ['admin', 'commercial', 'technicien'] },
-  { page: 'rh', label: 'RH', icon: CalendarDays, roles: ['admin', 'commercial', 'technicien'] },
-  { page: 'emails', label: 'Emails', icon: Mail, roles: ['admin', 'commercial', 'technicien'] },
-  { page: 'documents', label: 'Documents', icon: FileText, roles: ['admin', 'commercial', 'technicien'] },
+const navItems: { page: Page; label: string; icon: React.ComponentType<{ className?: string }>; permissionModule: PermissionModule }[] = [
+  { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permissionModule: 'dashboard' },
+  { page: 'prospects', label: 'Prospects', icon: UserRound, permissionModule: 'prospects' },
+  { page: 'clients', label: 'Clients', icon: UserCheck, permissionModule: 'clients' },
+  { page: 'events', label: 'Événements', icon: Calendar, permissionModule: 'events' },
+  { page: 'opportunities', label: 'Opportunités', icon: Briefcase, permissionModule: 'opportunities' },
+  { page: 'operations', label: 'Opérations', icon: Package, permissionModule: 'operations' },
+  { page: 'catalog', label: 'Catalogue', icon: BookOpen, permissionModule: 'catalog' },
+  { page: 'tasks', label: 'Tâches', icon: CheckSquare, permissionModule: 'tasks' },
+  { page: 'after-sales', label: 'Après-vente', icon: Wrench, permissionModule: 'afterSales' },
+  { page: 'employees', label: 'Employés', icon: Users, permissionModule: 'employees' },
+  { page: 'charges', label: 'Charges', icon: Receipt, permissionModule: 'charges' },
+  { page: 'calendar', label: 'Calendrier', icon: CalendarClock, permissionModule: 'calendar' },
+  { page: 'rh', label: 'RH', icon: CalendarDays, permissionModule: 'rh' },
+  { page: 'emails', label: 'Emails', icon: Mail, permissionModule: 'emails' },
+  { page: 'documents', label: 'Documents', icon: FileText, permissionModule: 'documents' },
 ]
 
 const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -78,18 +79,18 @@ function getInitials(name: string | null, email: string): string {
 
 export function CRMSidebar() {
   const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, toggleSidebar } = useCRMStore()
-  const { user, logout } = useAuth()
+  const { user, logout, canViewModule: userCanView } = useAuth()
 
-  // Redirect to dashboard if current page is not accessible to user's role
+  // Redirect to dashboard if current page is not accessible
   useEffect(() => {
     if (user?.role) {
-      const accessiblePages = navItems.filter(item => item.roles.includes(user.role!))
+      const accessiblePages = navItems.filter(item => userCanView(item.permissionModule))
       const currentPageAccessible = accessiblePages.some(item => item.page === currentPage)
       if (!currentPageAccessible && currentPage !== 'dashboard') {
         setCurrentPage('dashboard')
       }
     }
-  }, [user?.role, currentPage, setCurrentPage])
+  }, [user, currentPage, setCurrentPage, userCanView])
 
   const handleNavClick = (page: Page) => {
     setCurrentPage(page)
@@ -102,6 +103,9 @@ export function CRMSidebar() {
   const displayName = user?.employeNom || user?.email || 'Utilisateur'
   const displayRole = user?.role || 'commercial'
   const RoleIcon = roleIcons[displayRole] || Shield
+
+  // Filter nav items based on permissions
+  const visibleNavItems = navItems.filter(item => userCanView(item.permissionModule))
 
   const sidebarContent = (
     <div className="flex h-full flex-col bg-[#134885] text-white">
@@ -130,7 +134,7 @@ export function CRMSidebar() {
       {/* Navigation Items */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
-          {navItems.filter(item => item.roles.includes(user?.role || 'commercial')).map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = currentPage === item.page
             const Icon = item.icon
             return (

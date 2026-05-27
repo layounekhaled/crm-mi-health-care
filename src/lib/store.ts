@@ -23,6 +23,7 @@ interface CurrentUser {
   role: string
   employeId: string | null
   employeNom: string | null
+  permissions: Record<string, unknown> | null
 }
 
 interface CRMStore {

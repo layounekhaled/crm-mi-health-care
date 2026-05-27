@@ -8,6 +8,7 @@ declare module 'next-auth' {
     role?: string
     employeId?: string | null
     employeNom?: string | null
+    permissions?: Record<string, unknown> | null
   }
   interface Session {
     user: {
@@ -16,6 +17,7 @@ declare module 'next-auth' {
       role?: string
       employeId?: string | null
       employeNom?: string | null
+      permissions?: Record<string, unknown> | null
     }
   }
 }
@@ -26,6 +28,7 @@ declare module 'next-auth/jwt' {
     role?: string
     employeId?: string | null
     employeNom?: string | null
+    permissions?: Record<string, unknown> | null
   }
 }
 
@@ -76,6 +79,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           employeId: user.employeId,
           employeNom: user.employe?.nom || null,
+          permissions: user.employe?.permissions || null,
         }
       },
     }),
@@ -94,6 +98,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role
         token.employeId = user.employeId
         token.employeNom = user.employeNom
+        token.permissions = user.permissions
       }
       return token
     },
@@ -103,6 +108,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role
         session.user.employeId = token.employeId
         session.user.employeNom = token.employeNom
+        session.user.permissions = token.permissions
       }
       return session
     },

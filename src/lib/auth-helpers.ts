@@ -1,5 +1,6 @@
 import { getToken } from 'next-auth/jwt'
 import { NextRequest, NextResponse } from 'next/server'
+import { hasPermission as checkPermission, canViewModule as checkView, type PermissionModule, type PermissionAction } from './permissions'
 
 export interface AuthUser {
   id: string
@@ -7,6 +8,7 @@ export interface AuthUser {
   role: string
   employeId: string | null
   employeNom: string | null
+  permissions: Record<string, unknown> | null
 }
 
 export async function getAuthUser(request: NextRequest): Promise<AuthUser | null> {
@@ -22,6 +24,7 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUser | null
       role: token.role as string,
       employeId: token.employeId as string | null,
       employeNom: token.employeNom as string | null,
+      permissions: (token.permissions as Record<string, unknown> | null) || null,
     }
   } catch {
     return null
@@ -44,9 +47,38 @@ export function staleSessionResponse(): NextResponse {
   )
 }
 
+/**
+ * Legacy role-based access check (kept for backward compatibility)
+ * Also considers permissions if set
+ */
 export function canAccess(authUser: AuthUser | null, requiredRoles: string[]): boolean {
   if (!authUser) return false
+  // Admin always has access
+  if (authUser.role === 'admin') return true
   return requiredRoles.includes(authUser.role)
+}
+
+/**
+ * Check if a user has a specific permission on a module
+ */
+export function hasPermission(
+  authUser: AuthUser | null,
+  module: PermissionModule,
+  action: PermissionAction
+): boolean {
+  if (!authUser) return false
+  return checkPermission(authUser.role, authUser.permissions, module, action)
+}
+
+/**
+ * Check if a user can view a module (for sidebar visibility)
+ */
+export function canViewModule(
+  authUser: AuthUser | null,
+  module: PermissionModule
+): boolean {
+  if (!authUser) return false
+  return checkView(authUser.role, authUser.permissions, module)
 }
 
 export function isAdmin(authUser: AuthUser | null): boolean {

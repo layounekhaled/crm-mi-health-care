@@ -1,8 +1,9 @@
 'use client'
 
-import { createContext, useContext, useEffect } from 'react'
+import { createContext, useContext, useEffect, useMemo } from 'react'
 import { SessionProvider, useSession, signOut } from 'next-auth/react'
 import { useCRMStore } from '@/lib/store'
+import { hasPermission as checkPermission, canViewModule as checkView, type PermissionModule, type PermissionAction } from '@/lib/permissions'
 
 interface AuthUser {
   id: string
@@ -10,6 +11,7 @@ interface AuthUser {
   role: string
   employeId: string | null
   employeNom: string | null
+  permissions: Record<string, unknown> | null
 }
 
 interface AuthContextType {
@@ -18,6 +20,8 @@ interface AuthContextType {
   isLoading: boolean
   role: string | null
   logout: () => void
+  hasPermission: (module: PermissionModule, action: PermissionAction) => boolean
+  canViewModule: (module: PermissionModule) => boolean
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,6 +30,8 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   role: null,
   logout: () => {},
+  hasPermission: () => false,
+  canViewModule: () => false,
 })
 
 function mapSessionUser(sessionUser: {
@@ -34,6 +40,7 @@ function mapSessionUser(sessionUser: {
   role?: string
   employeId?: string | null
   employeNom?: string | null
+  permissions?: Record<string, unknown> | null
 }): AuthUser {
   return {
     id: sessionUser.id || '',
@@ -41,6 +48,7 @@ function mapSessionUser(sessionUser: {
     role: sessionUser.role || 'commercial',
     employeId: sessionUser.employeId || null,
     employeNom: sessionUser.employeNom || null,
+    permissions: sessionUser.permissions || null,
   }
 }
 
@@ -64,6 +72,20 @@ function AuthInner({ children }: { children: React.ReactNode }) {
     signOut({ callbackUrl: '/login' })
   }
 
+  const userHasPermission = useMemo(() => {
+    return (module: PermissionModule, action: PermissionAction) => {
+      if (!user) return false
+      return checkPermission(user.role, user.permissions, module, action)
+    }
+  }, [user])
+
+  const userCanViewModule = useMemo(() => {
+    return (module: PermissionModule) => {
+      if (!user) return false
+      return checkView(user.role, user.permissions, module)
+    }
+  }, [user])
+
   return (
     <AuthContext.Provider
       value={{
@@ -72,6 +94,8 @@ function AuthInner({ children }: { children: React.ReactNode }) {
         isLoading: status === 'loading',
         role: user?.role || null,
         logout,
+        hasPermission: userHasPermission,
+        canViewModule: userCanViewModule,
       }}
     >
       {children}

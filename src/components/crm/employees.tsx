@@ -17,6 +17,9 @@ import {
   BarChart3,
   Power,
   Calendar,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -54,6 +57,16 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
+import {
+  MODULE_LABELS,
+  ACTION_LABELS,
+  ROLE_DEFAULTS,
+  createPermissionsFromRole,
+  type Permissions,
+  type ModulePermissions,
+  type PermissionModule,
+  type PermissionAction,
+} from '@/lib/permissions'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -63,6 +76,7 @@ interface Employee {
   email?: string | null
   telephone?: string | null
   role: string
+  permissions: Record<string, unknown> | null
   actif: boolean
   createdAt: string
   updatedAt: string
@@ -232,6 +246,191 @@ function ObjectiveProgress({
   )
 }
 
+// ─── Permissions Editor Component ──────────────────────────────
+
+function PermissionsEditor({
+  permissions,
+  onChange,
+  role,
+}: {
+  permissions: Permissions
+  onChange: (permissions: Permissions) => void
+  role: string
+}) {
+  const isAdmin = role === 'admin'
+  const modules = Object.keys(MODULE_LABELS) as PermissionModule[]
+  const actions: PermissionAction[] = ['view', 'create', 'edit', 'delete']
+
+  const togglePermission = (module: PermissionModule, action: PermissionAction) => {
+    const newPerms = { ...permissions }
+    newPerms[module] = { ...newPerms[module], [action]: !newPerms[module][action] }
+    // If view is turned off, turn off all other actions
+    if (action === 'view' && !newPerms[module].view) {
+      newPerms[module].create = false
+      newPerms[module].edit = false
+      newPerms[module].delete = false
+    }
+    // If an action is turned on but view is off, turn view on
+    if (action !== 'view' && newPerms[module][action] && !newPerms[module].view) {
+      newPerms[module].view = true
+    }
+    onChange(newPerms)
+  }
+
+  const toggleAllForModule = (module: PermissionModule, value: boolean) => {
+    const newPerms = { ...permissions }
+    newPerms[module] = { view: value, create: value, edit: value, delete: value }
+    onChange(newPerms)
+  }
+
+  const setAllPermissions = (value: boolean) => {
+    const newPerms = { ...permissions }
+    for (const mod of modules) {
+      newPerms[mod] = { view: value, create: value, edit: value, delete: value }
+    }
+    onChange(newPerms)
+  }
+
+  const resetToRoleDefaults = () => {
+    onChange(createPermissionsFromRole(role))
+  }
+
+  if (isAdmin) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+          <ShieldCheck className="size-4" />
+          <span className="text-sm font-medium">Accès complet</span>
+        </div>
+        <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
+          Les administrateurs ont accès à tous les modules par défaut. Aucune permission à configurer.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Quick actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => setAllPermissions(true)}
+        >
+          <CheckCircle2 className="mr-1 size-3" />
+          Tout autoriser
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => setAllPermissions(false)}
+        >
+          <EyeOff className="mr-1 size-3" />
+          Tout interdire
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={resetToRoleDefaults}
+        >
+          <Lock className="mr-1 size-3" />
+          Défaut du rôle
+        </Button>
+      </div>
+
+      {/* Permissions grid */}
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b bg-slate-50 dark:bg-slate-800/50">
+              <th className="px-3 py-2 text-left font-medium text-muted-foreground">Module</th>
+              {actions.map(action => (
+                <th key={action} className="px-2 py-2 text-center font-medium text-muted-foreground">
+                  {ACTION_LABELS[action]}
+                </th>
+              ))}
+              <th className="px-2 py-2 text-center font-medium text-muted-foreground">Tout</th>
+            </tr>
+          </thead>
+          <tbody>
+            {modules.map((module, idx) => {
+              const modPerms = permissions[module]
+              const allChecked = modPerms.view && modPerms.create && modPerms.edit && modPerms.delete
+              const noneChecked = !modPerms.view && !modPerms.create && !modPerms.edit && !modPerms.delete
+
+              return (
+                <tr
+                  key={module}
+                  className={`border-b last:border-b-0 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/30'}`}
+                >
+                  <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
+                    {MODULE_LABELS[module].label}
+                  </td>
+                  {actions.map(action => {
+                    const isViewDependent = action !== 'view' && !modPerms.view
+                    return (
+                      <td key={action} className="px-2 py-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => togglePermission(module, action)}
+                          disabled={isViewDependent}
+                          className={`inline-flex size-6 items-center justify-center rounded transition-all ${
+                            modPerms[action]
+                              ? 'bg-[#134885] text-white shadow-sm'
+                              : isViewDependent
+                                ? 'bg-slate-100 text-slate-300 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed'
+                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700'
+                          }`}
+                        >
+                          {modPerms[action] ? (
+                            <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          )}
+                        </button>
+                      </td>
+                    )
+                  })}
+                  <td className="px-2 py-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => toggleAllForModule(module, !allChecked)}
+                      className={`inline-flex size-6 items-center justify-center rounded transition-all ${
+                        allChecked
+                          ? 'bg-[#F6852A] text-white shadow-sm'
+                          : noneChecked
+                            ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
+                            : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+                      }`}
+                    >
+                      {allChecked ? (
+                        <CheckCircle2 className="size-3.5" />
+                      ) : (
+                        <EyeOff className="size-3.5" />
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ──────────────────────────────────────────────
 
 export default function EmployeesModule() {
@@ -269,13 +468,14 @@ export default function EmployeesModule() {
   })
   const [editingObjectiveId, setEditingObjectiveId] = useState<string | null>(null)
 
-  // Employee form
+  // Employee form (with permissions)
   const [formData, setFormData] = useState({
     nom: '',
     email: '',
     telephone: '',
     role: 'commercial',
     actif: true,
+    permissions: createPermissionsFromRole('commercial'),
   })
 
   // ─── Data Fetching ─────────────────────────────────────────────
@@ -328,20 +528,40 @@ export default function EmployeesModule() {
       telephone: '',
       role: 'commercial',
       actif: true,
+      permissions: createPermissionsFromRole('commercial'),
     })
     setShowFormDialog(true)
   }
 
   const openEditDialog = (emp: Employee) => {
     setEditingId(emp.id)
+    const roleDefaults = createPermissionsFromRole(emp.role)
+    // Merge existing permissions with role defaults (fill missing modules)
+    const mergedPerms = { ...roleDefaults }
+    if (emp.permissions && typeof emp.permissions === 'object') {
+      for (const [mod, actions] of Object.entries(emp.permissions)) {
+        if (mod in mergedPerms && typeof actions === 'object' && actions !== null) {
+          mergedPerms[mod as PermissionModule] = {
+            ...mergedPerms[mod as PermissionModule],
+            ...(actions as Partial<ModulePermissions>),
+          }
+        }
+      }
+    }
     setFormData({
       nom: emp.nom,
       email: emp.email || '',
       telephone: emp.telephone || '',
       role: emp.role,
       actif: emp.actif,
+      permissions: mergedPerms,
     })
     setShowFormDialog(true)
+  }
+
+  const handleRoleChange = (newRole: string) => {
+    const newPerms = createPermissionsFromRole(newRole)
+    setFormData(f => ({ ...f, role: newRole, permissions: newPerms }))
   }
 
   const handleSave = async () => {
@@ -351,11 +571,15 @@ export default function EmployeesModule() {
     }
     setSaving(true)
     try {
+      // For admin, send null permissions (they get full access anyway)
+      const permsToSend = formData.role === 'admin' ? null : formData.permissions
+
       const payload = {
         nom: formData.nom.trim(),
         email: formData.email.trim() || null,
         telephone: formData.telephone.trim() || null,
         role: formData.role,
+        permissions: permsToSend,
         actif: formData.actif,
       }
 
@@ -369,7 +593,7 @@ export default function EmployeesModule() {
           const errorData = await res.json()
           throw new Error(errorData.error || 'Update failed')
         }
-        toast({ title: 'Employé modifié', description: 'Les informations ont été mises à jour.' })
+        toast({ title: 'Employé modifié', description: 'Les informations et permissions ont été mises à jour.' })
       } else {
         const res = await fetch('/api/employees', {
           method: 'POST',
@@ -380,7 +604,7 @@ export default function EmployeesModule() {
           const errorData = await res.json()
           throw new Error(errorData.error || 'Create failed')
         }
-        toast({ title: 'Employé ajouté', description: 'Le nouvel employé a été créé.' })
+        toast({ title: 'Employé ajouté', description: 'Le nouvel employé a été créé avec ses permissions.' })
       }
 
       setShowFormDialog(false)
@@ -458,7 +682,6 @@ export default function EmployeesModule() {
     setSavingObjective(true)
     try {
       if (editingObjectiveId) {
-        // Update existing objective
         const res = await fetch(`/api/objectives/${editingObjectiveId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -471,7 +694,6 @@ export default function EmployeesModule() {
         if (!res.ok) throw new Error('Update failed')
         toast({ title: 'Objectif modifié', description: 'L\'objectif a été mis à jour.' })
       } else {
-        // Create/upsert objective
         const res = await fetch('/api/objectives', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -535,7 +757,7 @@ export default function EmployeesModule() {
                   Employés & Objectifs
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  Gestion du personnel
+                  Gestion du personnel et permissions
                 </p>
               </div>
             </div>
@@ -600,10 +822,18 @@ export default function EmployeesModule() {
                               <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
                                 {emp.nom}
                               </h3>
-                              <Badge variant="outline" className={`gap-1 text-[10px] font-medium mt-0.5 ${roleConfig.color}`}>
-                                <RoleIcon className="size-2.5" />
-                                {roleConfig.label}
-                              </Badge>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge variant="outline" className={`gap-1 text-[10px] font-medium ${roleConfig.color}`}>
+                                  <RoleIcon className="size-2.5" />
+                                  {roleConfig.label}
+                                </Badge>
+                                {emp.role !== 'admin' && emp.permissions && typeof emp.permissions === 'object' && Object.keys(emp.permissions).length > 0 && (
+                                  <Badge variant="outline" className="gap-1 text-[10px] font-medium bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                                    <Lock className="size-2.5" />
+                                    Custom
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
                           {!emp.actif && (
@@ -704,7 +934,7 @@ export default function EmployeesModule() {
 
       {/* ─── Add/Edit Employee Dialog ───────────────────────────── */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
@@ -713,7 +943,7 @@ export default function EmployeesModule() {
               {editingId ? 'Modifier l\'employé' : 'Nouvel employé'}
             </DialogTitle>
             <DialogDescription>
-              {editingId ? 'Modifiez les informations de l\'employé.' : 'Ajoutez un nouvel employé à l\'équipe.'}
+              {editingId ? 'Modifiez les informations et permissions de l\'employé.' : 'Ajoutez un nouvel employé à l\'équipe et définissez ses permissions.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -730,25 +960,25 @@ export default function EmployeesModule() {
               />
             </div>
 
-            {/* Email */}
-            <div className="space-y-1.5">
-              <Label className="text-sm">Email</Label>
-              <Input
-                type="email"
-                placeholder="email@exemple.com"
-                value={formData.email}
-                onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
-              />
-            </div>
-
-            {/* Téléphone */}
-            <div className="space-y-1.5">
-              <Label className="text-sm">Téléphone</Label>
-              <Input
-                placeholder="0X XX XX XX XX"
-                value={formData.telephone}
-                onChange={e => setFormData(f => ({ ...f, telephone: e.target.value }))}
-              />
+            {/* Email + Téléphone */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Email</Label>
+                <Input
+                  type="email"
+                  placeholder="email@exemple.com"
+                  value={formData.email}
+                  onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Téléphone</Label>
+                <Input
+                  placeholder="0X XX XX XX XX"
+                  value={formData.telephone}
+                  onChange={e => setFormData(f => ({ ...f, telephone: e.target.value }))}
+                />
+              </div>
             </div>
 
             {/* Rôle */}
@@ -756,7 +986,7 @@ export default function EmployeesModule() {
               <Label className="text-sm">Rôle</Label>
               <Select
                 value={formData.role}
-                onValueChange={v => setFormData(f => ({ ...f, role: v }))}
+                onValueChange={handleRoleChange}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -775,6 +1005,22 @@ export default function EmployeesModule() {
                   })}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Permissions */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Lock className="size-4 text-[#134885] dark:text-[#F6852A]" />
+                <Label className="text-sm font-semibold">Permissions</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Définissez les modules et actions accessibles par cet employé. Changer le rôle réinitialise les permissions aux valeurs par défaut.
+              </p>
+              <PermissionsEditor
+                permissions={formData.permissions}
+                onChange={(perms) => setFormData(f => ({ ...f, permissions: perms }))}
+                role={formData.role}
+              />
             </div>
 
             {/* Actif toggle */}
@@ -861,7 +1107,6 @@ export default function EmployeesModule() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {/* Mois */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Mois</Label>
                 <Input
@@ -871,7 +1116,6 @@ export default function EmployeesModule() {
                 />
               </div>
 
-              {/* CA Objectif */}
               <div className="space-y-1.5">
                 <Label className="text-xs">CA Objectif (DZD)</Label>
                 <Input
@@ -882,7 +1126,6 @@ export default function EmployeesModule() {
                 />
               </div>
 
-              {/* Nombre de ventes */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Nombre de Ventes Objectif</Label>
                 <Input
@@ -893,7 +1136,6 @@ export default function EmployeesModule() {
                 />
               </div>
 
-              {/* Tâches Objectif */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Tâches Objectif</Label>
                 <Input
