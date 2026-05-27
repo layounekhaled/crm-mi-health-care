@@ -1,181 +1,49 @@
----
-Task ID: 1
-Agent: Main Agent
-Task: Full email management implementation for CRM DALIA
+# Worklog
 
-Work Log:
-- Resolved git divergence (rebase with origin/main)
-- Analyzed existing email module codebase (6 API routes, 1 component)
-- Fixed imapflow flags Set→Array conversion bug in inbox and message routes
-- Added tls: { rejectUnauthorized: false } to all IMAP/SMTP connections (8 endpoints)
-- Deleted /api/debug route (security risk)
-- Created new PATCH /api/emails/flags endpoint for mark read/unread/star
-- Complete UI overhaul of emails.tsx (1305 → 1589 lines) with Gmail/Outlook-like design
-- Added: auto-refresh, bulk select, star/unstar, mark read/unread, BCC, pagination, attachment indicators
-- Lint check: 0 errors, 2 pre-existing warnings
-- Git committed and pushed to origin/main (43add06)
+## Task ID: 1 — Add Pagination to Prospects & Clients Pages
 
-Stage Summary:
-- All email API routes fixed and secured
-- New flags API route operational
-- Professional email client UI implemented
-- Code pushed to GitHub, Vercel auto-deploy triggered
+**Date:** 2025-03-04
+**Author:** Agent
+**Status:** ✅ Completed
 
----
-Task ID: 2
-Agent: Main Agent
-Task: Complete RH module - Leave, Absence & Recovery management
+### Summary
+Added full pagination support to the Prospects and Clients pages in the DALIA CRM, and increased the API default limit from 20 to 200 with a max cap of 500.
 
-Work Log:
-- Added 3 Prisma models: LeaveRequest, LeaveMovement, CalendarDay
-- Added Employee relations for leave management
-- Pushed schema to database (prisma db push)
-- Created 6 API routes under /api/rh/
-- Built complete UI component (rh.tsx, 1993 lines)
-- Integrated in sidebar, store, and page routing
-- Lint check: 0 errors
-- Git committed (5c0747e) and pushed to origin/main
+### Changes Made
 
-Stage Summary:
-- Full RH module operational with admin & employee views
-- Workflow: Request → Approval → Movement → Dynamic balance
-- Annual credit auto-generation with anti-duplicate
-- Calendar management for working days/weekends/holidays
-- Notification integration for request/approval flows
+#### 1. API Route (`src/app/api/prospects/route.ts`)
+- Changed default limit from `'20'` to `'200'`
+- Added max limit cap of 500: `const limit = Math.min(rawLimit, 500)`
+- Existing pagination response format preserved (data + pagination object with page, limit, total, totalPages)
 
----
-Task ID: 3
-Agent: Main Agent
-Task: Dashboard enrichi + Module Clients + Module Calendrier
+#### 2. Prospects Component (`src/components/crm/prospects.tsx`)
+- Added `ChevronLeft` import from lucide-react
+- Added pagination state: `page` (default 1), `limit` (default 50), `totalPages` computed
+- Updated `fetchProspects` to pass `page` and `limit` params to API
+- Added `page` and `limit` as dependencies to `fetchProspects` useCallback
+- Reset `page` to 1 when any filter changes (search, sourceFilter, wilayaFilter, tabFilter)
+- Reset `page` to 1 when `limit` changes
+- Added pagination Card UI below the table/mobile cards with:
+  - Items per page selector (25, 50, 100, 200)
+  - Record count display ("X sur Y enregistrements")
+  - Previous/Next buttons with ChevronLeft/ChevronRight icons
+  - Page indicator ("Page X sur Y")
+  - Responsive layout (stacks vertically on mobile)
 
-Work Log:
-- Updated Zustand store: added 'clients' and 'calendar' page types
-- Updated sidebar: added Clients (UserCheck icon) and Calendrier (CalendarClock icon) nav items
-- Enriched Dashboard API with: caByMonth (12 months), topCommercials, topProducts, pipeline data, afterSales by type/statut, prospectsByWilaya
-- Rewrote Dashboard UI with: pipeline funnel visual, CA by month line/area chart, top commercials bar chart, top products list, prospects by wilaya chart, SAV stats section, 2 additional KPIs (SAV en attente, Délai moyen)
-- Created ClientsModule (clients.tsx): dedicated client view with health indicator, quick call/whatsapp, enriched detail dialog with 5 tabs (Profil, Opportunités, Interactions, SAV, Documents)
-- Created CalendarModule (calendar.tsx): monthly/weekly/daily views with color-coded events (tasks, events, interactions, SAV), navigation, day detail dialog, task completion action
-- Updated page.tsx with new component imports and route cases
-- Build successful (0 errors)
-- Git committed (f0fa970) and pushed to origin/main
-- Vercel deployment: BUILDING → READY
-- Tested: site returns 200/307, API returns 401 (auth required)
+#### 3. Clients Component (`src/components/crm/clients.tsx`)
+- Added `ChevronLeft` import from lucide-react
+- Added pagination state: `page` (default 1), `limit` (default 50), `totalPages` computed
+- Updated `fetchClients` to pass `page` and `limit` params to API
+- Added `page` and `limit` as dependencies to `fetchClients` useCallback
+- Reset `page` to 1 when any filter changes (search, wilayaFilter, specialiteFilter)
+- Reset `page` to 1 when `limit` changes
+- Added identical pagination Card UI as Prospects component
 
-Stage Summary:
-- 3 major features deployed: enriched Dashboard, Clients module, Calendar module
-- 7 files changed, 4223 lines added
-- All accessible via sidebar navigation
-- Production URL: https://crm-mi-health-care.vercel.app
+### Files Modified
+- `src/app/api/prospects/route.ts` — Default limit changed, max cap added
+- `src/components/crm/prospects.tsx` — Full pagination support
+- `src/components/crm/clients.tsx` — Full pagination support
 
----
-Task ID: 4
-Agent: Main Agent
-Task: Recherche Globale (Ctrl+K) + Drag & Drop Kanban Opportunités
-
-Work Log:
-- Created /api/search endpoint with role-based filtering across 5 entity types (prospects, opportunities, tasks, employees, events)
-- Created GlobalSearch component using cmdk (CommandDialog) with Ctrl+K/Cmd+K shortcut, 300ms debounce, grouped results
-- Integrated GlobalSearch in page.tsx layout
-- Added @dnd-kit/core + @dnd-kit/sortable drag & drop to Opportunities Kanban
-- Created SortableKanbanCard wrapper component with useSortable hook
-- Added DragOverlay for visual feedback during drag
-- Added motif de perte dialog when dragging to "Perdu" column
-- Replaced all console.error with toast.error in Opportunities module
-- Optimistic updates on drag with API call + toast feedback
-- Build successful (0 errors)
-- Git committed (9c48c58) and pushed to origin/main
-- Vercel deployment: QUEUED → BUILDING → READY
-
-Stage Summary:
-- Global Search (Ctrl+K) fully functional with search API
-- Drag & Drop Kanban with @dnd-kit working
-- Toast notifications added to Opportunities module
-- 6 files changed, 977 lines added
-- Production URL: https://crm-mi-health-care.vercel.app
-
----
-Task ID: 1
-Agent: Main Agent
-Task: Debug email connection "error server" issue
-
-Work Log:
-- Tested IMAP/SMTP connections locally with user's credentials (contact@wistyty.com / Khaled123@)
-- All connections work locally: IMAP port 993 ✅, SMTP port 587 ✅, SMTP port 465 ✅
-- Improved all email API routes with:
-  - Dynamic imports for imapflow/nodemailer (catch import errors)
-  - maxDuration = 60 for Vercel serverless
-  - Detailed error messages instead of generic "Erreur serveur"
-  - Error code reporting (ETIMEDOUT, ECONNREFUSED, etc.)
-- Created public diagnostic endpoint /api/emails/ping for testing from Vercel
-- Added middleware exception for /api/emails/ping
-- Tested ping endpoint on Vercel: ALL connections work from Vercel ✅
-  - DNS resolution ✅
-  - TCP to IMAP port 993 ✅
-  - TCP to SMTP port 587 ✅
-  - imapflow import ✅
-  - nodemailer import ✅
-  - Full IMAP login ✅ (5 folders found)
-  - Full SMTP login ✅
-- Added step-by-step diagnostic to test route (steps array)
-- Updated frontend to show detailed error info and diagnostic steps in toast
-
-Stage Summary:
-- Email connections work perfectly from Vercel (not a port blocking issue)
-- The "error server" was caused by generic error handling that masked the real error
-- With improved error reporting, the user will now see the actual error details
-- User needs to test again and report the specific error message
-
----
-Task ID: 1
-Agent: Main Agent
-Task: Create new Neon database "CRM dalia" and connect project to it
-
-Work Log:
-- Created new database "crm_dalia" on existing Neon instance via SQL (CREATE DATABASE crm_dalia)
-- Ran prisma db push to create all tables in the new database
-- Seeded the database with initial data (5 employees, 5 users, 10 prospects, etc.)
-- Updated .env file with new database connection strings (pooled and direct)
-- Updated Vercel environment variables (DATABASE_URL, DIRECT_URL) on old project to point to crm_dalia
-- Added environment variables to new Vercel project (crm-dalia) on old account
-- Redeployed old project (crm-mi-health-care) to pick up new database URL
-- Deployment is READY and working
-
-Stage Summary:
-- New database: crm_dalia on Neon (ep-divine-darkness-an3iu4co.c-6.us-east-1.aws.neon.tech)
-- DATABASE_URL (pooled): postgresql://neondb_owner:npg_N2ESji9uVPfL@ep-divine-darkness-an3iu4co-pooler.c-6.us-east-1.aws.neon.tech/crm_dalia?sslmode=require
-- DIRECT_URL (unpooled): postgresql://neondb_owner:npg_N2ESji9uVPfL@ep-divine-darkness-an3iu4co.c-6.us-east-1.aws.neon.tech/crm_dalia?sslmode=require
-- Old project (crm-mi-health-care) now uses new database
-- New project (crm-dalia) created on Vercel but user's token (vck_) has limited permissions
-- User needs to either: (1) create project manually on their Vercel account, or (2) get a token with project creation permissions
----
-Task ID: 1
-Agent: Main Agent
-Task: Update Charges module - employee-scoped access + receipt upload (justificatif)
-
-Work Log:
-- Read existing code: charges.tsx, API routes, Prisma schema, sidebar, auth-context
-- Added `justificatifUrl` field to Charge model in Prisma schema
-- Ran `prisma db push` to sync schema with Neon database
-- Created `/api/charges/upload` route for file uploads using Vercel Blob
-- Updated `/api/charges` GET route: non-admin users only see their own charges
-- Updated `/api/charges` POST route: non-admin users auto-assign their employeId
-- Updated `/api/charges/[id]` routes: ownership check for GET/PUT/DELETE, blob cleanup on delete
-- Rewrote charges.tsx UI component:
-  - Added useAuth() to detect admin vs employee
-  - Employee view: no employee selector, no "Par Employé" tab, simplified filters
-  - Added justificatif upload (drag & drop area, file validation, preview)
-  - Added JustificatifThumbnail component with preview dialog
-  - Justificatif column in table with thumbnail preview
-  - Upload progress indicator during save
-- Updated sidebar: Charges now accessible by admin, commercial, and technicien roles
-- Built successfully with `next build`
-- Committed and pushed to GitHub
-- Deployed to Vercel production (deployment READY)
-
-Stage Summary:
-- Charge model now has `justificatifUrl` field for receipt/justificatif storage
-- Employees can add their own charges without seeing others' charges
-- Receipt upload supports images (JPEG, PNG, WebP, GIF) and PDFs up to 10MB
-- Justificatif preview available in dialog with zoom capability
-- Delete charge also removes the associated file from Vercel Blob
-- Deployed at https://crm-dalia.vercel.app
+### Git
+- Commit: `feat: add pagination to Prospects and Clients pages, increase API default limit to 200`
+- Pushed to: `origin/main`
