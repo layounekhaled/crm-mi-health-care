@@ -21,11 +21,13 @@ import {
   ChevronRight,
   PhoneCall,
   CalendarDays,
+  UserCheck,
   Camera,
   Upload,
   ImagePlus,
   Download,
   Loader2,
+  FileText,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -88,6 +90,7 @@ interface Prospect {
   whatsapp: string | null
   etablissement: string | null
   source: string | null
+  recommandePar: string | null
   isClient: boolean
   notes: string | null
   createdAt: string
@@ -362,6 +365,7 @@ export default function ProspectsModule() {
     whatsapp: '',
     etablissement: '',
     source: 'prospection',
+    recommandePar: '',
     notes: '',
     isClient: false,
   })
@@ -439,6 +443,7 @@ export default function ProspectsModule() {
       whatsapp: '',
       etablissement: '',
       source: 'prospection',
+      recommandePar: '',
       notes: '',
       isClient: false,
     })
@@ -457,6 +462,7 @@ export default function ProspectsModule() {
       whatsapp: prospect.whatsapp || '',
       etablissement: prospect.etablissement || '',
       source: prospect.source || 'prospection',
+      recommandePar: (prospect as Prospect & { recommandePar?: string | null }).recommandePar || '',
       notes: prospect.notes || '',
       isClient: prospect.isClient,
     })
@@ -1243,7 +1249,7 @@ export default function ProspectsModule() {
                 <Label>Source</Label>
                 <Select
                   value={formData.source}
-                  onValueChange={(v) => setFormData({ ...formData, source: v })}
+                  onValueChange={(v) => setFormData({ ...formData, source: v, recommandePar: v === 'recommandation' ? formData.recommandePar : '' })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner la source" />
@@ -1257,6 +1263,22 @@ export default function ProspectsModule() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Recommandé par (conditional) */}
+              {formData.source === 'recommandation' && (
+                <div className="grid gap-2">
+                  <Label htmlFor="recommandePar" className="flex items-center gap-1">
+                    <UserCheck className="size-3.5 text-green-500" />
+                    Recommandé par <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="recommandePar"
+                    placeholder="Nom de la personne qui a recommandé"
+                    value={formData.recommandePar}
+                    onChange={(e) => setFormData({ ...formData, recommandePar: e.target.value })}
+                  />
+                </div>
+              )}
 
               {/* Notes */}
               <div className="grid gap-2">
@@ -1311,9 +1333,9 @@ export default function ProspectsModule() {
 
         {/* ── Detail Dialog ───────────────────────────────────────────────── */}
         <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0">
             {detailLoading ? (
-              <div className="space-y-4 py-4">
+              <div className="space-y-4 py-4 px-6">
                 <Skeleton className="h-8 w-48" />
                 <Skeleton className="h-4 w-32" />
                 <div className="space-y-2">
@@ -1323,404 +1345,502 @@ export default function ProspectsModule() {
               </div>
             ) : selectedProspect ? (
               <>
-                <DialogHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <DialogTitle className="text-xl flex items-center gap-2">
-                        {selectedProspect.nom}
+                {/* ── Gradient Header ──────────────────────────────────── */}
+                <div className="bg-gradient-to-r from-[#134885] to-[#1a5ca8] px-6 pt-6 pb-5 text-white rounded-t-lg">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-xl font-bold truncate">{selectedProspect.nom}</h2>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        {selectedProspect.specialite && (
+                          <Badge className="bg-white/20 text-white border-white/30 hover:bg-white/20 border">
+                            <Stethoscope className="size-3 mr-1" />
+                            {selectedProspect.specialite}
+                          </Badge>
+                        )}
                         <StatusBadge isClient={selectedProspect.isClient} />
-                      </DialogTitle>
-                      <DialogDescription className="mt-1">
-                        Détails du {selectedProspect.isClient ? 'client' : 'prospect'}
-                      </DialogDescription>
+                        <SourceBadge source={selectedProspect.source} />
+                        {selectedProspect.source === 'recommandation' && (selectedProspect as ProspectDetail & { recommandePar?: string | null }).recommandePar && (
+                          <Badge className="bg-green-500/30 text-green-100 border-green-400/30 hover:bg-green-500/30 border">
+                            <UserCheck className="size-3 mr-1" />
+                            {(selectedProspect as ProspectDetail & { recommandePar?: string | null }).recommandePar}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     {!selectedProspect.isClient && (
                       <Button
                         size="sm"
-                        className="bg-[#134885] hover:bg-[#0D3A6E] text-white"
+                        className="bg-white/20 text-white hover:bg-white/30 border border-white/30 shrink-0"
                         onClick={() => convertToClient(selectedProspect.id)}
                       >
                         <UserPlus className="size-4 mr-1" />
+                        Convertir
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 space-y-5">
+                  {/* ── Stats Row ──────────────────────────────────────── */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="text-center p-3 rounded-lg bg-blue-50/80 border border-blue-100">
+                      <p className="text-lg font-bold text-[#134885]">{selectedProspect.interactions?.length || 0}</p>
+                      <p className="text-xs text-muted-foreground">Interactions</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-amber-50/80 border border-amber-100">
+                      <p className="text-lg font-bold text-amber-600">{selectedProspect.opportunities?.length || 0}</p>
+                      <p className="text-xs text-muted-foreground">Opportunités</p>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-red-50/80 border border-red-100">
+                      <p className="text-lg font-bold text-red-600">{selectedProspect.afterSales?.length || 0}</p>
+                      <p className="text-xs text-muted-foreground">SAV</p>
+                    </div>
+                  </div>
+
+                  {/* ── Contact Info Grid ──────────────────────────────── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {selectedProspect.telephone && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-blue-50/30 transition-colors">
+                        <div className="flex items-center justify-center size-9 rounded-full bg-blue-50 shrink-0">
+                          <PhoneCall className="size-4 text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Téléphone</p>
+                          <a href={`tel:${selectedProspect.telephone}`} className="text-sm font-mono font-medium text-blue-600 hover:underline block truncate">
+                            {selectedProspect.telephone}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    {selectedProspect.telephone2 && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-blue-50/30 transition-colors">
+                        <div className="flex items-center justify-center size-9 rounded-full bg-slate-50 shrink-0">
+                          <Phone className="size-4 text-slate-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Téléphone 2</p>
+                          <a href={`tel:${selectedProspect.telephone2}`} className="text-sm font-mono font-medium text-slate-600 hover:underline block truncate">
+                            {selectedProspect.telephone2}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    {selectedProspect.whatsapp && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-green-50/30 transition-colors">
+                        <div className="flex items-center justify-center size-9 rounded-full bg-green-50 shrink-0">
+                          <MessageCircle className="size-4 text-green-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">WhatsApp</p>
+                          <a href={`https://wa.me/${selectedProspect.whatsapp.replace(/[\s\-\.]/g, '').replace(/^0/, '213')}`} target="_blank" rel="noopener noreferrer" className="text-sm font-mono font-medium text-green-600 hover:underline block truncate">
+                            {selectedProspect.whatsapp}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    {(() => {
+                      const email = extractEmail(selectedProspect.notes)
+                      return email ? (
+                        <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-purple-50/30 transition-colors">
+                          <div className="flex items-center justify-center size-9 rounded-full bg-purple-50 shrink-0">
+                            <Mail className="size-4 text-purple-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Email</p>
+                            <a href={`mailto:${email}`} className="text-sm font-medium text-purple-600 hover:underline block truncate">
+                              {email}
+                            </a>
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
+                    {selectedProspect.wilaya && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+                        <div className="flex items-center justify-center size-9 rounded-full bg-orange-50 shrink-0">
+                          <MapPin className="size-4 text-orange-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Wilaya</p>
+                          <p className="text-sm font-medium">{selectedProspect.wilaya}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedProspect.source === 'recommandation' && (selectedProspect as ProspectDetail & { recommandePar?: string | null }).recommandePar && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+                        <div className="flex items-center justify-center size-9 rounded-full bg-green-50 shrink-0">
+                          <UserCheck className="size-4 text-green-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Recommandé par</p>
+                          <p className="text-sm font-medium text-green-700">{(selectedProspect as ProspectDetail & { recommandePar?: string | null }).recommandePar}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedProspect.etablissement && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg border bg-white sm:col-span-2">
+                        <div className="flex items-center justify-center size-9 rounded-full bg-slate-50 shrink-0">
+                          <Building2 className="size-4 text-slate-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Établissement</p>
+                          <p className="text-sm font-medium">{selectedProspect.etablissement}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Quick Actions Bar ──────────────────────────────── */}
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProspect.telephone && (
+                      <a href={`tel:${selectedProspect.telephone}`}>
+                        <Button variant="outline" size="sm" className="h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50">
+                          <PhoneCall className="size-3.5 mr-1.5" />
+                          Appeler
+                        </Button>
+                      </a>
+                    )}
+                    {selectedProspect.telephone2 && (
+                      <a href={`tel:${selectedProspect.telephone2}`}>
+                        <Button variant="outline" size="sm" className="h-8 text-xs border-slate-200 text-slate-600 hover:bg-slate-50">
+                          <PhoneCall className="size-3.5 mr-1.5" />
+                          Appeler Tél 2
+                        </Button>
+                      </a>
+                    )}
+                    {selectedProspect.whatsapp && (
+                      <a href={`https://wa.me/${selectedProspect.whatsapp.replace(/[\s\-\.]/g, '').replace(/^0/, '213')}`} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm" className="h-8 text-xs border-green-200 text-green-600 hover:bg-green-50">
+                          <MessageCircle className="size-3.5 mr-1.5" />
+                          WhatsApp
+                        </Button>
+                      </a>
+                    )}
+                    {(() => {
+                      const email = extractEmail(selectedProspect.notes)
+                      return email ? (
+                        <a href={`mailto:${email}`}>
+                          <Button variant="outline" size="sm" className="h-8 text-xs border-purple-200 text-purple-600 hover:bg-purple-50">
+                            <Mail className="size-3.5 mr-1.5" />
+                            Envoyer email
+                          </Button>
+                        </a>
+                      ) : null
+                    })()}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs border-[#134885]/20 text-[#134885] hover:bg-[#134885]/5"
+                      onClick={() => setAddInteractionOpen(true)}
+                    >
+                      <Plus className="size-3.5 mr-1.5" />
+                      Ajouter interaction
+                    </Button>
+                    {!selectedProspect.isClient && (
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs bg-[#134885] hover:bg-[#0D3A6E] text-white"
+                        onClick={() => convertToClient(selectedProspect.id)}
+                      >
+                        <UserPlus className="size-3.5 mr-1.5" />
                         Convertir en client
                       </Button>
                     )}
                   </div>
-                </DialogHeader>
 
-                {/* Email Banner */}
-                {(() => {
-                  const email = extractEmail(selectedProspect.notes)
-                  return email ? (
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-[#134885]/5 border border-[#134885]/10">
-                      <div className="flex items-center justify-center size-9 rounded-full bg-[#134885]/10 shrink-0">
-                        <Mail className="size-4 text-[#134885]" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground">Adresse email</p>
-                        <a
-                          href={`mailto:${email}`}
-                          className="text-sm font-medium text-[#134885] hover:underline truncate block"
-                        >
-                          {email}
-                        </a>
-                      </div>
-                      <a
-                        href={`mailto:${email}`}
-                        className="inline-flex items-center justify-center size-8 rounded-md hover:bg-[#134885]/10 text-[#134885] transition-colors shrink-0"
-                        title="Envoyer un email"
-                      >
-                        <Mail className="size-4" />
-                      </a>
-                    </div>
-                  ) : null
-                })()}
-
-                {/* Info Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2">
-                  {selectedProspect.specialite && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Stethoscope className="size-4 text-[#134885] shrink-0" />
-                      <span className="text-muted-foreground">Spécialité:</span>
-                      <span className="font-medium">{selectedProspect.specialite}</span>
-                    </div>
-                  )}
-                  {selectedProspect.wilaya && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="size-4 text-[#F6852A] shrink-0" />
-                      <span className="text-muted-foreground">Wilaya:</span>
-                      <span className="font-medium">{selectedProspect.wilaya}</span>
-                    </div>
-                  )}
-                  {selectedProspect.telephone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="size-4 text-blue-500 shrink-0" />
-                      <span className="text-muted-foreground">Tél:</span>
-                      <span className="font-mono">{selectedProspect.telephone}</span>
-                      <a
-                        href={`tel:${selectedProspect.telephone}`}
-                        className="inline-flex items-center justify-center size-6 rounded-md hover:bg-blue-50 text-blue-500 transition-colors"
-                        title="Appeler"
-                      >
-                        <PhoneCall className="size-3.5" />
-                      </a>
-                    </div>
-                  )}
-                  {selectedProspect.telephone2 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="size-4 text-slate-400 shrink-0" />
-                      <span className="text-muted-foreground">Tél 2:</span>
-                      <span className="font-mono">{selectedProspect.telephone2}</span>
-                      <a
-                        href={`tel:${selectedProspect.telephone2}`}
-                        className="inline-flex items-center justify-center size-6 rounded-md hover:bg-slate-50 text-slate-500 transition-colors"
-                        title="Appeler"
-                      >
-                        <PhoneCall className="size-3.5" />
-                      </a>
-                    </div>
-                  )}
-                  {selectedProspect.whatsapp && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <MessageCircle className="size-4 text-green-500 shrink-0" />
-                      <span className="text-muted-foreground">WhatsApp:</span>
-                      <span className="font-mono">{selectedProspect.whatsapp}</span>
-                      <a
-                        href={`https://wa.me/${selectedProspect.whatsapp.replace(/[\s\-\.]/g, '').replace(/^0/, '213')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center size-6 rounded-md hover:bg-green-50 text-green-500 transition-colors"
-                        title="WhatsApp"
-                      >
-                        <MessageCircle className="size-3.5" />
-                      </a>
-                    </div>
-                  )}
-                  {selectedProspect.etablissement && (
-                    <div className="flex items-center gap-2 text-sm sm:col-span-2">
-                      <Building2 className="size-4 text-slate-500 shrink-0" />
-                      <span className="text-muted-foreground">Établissement:</span>
-                      <span className="font-medium">{selectedProspect.etablissement}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">Source:</span>
-                    <SourceBadge source={selectedProspect.source} />
-                  </div>
-                </div>
-
-                {selectedProspect.notes && (
-                  <>
-                    <Separator />
-                    <div>
-                      <h4 className="text-sm font-semibold mb-1">Notes</h4>
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                        {selectedProspect.notes}
-                      </p>
-                    </div>
-                  </>
-                )}
-
-                {/* Interactions */}
-                <Separator />
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
-                      <Phone className="size-4 text-[#134885]" />
-                      Historique des interactions
-                      {selectedProspect.interactions?.length > 0 && (
-                        <Badge variant="secondary" className="text-xs">
-                          {selectedProspect.interactions.length}
-                        </Badge>
-                      )}
-                    </h4>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs border-[#134885]/20 text-[#134885] hover:bg-[#134885]/5"
-                      onClick={() => setAddInteractionOpen(true)}
-                    >
-                      <Plus className="size-3 mr-1" />
-                      Ajouter
-                    </Button>
-                  </div>
-
-                  {selectedProspect.interactions?.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Aucune interaction enregistrée
-                    </p>
-                  ) : (
-                    <ScrollArea className="max-h-48">
-                      <div className="space-y-2">
-                        {selectedProspect.interactions?.map((interaction) => (
-                          <div
-                            key={interaction.id}
-                            className="flex items-start gap-3 p-2.5 rounded-md bg-slate-50 hover:bg-slate-100 transition-colors"
-                          >
-                            <InteractionIcon type={interaction.type} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium capitalize">
-                                  {INTERACTION_TYPES.find((t) => t.value === interaction.type)?.label || interaction.type}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(interaction.date).toLocaleDateString('fr-FR', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric',
-                                  })}
-                                </span>
-                                {interaction.employe && (
-                                  <span className="text-xs text-muted-foreground">
-                                    par {interaction.employe.nom}
-                                  </span>
-                                )}
-                              </div>
-                              {interaction.notes && (
-                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                                  {interaction.notes}
-                                </p>
-                              )}
-                              {(interaction.task || interaction.afterSale) && (
-                                <div className="flex items-center gap-1.5 mt-1">
-                                  {interaction.task && (
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-slate-100">
-                                      📋 {interaction.task.titre}
-                                    </Badge>
-                                  )}
-                                  {interaction.afterSale && (
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
-                                      🔧 SAV: {interaction.afterSale.type}
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                  {/* ── Notes Section ──────────────────────────────────── */}
+                  {(() => {
+                    const email = extractEmail(selectedProspect.notes)
+                    const cleanedNotes = selectedProspect.notes
+                      ?.split('\n')
+                      .filter(line => {
+                        const trimmed = line.trim()
+                        if (!trimmed) return true // keep empty lines
+                        if (email && trimmed.match(/^Email:\s*/i)) return false
+                        return true
+                      })
+                      .join('\n')
+                      .trim()
+                    return cleanedNotes ? (
+                      <>
+                        <Separator />
+                        <div>
+                          <h4 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+                            <FileText className="size-4 text-[#134885]" />
+                            Notes
+                          </h4>
+                          <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                              {cleanedNotes}
+                            </p>
                           </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </div>
+                        </div>
+                      </>
+                    ) : null
+                  })()}
 
-                {/* Opportunities */}
-                <Separator />
-                <div>
-                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <ChevronRight className="size-4 text-[#134885]" />
-                    Opportunités liées
-                    {selectedProspect.opportunities?.length > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        {selectedProspect.opportunities.length}
-                      </Badge>
-                    )}
-                  </h4>
-
-                  {selectedProspect.opportunities?.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Aucune opportunité liée
-                    </p>
-                  ) : (
-                    <ScrollArea className="max-h-48">
-                      <div className="space-y-2">
-                        {selectedProspect.opportunities?.map((opp) => (
-                          <div
-                            key={opp.id}
-                            className="flex items-center justify-between p-2.5 rounded-md bg-slate-50 hover:bg-slate-100 transition-colors"
-                          >
-                            <div>
-                              <p className="text-sm font-medium">{opp.nomProjet}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {opp.commercial ? `Commercial: ${opp.commercial.nom}` : 'Non assigné'}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {opp.montantEstime && (
-                                <span className="text-xs font-medium text-[#134885]">
-                                  {opp.montantEstime.toLocaleString('fr-FR')} DA
-                                </span>
-                              )}
-                              <Badge
-                                variant="outline"
-                                className={
-                                  opp.statut === 'Gagné'
-                                    ? 'bg-[#134885]/5 text-[#134885] border-[#134885]/20'
-                                    : opp.statut === 'Perdu'
-                                      ? 'bg-red-50 text-red-700 border-red-200'
-                                      : 'bg-blue-50 text-blue-700 border-blue-200'
-                                }
-                              >
-                                {opp.statut}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </div>
-
-                {/* ── Photos Gallery ────────────────────────────────────────────── */}
-                <Separator className="my-4" />
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Camera className="size-4 text-[#134885]" />
-                      <h3 className="text-sm font-semibold">Photos</h3>
-                      <Badge variant="secondary" className="text-xs">
-                        {selectedProspect.photos?.length || 0}
-                      </Badge>
-                    </div>
-                    <div>
-                      <input
-                        ref={photoInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
-                        className="hidden"
-                        onChange={handlePhotoUpload}
-                      />
+                  {/* ── Interactions ───────────────────────────────────── */}
+                  <Separator />
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <Phone className="size-4 text-[#134885]" />
+                        Historique des interactions
+                        {selectedProspect.interactions?.length > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {selectedProspect.interactions.length}
+                          </Badge>
+                        )}
+                      </h4>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="gap-1.5 text-xs"
-                        disabled={uploadingPhoto}
-                        onClick={() => photoInputRef.current?.click()}
+                        className="h-7 text-xs border-[#134885]/20 text-[#134885] hover:bg-[#134885]/5"
+                        onClick={() => setAddInteractionOpen(true)}
                       >
-                        {uploadingPhoto ? (
-                          <>
-                            <Loader2 className="size-3.5 animate-spin" />
-                            Upload...
-                          </>
-                        ) : (
-                          <>
-                            <ImagePlus className="size-3.5" />
-                            Ajouter
-                          </>
-                        )}
+                        <Plus className="size-3 mr-1" />
+                        Ajouter
                       </Button>
                     </div>
+
+                    {selectedProspect.interactions?.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Aucune interaction enregistrée
+                      </p>
+                    ) : (
+                      <ScrollArea className="max-h-48">
+                        <div className="space-y-2">
+                          {selectedProspect.interactions?.map((interaction) => (
+                            <div
+                              key={interaction.id}
+                              className="flex items-start gap-3 p-2.5 rounded-md bg-slate-50 hover:bg-slate-100 transition-colors"
+                            >
+                              <InteractionIcon type={interaction.type} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium capitalize">
+                                    {INTERACTION_TYPES.find((t) => t.value === interaction.type)?.label || interaction.type}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(interaction.date).toLocaleDateString('fr-FR', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric',
+                                    })}
+                                  </span>
+                                  {interaction.employe && (
+                                    <span className="text-xs text-muted-foreground">
+                                      par {interaction.employe.nom}
+                                    </span>
+                                  )}
+                                </div>
+                                {interaction.notes && (
+                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                    {interaction.notes}
+                                  </p>
+                                )}
+                                {(interaction.task || interaction.afterSale) && (
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    {interaction.task && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-slate-100">
+                                        📋 {interaction.task.titre}
+                                      </Badge>
+                                    )}
+                                    {interaction.afterSale && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
+                                        🔧 SAV: {interaction.afterSale.type}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
                   </div>
 
-                  {/* Photo Grid */}
-                  {selectedProspect.photos && selectedProspect.photos.length > 0 ? (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {selectedProspect.photos.map((photo) => (
-                        <div
-                          key={photo.id}
-                          className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50 cursor-pointer transition-all hover:shadow-md hover:border-[#134885]/30"
-                          onClick={() => setPhotoPreview(photo.url)}
-                        >
-                          <img
-                            src={photo.url}
-                            alt={photo.legend || photo.fileName}
-                            className="size-full object-cover transition-transform group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100">
-                            <div className="absolute bottom-0 left-0 right-0 p-1.5">
-                              {photo.legend && (
-                                <p className="text-[10px] text-white truncate font-medium">{photo.legend}</p>
-                              )}
-                              <p className="text-[9px] text-white/70">
-                                {photo.uploader?.nom || '—'} · {new Date(photo.createdAt).toLocaleDateString('fr-FR')}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            className="absolute top-1 right-1 size-6 flex items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handlePhotoDelete(photo.id)
-                            }}
-                          >
-                            <Trash2 className="size-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 rounded-lg border border-dashed border-slate-200 bg-slate-50/50">
-                      <Camera className="size-8 text-slate-300 mb-2" />
-                      <p className="text-xs text-muted-foreground">Aucune photo</p>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="mt-2 text-xs text-[#134885]"
-                        disabled={uploadingPhoto}
-                        onClick={() => photoInputRef.current?.click()}
-                      >
-                        <Upload className="size-3 mr-1" />
-                        Ajouter une photo
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                  {/* ── Opportunities ──────────────────────────────────── */}
+                  <Separator />
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <ChevronRight className="size-4 text-[#134885]" />
+                      Opportunités liées
+                      {selectedProspect.opportunities?.length > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {selectedProspect.opportunities.length}
+                        </Badge>
+                      )}
+                    </h4>
 
-                {/* Footer actions */}
-                <DialogFooter className="gap-2 sm:gap-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setDetailOpen(false)
-                      if (selectedProspect) openEditForm(selectedProspect)
-                    }}
-                  >
-                    <Pencil className="size-4 mr-1" />
-                    Modifier
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-red-50"
-                    onClick={() => {
-                      setDetailOpen(false)
-                      setDeleteId(selectedProspect.id)
-                      setDeleteOpen(true)
-                    }}
-                  >
-                    <Trash2 className="size-4 mr-1" />
-                    Supprimer
-                  </Button>
-                </DialogFooter>
+                    {selectedProspect.opportunities?.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Aucune opportunité liée
+                      </p>
+                    ) : (
+                      <ScrollArea className="max-h-48">
+                        <div className="space-y-2">
+                          {selectedProspect.opportunities?.map((opp) => (
+                            <div
+                              key={opp.id}
+                              className="flex items-center justify-between p-2.5 rounded-md bg-slate-50 hover:bg-slate-100 transition-colors"
+                            >
+                              <div>
+                                <p className="text-sm font-medium">{opp.nomProjet}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {opp.commercial ? `Commercial: ${opp.commercial.nom}` : 'Non assigné'}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {opp.montantEstime && (
+                                  <span className="text-xs font-medium text-[#134885]">
+                                    {opp.montantEstime.toLocaleString('fr-FR')} DA
+                                  </span>
+                                )}
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    opp.statut === 'Gagné'
+                                      ? 'bg-[#134885]/5 text-[#134885] border-[#134885]/20'
+                                      : opp.statut === 'Perdu'
+                                        ? 'bg-red-50 text-red-700 border-red-200'
+                                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                                  }
+                                >
+                                  {opp.statut}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </div>
+
+                  {/* ── Photos Gallery ────────────────────────────────────── */}
+                  <Separator className="my-4" />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Camera className="size-4 text-[#134885]" />
+                        <h3 className="text-sm font-semibold">Photos</h3>
+                        <Badge variant="secondary" className="text-xs">
+                          {selectedProspect.photos?.length || 0}
+                        </Badge>
+                      </div>
+                      <div>
+                        <input
+                          ref={photoInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          className="hidden"
+                          onChange={handlePhotoUpload}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs"
+                          disabled={uploadingPhoto}
+                          onClick={() => photoInputRef.current?.click()}
+                        >
+                          {uploadingPhoto ? (
+                            <>
+                              <Loader2 className="size-3.5 animate-spin" />
+                              Upload...
+                            </>
+                          ) : (
+                            <>
+                              <ImagePlus className="size-3.5" />
+                              Ajouter
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Photo Grid */}
+                    {selectedProspect.photos && selectedProspect.photos.length > 0 ? (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {selectedProspect.photos.map((photo) => (
+                          <div
+                            key={photo.id}
+                            className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50 cursor-pointer transition-all hover:shadow-md hover:border-[#134885]/30"
+                            onClick={() => setPhotoPreview(photo.url)}
+                          >
+                            <img
+                              src={photo.url}
+                              alt={photo.legend || photo.fileName}
+                              className="size-full object-cover transition-transform group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100">
+                              <div className="absolute bottom-0 left-0 right-0 p-1.5">
+                                {photo.legend && (
+                                  <p className="text-[10px] text-white truncate font-medium">{photo.legend}</p>
+                                )}
+                                <p className="text-[9px] text-white/70">
+                                  {photo.uploader?.nom || '—'} · {new Date(photo.createdAt).toLocaleDateString('fr-FR')}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              className="absolute top-1 right-1 size-6 flex items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handlePhotoDelete(photo.id)
+                              }}
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-6 rounded-lg border border-dashed border-slate-200 bg-slate-50/50">
+                        <Camera className="size-8 text-slate-300 mb-2" />
+                        <p className="text-xs text-muted-foreground">Aucune photo</p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="mt-2 text-xs text-[#134885]"
+                          disabled={uploadingPhoto}
+                          onClick={() => photoInputRef.current?.click()}
+                        >
+                          <Upload className="size-3 mr-1" />
+                          Ajouter une photo
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer actions */}
+                  <Separator />
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setDetailOpen(false)
+                        if (selectedProspect) openEditForm(selectedProspect)
+                      }}
+                    >
+                      <Pencil className="size-4 mr-1" />
+                      Modifier
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-red-50"
+                      onClick={() => {
+                        setDetailOpen(false)
+                        setDeleteId(selectedProspect.id)
+                        setDeleteOpen(true)
+                      }}
+                    >
+                      <Trash2 className="size-4 mr-1" />
+                      Supprimer
+                    </Button>
+                  </DialogFooter>
+                </div>
               </>
             ) : (
               <div className="py-8 text-center text-muted-foreground">

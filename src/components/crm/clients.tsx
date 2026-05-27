@@ -92,6 +92,7 @@ interface Client {
   whatsapp: string | null
   etablissement: string | null
   source: string | null
+  recommandePar: string | null
   isClient: true
   notes: string | null
   createdAt: string
@@ -458,6 +459,7 @@ export default function ClientsModule() {
     whatsapp: '',
     etablissement: '',
     source: 'prospection',
+    recommandePar: '',
     notes: '',
     isClient: true as true,
   })
@@ -552,6 +554,7 @@ export default function ClientsModule() {
       whatsapp: '',
       etablissement: '',
       source: 'prospection',
+      recommandePar: '',
       notes: '',
       isClient: true,
     })
@@ -570,6 +573,7 @@ export default function ClientsModule() {
       whatsapp: client.whatsapp || '',
       etablissement: client.etablissement || '',
       source: client.source || 'prospection',
+      recommandePar: (client as Client & { recommandePar?: string | null }).recommandePar || '',
       notes: client.notes || '',
       isClient: true,
     })
@@ -790,7 +794,7 @@ export default function ClientsModule() {
 
     return (
       <div className="space-y-4">
-        {/* Health indicator */}
+        {/* Health indicator + Client badge */}
         <div className="flex items-center justify-between">
           <HealthIndicator daysSinceLastInteraction={daysSince} />
           <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 border">
@@ -798,125 +802,136 @@ export default function ClientsModule() {
           </Badge>
         </div>
 
-        {/* Email Banner */}
-        {(() => {
-          const email = extractEmail(selectedClient.notes)
-          return email ? (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-[#134885]/5 border border-[#134885]/10">
-              <div className="flex items-center justify-center size-9 rounded-full bg-[#134885]/10 shrink-0">
-                <Mail className="size-4 text-[#134885]" />
+        {/* ── Stats Row ──────────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="text-center p-3 rounded-lg bg-blue-50/80 border border-blue-100">
+            <p className="text-lg font-bold text-[#134885]">{selectedClient.opportunities?.length || 0}</p>
+            <p className="text-xs text-muted-foreground">Opportunités</p>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-amber-50/80 border border-amber-100">
+            <p className="text-lg font-bold text-amber-600">{selectedClient.interactions?.length || 0}</p>
+            <p className="text-xs text-muted-foreground">Interactions</p>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-red-50/80 border border-red-100">
+            <p className="text-lg font-bold text-red-600">{selectedClient.afterSales?.length || 0}</p>
+            <p className="text-xs text-muted-foreground">SAV</p>
+          </div>
+        </div>
+
+        {/* ── Contact Info Grid ──────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {selectedClient.telephone && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-blue-50/30 transition-colors">
+              <div className="flex items-center justify-center size-9 rounded-full bg-blue-50 shrink-0">
+                <PhoneCall className="size-4 text-blue-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">Adresse email</p>
-                <a
-                  href={`mailto:${email}`}
-                  className="text-sm font-medium text-[#134885] hover:underline truncate block"
-                >
-                  {email}
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Téléphone</p>
+                <a href={`tel:${selectedClient.telephone}`} className="text-sm font-mono font-medium text-blue-600 hover:underline block truncate">
+                  {selectedClient.telephone}
                 </a>
               </div>
-              <a
-                href={`mailto:${email}`}
-                className="inline-flex items-center justify-center size-8 rounded-md hover:bg-[#134885]/10 text-[#134885] transition-colors shrink-0"
-                title="Envoyer un email"
-              >
-                <Mail className="size-4" />
-              </a>
-            </div>
-          ) : null
-        })()}
-
-        {/* Info Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {selectedClient.specialite && (
-            <div className="flex items-center gap-2 text-sm">
-              <Stethoscope className="size-4 text-[#134885] shrink-0" />
-              <span className="text-muted-foreground">Spécialité:</span>
-              <span className="font-medium">{selectedClient.specialite}</span>
-            </div>
-          )}
-          {selectedClient.wilaya && (
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="size-4 text-[#F6852A] shrink-0" />
-              <span className="text-muted-foreground">Wilaya:</span>
-              <span className="font-medium">{selectedClient.wilaya}</span>
-            </div>
-          )}
-          {selectedClient.telephone && (
-            <div className="flex items-center gap-2 text-sm">
-              <Phone className="size-4 text-blue-500 shrink-0" />
-              <span className="text-muted-foreground">Tél:</span>
-              <span className="font-mono">{selectedClient.telephone}</span>
-              <a
-                href={`tel:${selectedClient.telephone}`}
-                className="inline-flex items-center justify-center size-6 rounded-md hover:bg-blue-50 text-blue-500 transition-colors"
-                title="Appeler"
-              >
-                <PhoneCall className="size-3.5" />
-              </a>
             </div>
           )}
           {selectedClient.telephone2 && (
-            <div className="flex items-center gap-2 text-sm">
-              <Phone className="size-4 text-slate-400 shrink-0" />
-              <span className="text-muted-foreground">Tél 2:</span>
-              <span className="font-mono">{selectedClient.telephone2}</span>
-              <a
-                href={`tel:${selectedClient.telephone2}`}
-                className="inline-flex items-center justify-center size-6 rounded-md hover:bg-slate-50 text-slate-500 transition-colors"
-                title="Appeler"
-              >
-                <PhoneCall className="size-3.5" />
-              </a>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-blue-50/30 transition-colors">
+              <div className="flex items-center justify-center size-9 rounded-full bg-slate-50 shrink-0">
+                <Phone className="size-4 text-slate-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Téléphone 2</p>
+                <a href={`tel:${selectedClient.telephone2}`} className="text-sm font-mono font-medium text-slate-600 hover:underline block truncate">
+                  {selectedClient.telephone2}
+                </a>
+              </div>
             </div>
           )}
           {selectedClient.whatsapp && (
-            <div className="flex items-center gap-2 text-sm">
-              <MessageCircle className="size-4 text-green-500 shrink-0" />
-              <span className="text-muted-foreground">WhatsApp:</span>
-              <span className="font-mono">{selectedClient.whatsapp}</span>
-              <a
-                href={`https://wa.me/${cleanPhoneNumber(selectedClient.whatsapp)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center size-6 rounded-md hover:bg-green-50 text-green-500 transition-colors"
-                title="WhatsApp"
-              >
-                <MessageCircle className="size-3.5" />
-              </a>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-green-50/30 transition-colors">
+              <div className="flex items-center justify-center size-9 rounded-full bg-green-50 shrink-0">
+                <MessageCircle className="size-4 text-green-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">WhatsApp</p>
+                <a href={`https://wa.me/${cleanPhoneNumber(selectedClient.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="text-sm font-mono font-medium text-green-600 hover:underline block truncate">
+                  {selectedClient.whatsapp}
+                </a>
+              </div>
+            </div>
+          )}
+          {(() => {
+            const email = extractEmail(selectedClient.notes)
+            return email ? (
+              <div className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:bg-purple-50/30 transition-colors">
+                <div className="flex items-center justify-center size-9 rounded-full bg-purple-50 shrink-0">
+                  <Mail className="size-4 text-purple-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Email</p>
+                  <a href={`mailto:${email}`} className="text-sm font-medium text-purple-600 hover:underline block truncate">
+                    {email}
+                  </a>
+                </div>
+              </div>
+            ) : null
+          })()}
+          {selectedClient.wilaya && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+              <div className="flex items-center justify-center size-9 rounded-full bg-orange-50 shrink-0">
+                <MapPin className="size-4 text-orange-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Wilaya</p>
+                <p className="text-sm font-medium">{selectedClient.wilaya}</p>
+              </div>
+            </div>
+          )}
+          {selectedClient.source === 'recommandation' && (selectedClient as ClientDetail & { recommandePar?: string | null }).recommandePar && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+              <div className="flex items-center justify-center size-9 rounded-full bg-green-50 shrink-0">
+                <UserCheck className="size-4 text-green-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Recommandé par</p>
+                <p className="text-sm font-medium text-green-700">{(selectedClient as ClientDetail & { recommandePar?: string | null }).recommandePar}</p>
+              </div>
             </div>
           )}
           {selectedClient.etablissement && (
-            <div className="flex items-center gap-2 text-sm sm:col-span-2">
-              <Building2 className="size-4 text-slate-500 shrink-0" />
-              <span className="text-muted-foreground">Établissement:</span>
-              <span className="font-medium">{selectedClient.etablissement}</span>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-white sm:col-span-2">
+              <div className="flex items-center justify-center size-9 rounded-full bg-slate-50 shrink-0">
+                <Building2 className="size-4 text-slate-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Établissement</p>
+                <p className="text-sm font-medium">{selectedClient.etablissement}</p>
+              </div>
             </div>
           )}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Source:</span>
-            <SourceBadge source={selectedClient.source} />
+          <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+            <div className="flex items-center justify-center size-9 rounded-full bg-slate-50 shrink-0">
+              <CalendarDays className="size-4 text-slate-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Client depuis</p>
+              <p className="text-sm font-medium">{formatDate(selectedClient.createdAt)}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <CalendarDays className="size-4 text-slate-400 shrink-0" />
-            <span className="text-muted-foreground">Client depuis:</span>
-            <span className="font-medium">{formatDate(selectedClient.createdAt)}</span>
+          <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+            <div className="flex items-center justify-center size-9 rounded-full shrink-0">
+              <SourceBadge source={selectedClient.source} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Source</p>
+              <p className="text-sm font-medium">
+                {selectedClient.source === 'recommandation' ? 'Recommandation' : selectedClient.source === 'événement' ? 'Événement' : 'Prospection'}
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-2">
-          {(() => {
-            const email = extractEmail(selectedClient.notes)
-            return email ? (
-              <a href={`mailto:${email}`}>
-                <Button variant="outline" size="sm" className="h-8 text-xs border-[#134885]/20 text-[#134885] hover:bg-[#134885]/5">
-                  <Mail className="size-3.5 mr-1.5" />
-                  Email
-                </Button>
-              </a>
-            ) : null
-          })()}
           {selectedClient.telephone && (
             <a href={`tel:${selectedClient.telephone}`}>
               <Button variant="outline" size="sm" className="h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50">
@@ -941,6 +956,17 @@ export default function ClientsModule() {
               </Button>
             </a>
           )}
+          {(() => {
+            const email = extractEmail(selectedClient.notes)
+            return email ? (
+              <a href={`mailto:${email}`}>
+                <Button variant="outline" size="sm" className="h-8 text-xs border-purple-200 text-purple-600 hover:bg-purple-50">
+                  <Mail className="size-3.5 mr-1.5" />
+                  Envoyer email
+                </Button>
+              </a>
+            ) : null
+          })()}
           <Button
             variant="outline"
             size="sm"
@@ -952,34 +978,36 @@ export default function ClientsModule() {
           </Button>
         </div>
 
-        {selectedClient.notes && (
-          <>
-            <Separator />
-            <div>
-              <h4 className="text-sm font-semibold mb-1">Notes</h4>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {selectedClient.notes}
-              </p>
-            </div>
-          </>
-        )}
-
-        {/* Summary counts */}
-        <Separator />
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center p-3 rounded-lg bg-blue-50/60">
-            <p className="text-lg font-bold text-[#134885]">{selectedClient.opportunities?.length || 0}</p>
-            <p className="text-xs text-muted-foreground">Opportunités</p>
-          </div>
-          <div className="text-center p-3 rounded-lg bg-amber-50/60">
-            <p className="text-lg font-bold text-amber-600">{selectedClient.interactions?.length || 0}</p>
-            <p className="text-xs text-muted-foreground">Interactions</p>
-          </div>
-          <div className="text-center p-3 rounded-lg bg-red-50/60">
-            <p className="text-lg font-bold text-red-600">{selectedClient.afterSales?.length || 0}</p>
-            <p className="text-xs text-muted-foreground">SAV</p>
-          </div>
-        </div>
+        {/* Notes */}
+        {(() => {
+          const email = extractEmail(selectedClient.notes)
+          const cleanedNotes = selectedClient.notes
+            ?.split('\n')
+            .filter(line => {
+              const trimmed = line.trim()
+              if (!trimmed) return true
+              if (email && trimmed.match(/^Email:\s*/i)) return false
+              return true
+            })
+            .join('\n')
+            .trim()
+          return cleanedNotes ? (
+            <>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+                  <FileText className="size-4 text-[#134885]" />
+                  Notes
+                </h4>
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {cleanedNotes}
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : null
+        })()}
       </div>
     )
   }
@@ -1850,7 +1878,7 @@ export default function ClientsModule() {
                 <Label>Source</Label>
                 <Select
                   value={formData.source}
-                  onValueChange={(v) => setFormData({ ...formData, source: v })}
+                  onValueChange={(v) => setFormData({ ...formData, source: v, recommandePar: v === 'recommandation' ? formData.recommandePar : '' })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner la source" />
@@ -1864,6 +1892,22 @@ export default function ClientsModule() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Recommandé par (conditional) */}
+              {formData.source === 'recommandation' && (
+                <div className="grid gap-2">
+                  <Label htmlFor="recommandePar" className="flex items-center gap-1">
+                    <UserCheck className="size-3.5 text-green-500" />
+                    Recommandé par <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="recommandePar"
+                    placeholder="Nom de la personne qui a recommandé"
+                    value={formData.recommandePar}
+                    onChange={(e) => setFormData({ ...formData, recommandePar: e.target.value })}
+                  />
+                </div>
+              )}
 
               {/* Notes */}
               <div className="grid gap-2">
@@ -1904,9 +1948,9 @@ export default function ClientsModule() {
 
         {/* ── Detail Dialog ───────────────────────────────────────────────── */}
         <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-          <DialogContent className="sm:max-w-[750px] max-h-[90vh]">
+          <DialogContent className="sm:max-w-[750px] max-h-[90vh] p-0">
             {detailLoading ? (
-              <div className="space-y-4 py-4">
+              <div className="space-y-4 py-4 px-6">
                 <Skeleton className="h-8 w-48" />
                 <Skeleton className="h-4 w-32" />
                 <div className="space-y-2">
@@ -1916,23 +1960,34 @@ export default function ClientsModule() {
               </div>
             ) : selectedClient ? (
               <>
-                <DialogHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <DialogTitle className="text-xl flex items-center gap-2">
-                        {selectedClient.nom}
-                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 border">
+                {/* ── Gradient Header ──────────────────────────────────── */}
+                <div className="bg-gradient-to-r from-[#134885] to-[#1a5ca8] px-6 pt-6 pb-5 text-white rounded-t-lg">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-xl font-bold truncate">{selectedClient.nom}</h2>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        {selectedClient.specialite && (
+                          <Badge className="bg-white/20 text-white border-white/30 hover:bg-white/20 border">
+                            <Stethoscope className="size-3 mr-1" />
+                            {selectedClient.specialite}
+                          </Badge>
+                        )}
+                        <Badge className="bg-green-500/30 text-green-100 border-green-400/30 hover:bg-green-500/30 border">
                           Client
                         </Badge>
-                      </DialogTitle>
-                      <DialogDescription className="mt-1">
-                        Fiche client détaillée
-                      </DialogDescription>
+                        <SourceBadge source={selectedClient.source} />
+                        {selectedClient.source === 'recommandation' && (selectedClient as ClientDetail & { recommandePar?: string | null }).recommandePar && (
+                          <Badge className="bg-green-500/30 text-green-100 border-green-400/30 hover:bg-green-500/30 border">
+                            <UserCheck className="size-3 mr-1" />
+                            {(selectedClient as ClientDetail & { recommandePar?: string | null }).recommandePar}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                       {selectedClient.telephone && (
                         <a href={`tel:${selectedClient.telephone}`}>
-                          <Button variant="outline" size="sm" className="h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50">
+                          <Button variant="outline" size="sm" className="h-8 text-xs bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white">
                             <PhoneCall className="size-3.5 mr-1" />
                             Appeler
                           </Button>
@@ -1940,7 +1995,7 @@ export default function ClientsModule() {
                       )}
                       {selectedClient.whatsapp && (
                         <a href={`https://wa.me/${cleanPhoneNumber(selectedClient.whatsapp)}`} target="_blank" rel="noopener noreferrer">
-                          <Button variant="outline" size="sm" className="h-8 text-xs border-green-200 text-green-600 hover:bg-green-50">
+                          <Button variant="outline" size="sm" className="h-8 text-xs bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white">
                             <MessageCircle className="size-3.5 mr-1" />
                             WhatsApp
                           </Button>
@@ -1948,9 +2003,10 @@ export default function ClientsModule() {
                       )}
                     </div>
                   </div>
-                </DialogHeader>
+                </div>
 
-                <Tabs defaultValue="profile" className="mt-2">
+                <div className="px-6 py-2">
+                  <Tabs defaultValue="profile" className="mt-0">
                   <TabsList className="w-full grid grid-cols-5">
                     <TabsTrigger value="profile" className="text-xs">
                       <UserCheck className="size-3.5 mr-1 hidden sm:inline" />
@@ -1992,11 +2048,12 @@ export default function ClientsModule() {
                     </TabsContent>
                   </ScrollArea>
                 </Tabs>
+                </div>
 
                 <Separator />
 
                 {/* Footer actions */}
-                <DialogFooter className="gap-2 sm:gap-0">
+                <DialogFooter className="gap-2 sm:gap-0 px-6 pb-4">
                   <Button
                     variant="outline"
                     size="sm"
