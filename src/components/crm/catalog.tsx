@@ -62,7 +62,6 @@ interface Product {
   categorie: string | null
   reference: string | null
   description: string | null
-  prixReference: number | null
   prix1: number | null
   prix2: number | null
   prix3: number | null
@@ -145,7 +144,6 @@ export default function CatalogModule() {
     categorie: '',
     reference: '',
     description: '',
-    prixReference: '',
     prix1: '',
     prix2: '',
     prix3: '',
@@ -188,7 +186,6 @@ export default function CatalogModule() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          prixReference: formData.prixReference ? parseFloat(formData.prixReference) : null,
           prix1: formData.prix1 ? parseFloat(formData.prix1) : null,
           prix2: formData.prix2 ? parseFloat(formData.prix2) : null,
           prix3: formData.prix3 ? parseFloat(formData.prix3) : null,
@@ -210,7 +207,6 @@ export default function CatalogModule() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          prixReference: formData.prixReference ? parseFloat(formData.prixReference) : null,
           prix1: formData.prix1 ? parseFloat(formData.prix1) : null,
           prix2: formData.prix2 ? parseFloat(formData.prix2) : null,
           prix3: formData.prix3 ? parseFloat(formData.prix3) : null,
@@ -240,7 +236,7 @@ export default function CatalogModule() {
   const resetForm = () => {
     setFormData({
       nom: '', marque: 'MIR', categorie: '', reference: '',
-      description: '', prixReference: '', prix1: '', prix2: '', prix3: '', actif: true,
+      description: '', prix1: '', prix2: '', prix3: '', actif: true,
     })
   }
 
@@ -249,7 +245,6 @@ export default function CatalogModule() {
     setFormData({
       nom: p.nom, marque: p.marque, categorie: p.categorie || '',
       reference: p.reference || '', description: p.description || '',
-      prixReference: p.prixReference?.toString() || '',
       prix1: p.prix1?.toString() || '',
       prix2: p.prix2?.toString() || '',
       prix3: p.prix3?.toString() || '',
@@ -740,24 +735,13 @@ export default function CatalogModule() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Référence</Label>
-                <Input
-                  value={formData.reference}
-                  onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                  placeholder="Ex: MIR-M12-2024"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Prix de référence (DA)</Label>
-                <Input
-                  type="number"
-                  value={formData.prixReference}
-                  onChange={(e) => setFormData({ ...formData, prixReference: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label>Référence</Label>
+              <Input
+                value={formData.reference}
+                onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                placeholder="Ex: MIR-M12-2024"
+              />
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
@@ -846,22 +830,12 @@ export default function CatalogModule() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Référence</Label>
-                <Input
-                  value={formData.reference}
-                  onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Prix de référence (DA)</Label>
-                <Input
-                  type="number"
-                  value={formData.prixReference}
-                  onChange={(e) => setFormData({ ...formData, prixReference: e.target.value })}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label>Référence</Label>
+              <Input
+                value={formData.reference}
+                onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+              />
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">

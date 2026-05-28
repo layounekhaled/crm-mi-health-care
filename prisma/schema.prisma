@@ -379,7 +379,6 @@ model Product {
   categorie      String?  // monitorage / ventilation / chirurgie / imagerie / etc.
   reference      String?
   description    String?
-  prixReference  Float?
   prix1          Float?   // Tarif 1
   prix2          Float?   // Tarif 2
   prix3          Float?   // Tarif 3
