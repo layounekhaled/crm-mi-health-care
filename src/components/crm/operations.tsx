@@ -1255,7 +1255,7 @@ export default function OperationsModule() {
 
       {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
@@ -1264,23 +1264,27 @@ export default function OperationsModule() {
               {editingId ? "Modifier l'opération" : 'Nouvelle opération'}
             </DialogTitle>
             <DialogDescription>
-              {editingId
-                ? "Modifiez les informations de l'opération ci-dessous."
-                : 'Créez une nouvelle opération pour une opportunité.'}
+              Ajoutez une opération à une opportunité commerciale.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Section: Opportunité & Produit */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Opportunité & Produit</h3>
+            </div>
+
             {/* Opportunité */}
             <div className="space-y-1.5">
               <Label className="text-sm">
-                Opportunité <span className="text-red-500">*</span>
+                Opportunité <span className="text-red-500 ml-0.5">*</span>
               </Label>
               <Select
                 value={formData.opportunityId}
                 onValueChange={v => setFormData(f => ({ ...f, opportunityId: v }))}
               >
-                <SelectTrigger className={formErrors.opportunityId ? 'border-red-500' : ''}>
+                <SelectTrigger className={formErrors.opportunityId ? 'border-red-500 bg-white' : 'bg-white'}>
                   <SelectValue placeholder="Sélectionner une opportunité" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1312,7 +1316,7 @@ export default function OperationsModule() {
             {/* Produit - Sélection depuis le catalogue */}
             <div className="space-y-1.5">
               <Label className="text-sm">
-                Produit <span className="text-red-500">*</span>
+                Produit <span className="text-red-500 ml-0.5">*</span>
               </Label>
               <Select
                 value={formData.produitId}
@@ -1333,7 +1337,7 @@ export default function OperationsModule() {
                   }
                 }}
               >
-                <SelectTrigger className={formErrors.produit ? 'border-red-500' : ''}>
+                <SelectTrigger className={formErrors.produit ? 'border-red-500 bg-white' : 'bg-white'}>
                   <SelectValue placeholder="Sélectionner un produit du catalogue" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1369,6 +1373,12 @@ export default function OperationsModule() {
               )}
             </div>
 
+            {/* Section: Détails */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Détails</h3>
+            </div>
+
             {/* Responsable */}
             <div className="space-y-1.5">
               <Label className="text-sm">Responsable</Label>
@@ -1376,7 +1386,7 @@ export default function OperationsModule() {
                 value={formData.responsableId}
                 onValueChange={v => setFormData(f => ({ ...f, responsableId: v }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Sélectionner un responsable" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1406,6 +1416,7 @@ export default function OperationsModule() {
                   value={formData.prixEstime}
                   onChange={e => setFormData(f => ({ ...f, prixEstime: e.target.value }))}
                   min={0}
+                  className="bg-white"
                 />
               </div>
               <div className="space-y-1.5">
@@ -1419,6 +1430,7 @@ export default function OperationsModule() {
                   value={formData.marge}
                   onChange={e => setFormData(f => ({ ...f, marge: e.target.value }))}
                   min={0}
+                  className="bg-white"
                 />
               </div>
             </div>
@@ -1441,7 +1453,7 @@ export default function OperationsModule() {
                     setFormData(f => ({ ...f, statut: v }))
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1467,7 +1479,7 @@ export default function OperationsModule() {
                   value={formData.priorite}
                   onValueChange={v => setFormData(f => ({ ...f, priorite: v }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1494,6 +1506,7 @@ export default function OperationsModule() {
                 type="date"
                 value={formData.datePrevue}
                 onChange={e => setFormData(f => ({ ...f, datePrevue: e.target.value }))}
+                className="bg-white"
               />
             </div>
           </div>

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -698,24 +699,31 @@ export default function CatalogModule() {
 
       {/* ── Create Dialog ── */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-[#134885]">Nouveau produit</DialogTitle>
+            <DialogDescription>Ajoutez un nouveau produit au catalogue.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="space-y-4 py-4">
+            {/* Section Produit */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Produit</h3>
+            </div>
             <div className="grid gap-2">
-              <Label>Nom du produit *</Label>
+              <Label>Nom du produit<span className="text-red-500 ml-0.5">*</span></Label>
               <Input
                 value={formData.nom}
                 onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
                 placeholder="Ex: Moniteur patient MIR 12 pouces"
+                className="bg-white"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>Marque *</Label>
+                <Label>Marque<span className="text-red-500 ml-0.5">*</span></Label>
                 <Select value={formData.marque} onValueChange={(v) => setFormData({ ...formData, marque: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {MARQUES.map(m => (
                       <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
@@ -726,7 +734,7 @@ export default function CatalogModule() {
               <div className="grid gap-2">
                 <Label>Catégorie</Label>
                 <Select value={formData.categorie} onValueChange={(v) => setFormData({ ...formData, categorie: v })}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectTrigger className="bg-white"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map(c => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -741,7 +749,14 @@ export default function CatalogModule() {
                 value={formData.reference}
                 onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
                 placeholder="Ex: MIR-M12-2024"
+                className="bg-white"
               />
+            </div>
+
+            {/* Section Tarification */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Tarification</h3>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
@@ -751,6 +766,7 @@ export default function CatalogModule() {
                   value={formData.prix1}
                   onChange={(e) => setFormData({ ...formData, prix1: e.target.value })}
                   placeholder="Tarif 1"
+                  className="bg-white"
                 />
               </div>
               <div className="grid gap-2">
@@ -760,6 +776,7 @@ export default function CatalogModule() {
                   value={formData.prix2}
                   onChange={(e) => setFormData({ ...formData, prix2: e.target.value })}
                   placeholder="Tarif 2"
+                  className="bg-white"
                 />
               </div>
               <div className="grid gap-2">
@@ -769,8 +786,15 @@ export default function CatalogModule() {
                   value={formData.prix3}
                   onChange={(e) => setFormData({ ...formData, prix3: e.target.value })}
                   placeholder="Tarif 3"
+                  className="bg-white"
                 />
               </div>
+            </div>
+
+            {/* Section Détails */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Détails</h3>
             </div>
             <div className="grid gap-2">
               <Label>Description</Label>
@@ -779,6 +803,7 @@ export default function CatalogModule() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Description du produit..."
                 rows={3}
+                className="bg-white"
               />
             </div>
           </div>
@@ -793,23 +818,30 @@ export default function CatalogModule() {
 
       {/* ── Edit Dialog ── */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-[#134885]">Modifier le produit</DialogTitle>
+            <DialogDescription>Modifiez les informations du produit.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="space-y-4 py-4">
+            {/* Section Produit */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Produit</h3>
+            </div>
             <div className="grid gap-2">
-              <Label>Nom du produit *</Label>
+              <Label>Nom du produit<span className="text-red-500 ml-0.5">*</span></Label>
               <Input
                 value={formData.nom}
                 onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                className="bg-white"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>Marque *</Label>
+                <Label>Marque<span className="text-red-500 ml-0.5">*</span></Label>
                 <Select value={formData.marque} onValueChange={(v) => setFormData({ ...formData, marque: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {MARQUES.map(m => (
                       <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
@@ -820,7 +852,7 @@ export default function CatalogModule() {
               <div className="grid gap-2">
                 <Label>Catégorie</Label>
                 <Select value={formData.categorie || '_none'} onValueChange={(v) => setFormData({ ...formData, categorie: v === '_none' ? '' : v })}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectTrigger className="bg-white"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">Aucune</SelectItem>
                     {CATEGORIES.map(c => (
@@ -835,7 +867,14 @@ export default function CatalogModule() {
               <Input
                 value={formData.reference}
                 onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                className="bg-white"
               />
+            </div>
+
+            {/* Section Tarification */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Tarification</h3>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
@@ -844,6 +883,7 @@ export default function CatalogModule() {
                   type="number"
                   value={formData.prix1}
                   onChange={(e) => setFormData({ ...formData, prix1: e.target.value })}
+                  className="bg-white"
                 />
               </div>
               <div className="grid gap-2">
@@ -852,6 +892,7 @@ export default function CatalogModule() {
                   type="number"
                   value={formData.prix2}
                   onChange={(e) => setFormData({ ...formData, prix2: e.target.value })}
+                  className="bg-white"
                 />
               </div>
               <div className="grid gap-2">
@@ -860,8 +901,15 @@ export default function CatalogModule() {
                   type="number"
                   value={formData.prix3}
                   onChange={(e) => setFormData({ ...formData, prix3: e.target.value })}
+                  className="bg-white"
                 />
               </div>
+            </div>
+
+            {/* Section Détails */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Détails</h3>
             </div>
             <div className="grid gap-2">
               <Label>Description</Label>
@@ -869,6 +917,7 @@ export default function CatalogModule() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
+                className="bg-white"
               />
             </div>
             <label className="flex items-center gap-2 text-sm">

@@ -1165,7 +1165,7 @@ export default function ProspectsModule() {
 
         {/* ── Add/Edit Dialog ─────────────────────────────────────────────── */}
         <Dialog open={formOpen} onOpenChange={setFormOpen}>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {editingId ? (
@@ -1181,24 +1181,28 @@ export default function ProspectsModule() {
                 )}
               </DialogTitle>
               <DialogDescription>
-                {editingId
-                  ? 'Modifiez les informations du prospect ci-dessous.'
-                  : 'Remplissez les informations pour créer un nouveau prospect.'}
+                Remplissez les informations du prospect.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4 py-4">
+            <div className="space-y-4 py-4">
+              {/* ── Section: Informations personnelles ──────────────────────── */}
+              <div className="flex items-center gap-2 pt-2">
+                <div className="h-5 w-1 rounded-full bg-[#134885]" />
+                <h3 className="text-sm font-semibold text-slate-700">Informations personnelles</h3>
+              </div>
+
               {/* Nom */}
               <div className="grid gap-2">
                 <Label htmlFor="nom" className="flex items-center gap-1">
-                  Nom <span className="text-destructive">*</span>
+                  Nom <span className="text-red-500 ml-0.5">*</span>
                 </Label>
                 <Input
                   id="nom"
                   placeholder="Nom du médecin ou de la clinique"
                   value={formData.nom}
                   onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
-                  className={formErrors.nom ? 'border-destructive' : ''}
+                  className={`bg-white${formErrors.nom ? ' border-destructive' : ''}`}
                 />
                 {formErrors.nom && (
                   <p className="text-xs text-destructive">{formErrors.nom}</p>
@@ -1246,6 +1250,12 @@ export default function ProspectsModule() {
                 </div>
               </div>
 
+              {/* ── Section: Contact ─────────────────────────────────────────── */}
+              <div className="flex items-center gap-2 pt-2">
+                <div className="h-5 w-1 rounded-full bg-[#134885]" />
+                <h3 className="text-sm font-semibold text-slate-700">Contact</h3>
+              </div>
+
               {/* Téléphone + Téléphone 2 + WhatsApp */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="grid gap-2">
@@ -1258,6 +1268,7 @@ export default function ProspectsModule() {
                     placeholder="0X XX XX XX XX"
                     value={formData.telephone}
                     onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                    className="bg-white"
                   />
                 </div>
 
@@ -1271,6 +1282,7 @@ export default function ProspectsModule() {
                     placeholder="0X XX XX XX XX"
                     value={formData.telephone2}
                     onChange={(e) => setFormData({ ...formData, telephone2: e.target.value })}
+                    className="bg-white"
                   />
                 </div>
 
@@ -1284,6 +1296,7 @@ export default function ProspectsModule() {
                     placeholder="Numéro WhatsApp"
                     value={formData.whatsapp}
                     onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                    className="bg-white"
                   />
                 </div>
               </div>
@@ -1301,6 +1314,7 @@ export default function ProspectsModule() {
                     placeholder="email@exemple.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="bg-white"
                   />
                 </div>
 
@@ -1314,15 +1328,37 @@ export default function ProspectsModule() {
                     placeholder="Adresse complète"
                     value={formData.adresse}
                     onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+                    className="bg-white"
                   />
                 </div>
+              </div>
+
+              {/* ── Section: Professionnel ───────────────────────────────────── */}
+              <div className="flex items-center gap-2 pt-2">
+                <div className="h-5 w-1 rounded-full bg-[#134885]" />
+                <h3 className="text-sm font-semibold text-slate-700">Professionnel</h3>
+              </div>
+
+              {/* Établissement */}
+              <div className="grid gap-2">
+                <Label htmlFor="etablissement" className="flex items-center gap-1">
+                  <Building2 className="size-3.5" />
+                  Établissement
+                </Label>
+                <Input
+                  id="etablissement"
+                  placeholder="Nom de l'établissement"
+                  value={formData.etablissement}
+                  onChange={(e) => setFormData({ ...formData, etablissement: e.target.value })}
+                  className="bg-white"
+                />
               </div>
 
               {/* Tarif */}
               <div className="grid gap-2">
                 <Label className="flex items-center gap-1">
                   <DollarSign className="size-3.5 text-green-500" />
-                  Tarif applicables
+                  Tarif applicable
                 </Label>
                 <Select
                   value={formData.tarif || '_none'}
@@ -1356,18 +1392,10 @@ export default function ProspectsModule() {
                 <p className="text-xs text-muted-foreground">Détermine quel prix est appliqué lors de la création d&apos;une opération</p>
               </div>
 
-              {/* Établissement */}
-              <div className="grid gap-2">
-                <Label htmlFor="etablissement" className="flex items-center gap-1">
-                  <Building2 className="size-3.5" />
-                  Établissement
-                </Label>
-                <Input
-                  id="etablissement"
-                  placeholder="Nom de l'établissement"
-                  value={formData.etablissement}
-                  onChange={(e) => setFormData({ ...formData, etablissement: e.target.value })}
-                />
+              {/* ── Section: Source & Recommandation ─────────────────────────── */}
+              <div className="flex items-center gap-2 pt-2">
+                <div className="h-5 w-1 rounded-full bg-[#134885]" />
+                <h3 className="text-sm font-semibold text-slate-700">Source &amp; Recommandation</h3>
               </div>
 
               {/* Source */}
@@ -1395,7 +1423,7 @@ export default function ProspectsModule() {
                 <div className="grid gap-2 relative">
                   <Label htmlFor="recommandePar" className="flex items-center gap-1">
                     <UserCheck className="size-3.5 text-green-500" />
-                    Recommandé par <span className="text-destructive">*</span>
+                    Recommandé par <span className="text-red-500 ml-0.5">*</span>
                   </Label>
                   <div className="relative">
                     <Input
@@ -1408,7 +1436,7 @@ export default function ProspectsModule() {
                         else if (formData.recommandePar && formData.recommandePar.length >= 2) searchRecommandeurs(formData.recommandePar)
                       }}
                       onBlur={() => setTimeout(() => setRecoDropdownOpen(false), 200)}
-                      className="pr-8"
+                      className="bg-white pr-8"
                     />
                     {recoSearching && (
                       <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
@@ -1473,7 +1501,12 @@ export default function ProspectsModule() {
                 </div>
               )}
 
-              {/* Notes */}
+              {/* ── Section: Notes ───────────────────────────────────────────── */}
+              <div className="flex items-center gap-2 pt-2">
+                <div className="h-5 w-1 rounded-full bg-[#134885]" />
+                <h3 className="text-sm font-semibold text-slate-700">Notes</h3>
+              </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
@@ -1482,6 +1515,7 @@ export default function ProspectsModule() {
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
+                  className="bg-white"
                 />
               </div>
 

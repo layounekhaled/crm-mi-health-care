@@ -962,7 +962,7 @@ export default function TasksModule() {
 
       {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
@@ -971,22 +971,27 @@ export default function TasksModule() {
               {editingId ? 'Modifier la tâche' : 'Nouvelle tâche'}
             </DialogTitle>
             <DialogDescription>
-              {editingId
-                ? 'Modifiez les informations de la tâche.'
-                : 'Créez une nouvelle tâche et assignez-la à un membre de l\'équipe.'}
+              Créez et assignez une nouvelle tâche.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Section: Tâche */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Tâche</h3>
+            </div>
+
             {/* Titre */}
             <div className="space-y-1.5">
               <Label className="text-sm">
-                Titre <span className="text-red-500">*</span>
+                Titre <span className="text-red-500 ml-0.5">*</span>
               </Label>
               <Input
                 placeholder="Ex: Relancer le client pour devis"
                 value={formData.titre}
                 onChange={e => setFormData(f => ({ ...f, titre: e.target.value }))}
+                className="bg-white"
               />
             </div>
 
@@ -998,7 +1003,7 @@ export default function TasksModule() {
                   value={formData.type}
                   onValueChange={v => setFormData(f => ({ ...f, type: v }))}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1020,7 +1025,7 @@ export default function TasksModule() {
                   value={formData.priorite}
                   onValueChange={v => setFormData(f => ({ ...f, priorite: v }))}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1037,6 +1042,12 @@ export default function TasksModule() {
               </div>
             </div>
 
+            {/* Section: Assignation */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Assignation</h3>
+            </div>
+
             {/* Assigné à */}
             <div className="space-y-1.5">
               <Label className="text-sm">Assigné à</Label>
@@ -1044,7 +1055,7 @@ export default function TasksModule() {
                 value={formData.assigneAId}
                 onValueChange={v => setFormData(f => ({ ...f, assigneAId: v }))}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-white">
                   <SelectValue placeholder="Sélectionner un employé" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1064,155 +1075,137 @@ export default function TasksModule() {
               </Select>
             </div>
 
-            {/* Statut + Date d'échéance */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm">Statut</Label>
-                <Select
-                  value={formData.statut}
-                  onValueChange={v => setFormData(f => ({ ...f, statut: v }))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map(s => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-sm">Date d&apos;échéance</Label>
-                <Input
-                  type="date"
-                  value={formData.dateEcheance}
-                  onChange={e => setFormData(f => ({ ...f, dateEcheance: e.target.value }))}
-                  className="h-9"
-                />
-              </div>
+            {/* Date d'échéance */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Date d&apos;échéance</Label>
+              <Input
+                type="date"
+                value={formData.dateEcheance}
+                onChange={e => setFormData(f => ({ ...f, dateEcheance: e.target.value }))}
+                className="h-9 bg-white"
+              />
             </div>
 
-            {/* Lié à section */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Separator className="flex-1" />
-                <span className="text-xs font-medium text-muted-foreground">Lié à (optionnel)</span>
-                <Separator className="flex-1" />
-              </div>
+            {/* Section: Liens */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Liens</h3>
+            </div>
 
-              {/* Prospect */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Prospect</Label>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher un prospect..."
-                    value={prospectSearch}
-                    onChange={e => setProspectSearch(e.target.value)}
-                    className="h-8 pl-8 text-xs"
-                  />
-                </div>
-                <Select
-                  value={formData.prospectId}
-                  onValueChange={v => {
-                    setFormData(f => ({ ...f, prospectId: v }))
-                    const p = prospects.find(pr => pr.id === v)
-                    if (p) setProspectSearch(p.nom)
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Sélectionner un prospect" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun</SelectItem>
-                    {filteredProspects.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nom} {p.wilaya ? `(${p.wilaya})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Prospect */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Prospect</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher un prospect..."
+                  value={prospectSearch}
+                  onChange={e => setProspectSearch(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-white"
+                />
               </div>
+              <Select
+                value={formData.prospectId}
+                onValueChange={v => {
+                  setFormData(f => ({ ...f, prospectId: v }))
+                  const p = prospects.find(pr => pr.id === v)
+                  if (p) setProspectSearch(p.nom)
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs bg-white">
+                  <SelectValue placeholder="Sélectionner un prospect" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {filteredProspects.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nom} {p.wilaya ? `(${p.wilaya})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              {/* Opportunité */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Opportunité</Label>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher une opportunité..."
-                    value={opportunitySearch}
-                    onChange={e => setOpportunitySearch(e.target.value)}
-                    className="h-8 pl-8 text-xs"
-                  />
-                </div>
-                <Select
-                  value={formData.opportunityId}
-                  onValueChange={v => {
-                    setFormData(f => ({ ...f, opportunityId: v }))
-                    const o = opportunities.find(op => op.id === v)
-                    if (o) setOpportunitySearch(o.nomProjet)
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Sélectionner une opportunité" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucune</SelectItem>
-                    {filteredOpportunities.map(o => (
-                      <SelectItem key={o.id} value={o.id}>
-                        {o.nomProjet}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Opportunité */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Opportunité</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher une opportunité..."
+                  value={opportunitySearch}
+                  onChange={e => setOpportunitySearch(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-white"
+                />
               </div>
+              <Select
+                value={formData.opportunityId}
+                onValueChange={v => {
+                  setFormData(f => ({ ...f, opportunityId: v }))
+                  const o = opportunities.find(op => op.id === v)
+                  if (o) setOpportunitySearch(o.nomProjet)
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs bg-white">
+                  <SelectValue placeholder="Sélectionner une opportunité" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune</SelectItem>
+                  {filteredOpportunities.map(o => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.nomProjet}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              {/* Opération */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Opération</Label>
-                <Select
-                  value={formData.operationId}
-                  onValueChange={v => setFormData(f => ({ ...f, operationId: v }))}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Sélectionner une opération" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucune</SelectItem>
-                    {operations.map(o => (
-                      <SelectItem key={o.id} value={o.id}>
-                        {o.produit} — {o.marque}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Opération */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Opération</Label>
+              <Select
+                value={formData.operationId}
+                onValueChange={v => setFormData(f => ({ ...f, operationId: v }))}
+              >
+                <SelectTrigger className="h-8 text-xs bg-white">
+                  <SelectValue placeholder="Sélectionner une opération" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune</SelectItem>
+                  {operations.map(o => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.produit} — {o.marque}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              {/* Événement */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Événement</Label>
-                <Select
-                  value={formData.eventId}
-                  onValueChange={v => setFormData(f => ({ ...f, eventId: v }))}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Sélectionner un événement" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun</SelectItem>
-                    {events.map(e => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.nom} — {formatDate(e.date)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Événement */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Événement</Label>
+              <Select
+                value={formData.eventId}
+                onValueChange={v => setFormData(f => ({ ...f, eventId: v }))}
+              >
+                <SelectTrigger className="h-8 text-xs bg-white">
+                  <SelectValue placeholder="Sélectionner un événement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {events.map(e => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nom} — {formatDate(e.date)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Section: Détails */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Détails</h3>
             </div>
 
             {/* Description */}
@@ -1223,7 +1216,28 @@ export default function TasksModule() {
                 value={formData.description}
                 onChange={e => setFormData(f => ({ ...f, description: e.target.value }))}
                 rows={3}
+                className="bg-white"
               />
+            </div>
+
+            {/* Statut */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Statut</Label>
+              <Select
+                value={formData.statut}
+                onValueChange={v => setFormData(f => ({ ...f, statut: v }))}
+              >
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUSES.map(s => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

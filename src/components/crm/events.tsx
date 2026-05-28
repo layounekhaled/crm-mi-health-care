@@ -853,7 +853,7 @@ export default function EventsModule() {
 
       {/* ── Add/Edit Event Dialog ───────────────────────────────────────── */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10">
@@ -868,18 +868,24 @@ export default function EventsModule() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="space-y-4 py-4">
+            {/* Section: Événement */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Événement</h3>
+            </div>
+
             {/* Nom de l'événement */}
             <div className="grid gap-2">
               <Label htmlFor="event-nom" className="flex items-center gap-1">
-                Nom de l&apos;événement <span className="text-destructive">*</span>
+                Nom de l&apos;événement <span className="text-red-500 ml-0.5">*</span>
               </Label>
               <Input
                 id="event-nom"
                 placeholder="Ex: Congrès National de Cardiologie 2025"
                 value={formData.nom}
                 onChange={e => setFormData({ ...formData, nom: e.target.value })}
-                className={formErrors.nom ? 'border-destructive' : ''}
+                className={formErrors.nom ? 'border-destructive bg-white' : 'bg-white'}
               />
               {formErrors.nom && (
                 <p className="text-xs text-destructive">{formErrors.nom}</p>
@@ -936,18 +942,25 @@ export default function EventsModule() {
             {/* Date */}
             <div className="grid gap-2">
               <Label htmlFor="event-date" className="flex items-center gap-1">
-                Date <span className="text-destructive">*</span>
+                Date <span className="text-red-500 ml-0.5">*</span>
               </Label>
               <Input
                 id="event-date"
                 type="date"
                 value={formData.date}
                 onChange={e => setFormData({ ...formData, date: e.target.value })}
-                className={formErrors.date ? 'border-destructive' : ''}
+                className={formErrors.date ? 'border-destructive bg-white' : 'bg-white'}
               />
               {formErrors.date && (
                 <p className="text-xs text-destructive">{formErrors.date}</p>
               )}
+            </div>
+
+            {/* Section: Marques & Équipe */}
+            <Separator />
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Marques & Équipe</h3>
             </div>
 
             {/* Marques présentes */}
@@ -1026,6 +1039,13 @@ export default function EventsModule() {
               )}
             </div>
 
+            {/* Section: Notes */}
+            <Separator />
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Notes</h3>
+            </div>
+
             {/* Notes */}
             <div className="grid gap-2">
               <Label htmlFor="event-notes">Notes</Label>
@@ -1035,6 +1055,7 @@ export default function EventsModule() {
                 value={formData.notes}
                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
+                className="bg-white"
               />
             </div>
           </div>

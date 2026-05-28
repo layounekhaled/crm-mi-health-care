@@ -1126,7 +1126,7 @@ export default function ChargesModule() {
 
       {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
@@ -1140,11 +1140,15 @@ export default function ChargesModule() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* Type */}
+            {/* Section: Dépense */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Dépense</h3>
+            </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Type *</Label>
+              <Label className="text-sm font-medium">Type<span className="text-red-500 ml-0.5">*</span></Label>
               <Select value={formData.type} onValueChange={v => setFormData(prev => ({ ...prev, type: v }))}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Sélectionner le type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1159,10 +1163,8 @@ export default function ChargesModule() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Montant */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Montant (DZD) *</Label>
+              <Label className="text-sm font-medium">Montant (DZD)<span className="text-red-500 ml-0.5">*</span></Label>
               <Input
                 type="number"
                 placeholder="0"
@@ -1170,10 +1172,15 @@ export default function ChargesModule() {
                 onChange={e => setFormData(prev => ({ ...prev, montant: e.target.value }))}
                 min="0"
                 step="100"
+                className="bg-white"
               />
             </div>
 
-            {/* Description */}
+            {/* Section: Détails */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Détails</h3>
+            </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Description</Label>
               <Textarea
@@ -1181,25 +1188,30 @@ export default function ChargesModule() {
                 value={formData.description}
                 onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 rows={3}
+                className="bg-white"
               />
             </div>
-
-            {/* Date */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Date</Label>
               <Input
                 type="date"
                 value={formData.date}
                 onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                className="bg-white"
               />
             </div>
 
+            {/* Section: Affectation */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Affectation</h3>
+            </div>
             {/* Employé (admin only) */}
             {isAdminUser && (
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Employé *</Label>
+                <Label className="text-sm font-medium">Employé</Label>
                 <Select value={formData.employeId} onValueChange={v => setFormData(prev => ({ ...prev, employeId: v }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white">
                     <SelectValue placeholder="Sélectionner l'employé" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1212,12 +1224,10 @@ export default function ChargesModule() {
                 </Select>
               </div>
             )}
-
-            {/* Opportunité */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Opportunité (optionnel)</Label>
               <Select value={formData.opportunityId} onValueChange={v => setFormData(prev => ({ ...prev, opportunityId: v }))}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Aucune opportunité" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1231,7 +1241,11 @@ export default function ChargesModule() {
               </Select>
             </div>
 
-            {/* Justificatif Upload */}
+            {/* Section: Justificatif */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Justificatif</h3>
+            </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Justificatif (bon, ticket, reçu)</Label>
               <div className="space-y-2">
@@ -1305,30 +1319,36 @@ export default function ChargesModule() {
               </div>
             </div>
 
-            {/* Charge personnelle (admin only) */}
+            {/* Section: Options */}
             {isAdminUser && (
-              <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-950/20">
-                <div className="flex items-center gap-2">
-                  {formData.isPrivate ? (
-                    <Lock className="size-4 text-amber-600 dark:text-amber-400" />
-                  ) : (
-                    <LockOpen className="size-4 text-muted-foreground" />
-                  )}
-                  <div>
-                    <Label htmlFor="isPrivate" className="cursor-pointer text-sm font-medium">
-                      Charge personnelle
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Visible uniquement par l&apos;administrateur
-                    </p>
-                  </div>
+              <>
+                <div className="flex items-center gap-2 pt-2">
+                  <div className="h-5 w-1 rounded-full bg-[#134885]" />
+                  <h3 className="text-sm font-semibold text-slate-700">Options</h3>
                 </div>
-                <Switch
-                  id="isPrivate"
-                  checked={formData.isPrivate}
-                  onCheckedChange={(checked: boolean) => setFormData(prev => ({ ...prev, isPrivate: checked }))}
-                />
-              </div>
+                <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-950/20">
+                  <div className="flex items-center gap-2">
+                    {formData.isPrivate ? (
+                      <Lock className="size-4 text-amber-600 dark:text-amber-400" />
+                    ) : (
+                      <LockOpen className="size-4 text-muted-foreground" />
+                    )}
+                    <div>
+                      <Label htmlFor="isPrivate" className="cursor-pointer text-sm font-medium">
+                        Charge personnelle
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Visible uniquement par l&apos;administrateur
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="isPrivate"
+                    checked={formData.isPrivate}
+                    onCheckedChange={(checked: boolean) => setFormData(prev => ({ ...prev, isPrivate: checked }))}
+                  />
+                </div>
+              </>
             )}
           </div>
 

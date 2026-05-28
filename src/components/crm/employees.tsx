@@ -948,15 +948,22 @@ export default function EmployeesModule() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Section: Informations */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Informations</h3>
+            </div>
+
             {/* Nom */}
             <div className="space-y-1.5">
               <Label className="text-sm">
-                Nom <span className="text-red-500">*</span>
+                Nom <span className="text-red-500 ml-0.5">*</span>
               </Label>
               <Input
                 placeholder="Nom complet"
                 value={formData.nom}
                 onChange={e => setFormData(f => ({ ...f, nom: e.target.value }))}
+                className="bg-white"
               />
             </div>
 
@@ -969,6 +976,7 @@ export default function EmployeesModule() {
                   placeholder="email@exemple.com"
                   value={formData.email}
                   onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
+                  className="bg-white"
                 />
               </div>
               <div className="space-y-1.5">
@@ -977,8 +985,15 @@ export default function EmployeesModule() {
                   placeholder="0X XX XX XX XX"
                   value={formData.telephone}
                   onChange={e => setFormData(f => ({ ...f, telephone: e.target.value }))}
+                  className="bg-white"
                 />
               </div>
+            </div>
+
+            {/* Section: Rôle & Permissions */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Rôle & Permissions</h3>
             </div>
 
             {/* Rôle */}
@@ -988,7 +1003,7 @@ export default function EmployeesModule() {
                 value={formData.role}
                 onValueChange={handleRoleChange}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

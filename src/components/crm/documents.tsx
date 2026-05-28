@@ -748,29 +748,33 @@ export default function DocumentsModule() {
 
       {/* ====== UPLOAD DIALOG ====== */}
       <Dialog open={showUpload} onOpenChange={setShowUpload}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileUp className="h-5 w-5 text-[#F6852A]" />
               Ajouter un document
             </DialogTitle>
             <DialogDescription>
-              Uploadez un fichier PDF vers la bibliothèque
+              Uploadez un document vers la bibliothèque.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* File upload */}
+            {/* Section: Fichier */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Fichier</h3>
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Fichier PDF *
+                Fichier PDF<span className="text-red-500 ml-0.5">*</span>
               </label>
               <div className="flex items-center gap-3">
                 <Input
                   type="file"
                   accept="application/pdf"
                   onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  className="flex-1"
+                  className="flex-1 bg-white"
                 />
                 {uploadFile && (
                   <span className="text-xs text-slate-500 shrink-0">
@@ -781,31 +785,36 @@ export default function DocumentsModule() {
               <p className="text-[11px] text-slate-400 mt-1">PDF uniquement, 20 MB max</p>
             </div>
 
-            {/* Title */}
+            {/* Section: Informations */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Informations</h3>
+            </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Titre *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Titre<span className="text-red-500 ml-0.5">*</span></label>
               <Input
                 value={uploadForm.title}
                 onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="Ex: Catalogue MIR 2025"
+                className="bg-white"
               />
             </div>
 
             {/* Brand + Type row */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Marque *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Marque</label>
                 <Select value={uploadForm.brand} onValueChange={(v) => setUploadForm(prev => ({ ...prev, brand: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {BRANDS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Type *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
                 <Select value={uploadForm.documentType} onValueChange={(v) => setUploadForm(prev => ({ ...prev, documentType: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {DOCUMENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                   </SelectContent>
@@ -820,10 +829,15 @@ export default function DocumentsModule() {
                 value={uploadForm.productName}
                 onChange={(e) => setUploadForm(prev => ({ ...prev, productName: e.target.value }))}
                 placeholder="Optionnel"
+                className="bg-white"
               />
             </div>
 
-            {/* Description */}
+            {/* Section: Description */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Description</h3>
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <Textarea
@@ -831,6 +845,7 @@ export default function DocumentsModule() {
                 onChange={(e) => setUploadForm(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="Optionnel"
                 rows={2}
+                className="bg-white"
               />
             </div>
           </div>

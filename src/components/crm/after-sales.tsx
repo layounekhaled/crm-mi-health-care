@@ -616,7 +616,7 @@ export default function AfterSalesModule() {
 
       {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
@@ -630,16 +630,22 @@ export default function AfterSalesModule() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Section: Intervention */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Intervention</h3>
+            </div>
+
             {/* Client */}
             <div className="space-y-1.5">
               <Label className="text-sm">
-                Client <span className="text-red-500">*</span>
+                Client <span className="text-red-500 ml-0.5">*</span>
               </Label>
               <Select
                 value={formData.clientId}
                 onValueChange={v => setFormData(f => ({ ...f, clientId: v }))}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-white">
                   <SelectValue placeholder="Sélectionner un client" />
                 </SelectTrigger>
                 <SelectContent>
@@ -670,7 +676,7 @@ export default function AfterSalesModule() {
                 value={formData.type}
                 onValueChange={v => setFormData(f => ({ ...f, type: v }))}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -696,7 +702,7 @@ export default function AfterSalesModule() {
                 value={formData.statut}
                 onValueChange={v => setFormData(f => ({ ...f, statut: v }))}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -715,11 +721,18 @@ export default function AfterSalesModule() {
               </Select>
             </div>
 
+            {/* Section: Planification */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Planification</h3>
+            </div>
+
             {/* Date */}
             <div className="space-y-1.5">
               <Label className="text-sm">Date</Label>
               <Input
                 type="date"
+                className="bg-white"
                 value={formData.date}
                 onChange={e => setFormData(f => ({ ...f, date: e.target.value }))}
               />
@@ -732,7 +745,7 @@ export default function AfterSalesModule() {
                 value={formData.employeId}
                 onValueChange={v => setFormData(f => ({ ...f, employeId: v }))}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-white">
                   <SelectValue placeholder="Sélectionner un employé" />
                 </SelectTrigger>
                 <SelectContent>
@@ -767,11 +780,18 @@ export default function AfterSalesModule() {
               </Select>
             </div>
 
+            {/* Section: Notes */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Notes</h3>
+            </div>
+
             {/* Notes */}
             <div className="space-y-1.5">
               <Label className="text-sm">Notes</Label>
               <Textarea
                 placeholder="Notes sur l'intervention..."
+                className="bg-white"
                 value={formData.notes}
                 onChange={e => setFormData(f => ({ ...f, notes: e.target.value }))}
                 rows={3}

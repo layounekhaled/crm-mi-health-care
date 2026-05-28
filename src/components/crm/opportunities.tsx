@@ -1049,7 +1049,7 @@ export default function OpportunitiesModule() {
 
       {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
@@ -1063,16 +1063,22 @@ export default function OpportunitiesModule() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Section: Client & Projet */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Client & Projet</h3>
+            </div>
+
             {/* Client */}
             <div className="space-y-1.5">
-              <Label className="text-sm">Client</Label>
+              <Label className="text-sm">Client<span className="text-red-500 ml-0.5">*</span></Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                 <Input
                   placeholder="Rechercher un client..."
                   value={clientSearch}
                   onChange={e => setClientSearch(e.target.value)}
-                  className="pl-8"
+                  className="pl-8 bg-white"
                 />
               </div>
               <Select
@@ -1116,7 +1122,14 @@ export default function OpportunitiesModule() {
                 placeholder="Ex: Équipement bloc opératoire"
                 value={formData.nomProjet}
                 onChange={e => setFormData(f => ({ ...f, nomProjet: e.target.value }))}
+                className="bg-white"
               />
+            </div>
+
+            {/* Section: Suivi commercial */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Suivi commercial</h3>
             </div>
 
             {/* Statut */}
@@ -1224,7 +1237,7 @@ export default function OpportunitiesModule() {
                   placeholder="1 500 000"
                   value={formData.montantEstime}
                   onChange={e => setFormData(f => ({ ...f, montantEstime: e.target.value }))}
-                  className="pl-8"
+                  className="pl-8 bg-white"
                 />
               </div>
               {formData.montantEstime && (
@@ -1265,6 +1278,7 @@ export default function OpportunitiesModule() {
                 value={formData.notes}
                 onChange={e => setFormData(f => ({ ...f, notes: e.target.value }))}
                 rows={3}
+                className="bg-white"
               />
             </div>
           </div>
