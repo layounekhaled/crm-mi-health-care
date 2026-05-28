@@ -18,11 +18,14 @@ import {
   Plus,
   ArrowLeft,
   Users,
+  UserPlus,
   Loader2,
   CheckCheck,
   AlertCircle,
   Bell,
   BellOff,
+  Check,
+  Hash,
 } from 'lucide-react'
 
 interface Conversation {
@@ -128,6 +131,9 @@ export default function ChatWidget() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showNewChat, setShowNewChat] = useState(false)
+  const [newChatMode, setNewChatMode] = useState<'direct' | 'group'>('direct')
+  const [groupName, setGroupName] = useState('')
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState<Set<string>>(new Set())
   const [employees, setEmployees] = useState<Employee[]>([])
   const [isSending, setIsSending] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
@@ -401,7 +407,7 @@ export default function ChatWidget() {
     }
   }
 
-  // Start new conversation
+  // Start new direct conversation
   const startConversation = async (targetEmployeId: string) => {
     setIsLoading(true)
     setChatError(null)
@@ -440,6 +446,61 @@ export default function ChatWidget() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Start new group conversation
+  const startGroupConversation = async () => {
+    if (!groupName.trim() || selectedGroupMembers.size === 0) return
+    setIsLoading(true)
+    setChatError(null)
+    try {
+      const res = await fetch('/api/chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          type: 'group',
+          nom: groupName.trim(),
+          participantIds: Array.from(selectedGroupMembers),
+        }),
+      })
+      if (res.ok) {
+        const conv = await res.json()
+        setSelectedConversation(conv)
+        setMessages(conv.messages || [])
+        setShowNewChat(false)
+        setSearchQuery('')
+        setGroupName('')
+        setSelectedGroupMembers(new Set())
+        setNewChatMode('direct')
+        fetchConversations()
+      } else if (res.status === 401) {
+        const err = await res.json().catch(() => ({}))
+        if (err.action === 'relogin') {
+          setChatError('Session obsolète. Reconnexion en cours...')
+          setTimeout(() => signOut({ callbackUrl: '/login' }), 2000)
+        } else {
+          setChatError('Session expirée. Rechargez la page et reconnectez-vous.')
+        }
+      } else {
+        const err = await res.json().catch(() => ({ error: 'Erreur inconnue' }))
+        setChatError(err.details || err.error || 'Erreur lors de la création du groupe')
+      }
+    } catch (error) {
+      setChatError('Erreur réseau. Vérifiez votre connexion.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Toggle a group member selection
+  const toggleGroupMember = (empId: string) => {
+    setSelectedGroupMembers(prev => {
+      const next = new Set(prev)
+      if (next.has(empId)) next.delete(empId)
+      else next.add(empId)
+      return next
+    })
   }
 
   // Select conversation
@@ -570,8 +631,14 @@ export default function ChatWidget() {
                     <ArrowLeft className="h-4 w-4" />
                   </button>
                   <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-white/20 text-xs text-white">
+                    <AvatarFallback className={
+                      selectedConversation.type === 'group'
+                        ? 'bg-[#F6852A]/20 text-xs text-[#F6852A]'
+                        : 'bg-white/20 text-xs text-white'
+                    }>
                       {selectedConversation.type === 'group' && selectedConversation.nom === 'Général' ? (
+                        <Users className="h-4 w-4" />
+                      ) : selectedConversation.type === 'group' ? (
                         <Users className="h-4 w-4" />
                       ) : (
                         getConvAvatar(selectedConversation)
@@ -588,6 +655,9 @@ export default function ChatWidget() {
                     {selectedConversation.type === 'group' && (
                       <p className="text-[10px] text-white/60">
                         {selectedConversation.participants.length} membres
+                        {selectedConversation.nom !== 'Général' && (
+                          <> · {selectedConversation.participants.map(p => p.employe?.nom).filter(Boolean).join(', ')}</>
+                        )}
                       </p>
                     )}
                   </div>
@@ -595,12 +665,14 @@ export default function ChatWidget() {
               ) : showNewChat ? (
                 <div className="flex items-center gap-3 flex-1">
                   <button
-                    onClick={() => { setShowNewChat(false); setSearchQuery(''); setChatError(null) }}
+                    onClick={() => { setShowNewChat(false); setSearchQuery(''); setChatError(null); setNewChatMode('direct'); setGroupName(''); setSelectedGroupMembers(new Set()) }}
                     className="shrink-0 rounded-full p-1 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </button>
-                  <p className="text-sm font-semibold text-white">Nouvelle conversation</p>
+                  <p className="text-sm font-semibold text-white">
+                    {newChatMode === 'group' ? 'Nouveau groupe' : 'Nouvelle conversation'}
+                  </p>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 flex-1">
@@ -741,19 +813,84 @@ export default function ChatWidget() {
             ) : showNewChat ? (
               /* New Chat View */
               <div className="flex flex-1 flex-col min-h-0">
-                <div className="px-4 py-3 border-b">
+                {/* Mode Tabs */}
+                <div className="flex gap-1 px-4 pt-3 pb-2">
+                  <button
+                    onClick={() => { setNewChatMode('direct'); setSearchQuery('') }}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      newChatMode === 'direct'
+                        ? 'bg-[#134885] text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    Message direct
+                  </button>
+                  <button
+                    onClick={() => { setNewChatMode('group'); setSearchQuery('') }}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      newChatMode === 'group'
+                        ? 'bg-[#F6852A] text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    Groupe
+                  </button>
+                </div>
+
+                {/* Group name input (group mode only) */}
+                {newChatMode === 'group' && (
+                  <div className="px-4 pb-2">
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        placeholder="Nom du groupe..."
+                        className="h-9 pl-9 rounded-full border-slate-200 bg-slate-50 text-sm focus:border-[#F6852A] focus:ring-[#F6852A]/20"
+                      />
+                    </div>
+                    {selectedGroupMembers.size > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {Array.from(selectedGroupMembers).map((empId) => {
+                          const emp = employees.find(e => e.id === empId)
+                          if (!emp) return null
+                          return (
+                            <span
+                              key={empId}
+                              className="inline-flex items-center gap-1 rounded-full bg-[#F6852A]/10 px-2 py-0.5 text-[10px] font-medium text-[#F6852A]"
+                            >
+                              {emp.nom}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleGroupMember(empId) }}
+                                className="ml-0.5 rounded-full hover:bg-[#F6852A]/20 p-0.5"
+                              >
+                                <X className="h-2.5 w-2.5" />
+                              </button>
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Search */}
+                <div className="px-4 pb-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <Input
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Rechercher un employé..."
+                      placeholder={newChatMode === 'group' ? 'Ajouter des membres...' : 'Rechercher un employé...'}
                       className="h-9 pl-9 rounded-full border-slate-200 bg-slate-50 text-sm"
                     />
                   </div>
                 </div>
+
                 <ScrollArea className="flex-1">
-                  <div className="py-2">
+                  <div className="py-1">
                     {employeesLoading ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
@@ -762,7 +899,8 @@ export default function ChatWidget() {
                       <p className="py-8 text-center text-sm text-slate-400">
                         Aucun employé trouvé
                       </p>
-                    ) : (
+                    ) : newChatMode === 'direct' ? (
+                      /* Direct mode: click to start conversation */
                       filteredEmployees.map((emp) => (
                         <button
                           key={emp.id}
@@ -790,9 +928,66 @@ export default function ChatWidget() {
                           )}
                         </button>
                       ))
+                    ) : (
+                      /* Group mode: multi-select with checkboxes */
+                      filteredEmployees.map((emp) => {
+                        const isSelected = selectedGroupMembers.has(emp.id)
+                        return (
+                          <button
+                            key={emp.id}
+                            onClick={() => toggleGroupMember(emp.id)}
+                            className={`flex w-full items-center gap-3 px-4 py-2.5 transition-colors ${
+                              isSelected ? 'bg-[#F6852A]/5' : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                              isSelected
+                                ? 'border-[#F6852A] bg-[#F6852A]'
+                                : 'border-slate-300'
+                            }`}>
+                              {isSelected && <Check className="h-3 w-3 text-white" />}
+                            </div>
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className={`text-xs ${
+                                isSelected ? 'bg-[#F6852A]/10 text-[#F6852A]' : 'bg-[#134885]/10 text-[#134885]'
+                              }`}>
+                                {getInitials(emp.nom)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="text-left flex-1">
+                              <p className={`text-sm ${isSelected ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'}`}>{emp.nom}</p>
+                              <span
+                                className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                  roleColors[emp.role] || 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {roleLabels[emp.role] || emp.role}
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      })
                     )}
                   </div>
                 </ScrollArea>
+
+                {/* Create Group Button (group mode only) */}
+                {newChatMode === 'group' && (
+                  <div className="border-t px-4 py-3">
+                    <Button
+                      onClick={startGroupConversation}
+                      disabled={!groupName.trim() || selectedGroupMembers.size === 0 || isLoading}
+                      className="w-full rounded-full bg-[#F6852A] hover:bg-[#E0752A] text-white disabled:opacity-50"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Users className="mr-2 h-4 w-4" />
+                      )}
+                      Créer le groupe{selectedGroupMembers.size > 0 ? ` (${selectedGroupMembers.size})` : ''}
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               /* Conversations List */
@@ -906,17 +1101,30 @@ export default function ChatWidget() {
 
                 {/* New Chat Button */}
                 {conversations.length > 0 && (
-                  <div className="border-t px-4 py-3">
+                  <div className="border-t px-4 py-3 space-y-2">
                     <Button
                       onClick={() => {
                         setShowNewChat(true)
                         setSearchQuery('')
+                        setNewChatMode('direct')
                       }}
                       variant="outline"
                       className="w-full rounded-full border-dashed border-[#134885]/30 text-[#134885] hover:bg-[#134885]/5 hover:border-[#134885]/50"
                     >
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
                       Nouveau message
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowNewChat(true)
+                        setSearchQuery('')
+                        setNewChatMode('group')
+                      }}
+                      variant="outline"
+                      className="w-full rounded-full border-dashed border-[#F6852A]/30 text-[#F6852A] hover:bg-[#F6852A]/5 hover:border-[#F6852A]/50"
+                    >
+                      <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                      Créer un groupe
                     </Button>
                   </div>
                 )}
