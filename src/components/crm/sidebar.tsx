@@ -217,7 +217,6 @@ function NavItem({
 export function CRMSidebar() {
   const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, toggleSidebar } = useCRMStore()
   const { user, logout, canViewModule: userCanView } = useAuth()
-  const [hoveredItem, setHoveredItem] = useState<Page | null>(null)
 
   // Redirect to dashboard if current page is not accessible
   useEffect(() => {
@@ -250,7 +249,7 @@ export function CRMSidebar() {
   })).filter(group => group.items.length > 0)
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-gradient-to-b from-[#0f3d6e] via-[#134885] to-[#0e3664] text-white">
+    <div className="flex min-h-full flex-col bg-gradient-to-b from-[#0f3d6e] via-[#134885] to-[#0e3664] text-white">
       {/* Logo / Brand Area */}
       <div className="relative overflow-hidden border-b border-white/[0.08] px-5 py-4">
         {/* Subtle background pattern */}
@@ -402,14 +401,13 @@ export function CRMSidebar() {
       </div>
 
       {/* Desktop sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ width: sidebarOpen ? 256 : 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="fixed inset-y-0 left-0 z-30 hidden overflow-hidden shadow-xl md:block"
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 hidden overflow-y-auto overflow-x-hidden shadow-xl transition-all duration-300 ease-in-out md:block ${
+          sidebarOpen ? 'w-64' : 'w-0'
+        }`}
       >
-        <div className="w-64">{sidebarContent}</div>
-      </motion.aside>
+        <div className="w-64 min-h-full">{sidebarContent}</div>
+      </aside>
     </>
   )
 }

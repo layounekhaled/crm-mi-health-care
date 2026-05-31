@@ -86,10 +86,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50">
       <CRMSidebar />
       <div
-        className="transition-all duration-300"
-        style={{
-          marginLeft: !isMobile && sidebarOpen ? '256px' : '0',
-        }}
+        className={`transition-all duration-300 ease-in-out ${!isMobile && sidebarOpen ? 'ml-64' : 'ml-0'}`}
       >
         <main className="min-h-screen">
           {renderPage()}
