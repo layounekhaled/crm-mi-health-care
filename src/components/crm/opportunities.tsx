@@ -1230,16 +1230,13 @@ export default function OpportunitiesModule() {
             {/* Montant */}
             <div className="space-y-1.5">
               <Label className="text-sm">Montant Estimé (DZD)</Label>
-              <div className="relative">
-                <DollarSign className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                <Input
-                  type="number"
-                  placeholder="1 500 000"
-                  value={formData.montantEstime}
-                  onChange={e => setFormData(f => ({ ...f, montantEstime: e.target.value }))}
-                  className="pl-8 bg-white"
-                />
-              </div>
+              <Input
+                type="number"
+                placeholder="1 500 000"
+                value={formData.montantEstime}
+                onChange={e => setFormData(f => ({ ...f, montantEstime: e.target.value }))}
+                className="bg-white"
+              />
               {formData.montantEstime && (
                 <p className="text-xs text-muted-foreground">
                   Aperçu: {formatDZD(parseFloat(formData.montantEstime) || 0)}
