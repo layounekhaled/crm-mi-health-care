@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   BarChart,
   Bar,
@@ -39,12 +39,22 @@ import {
   ChevronRight,
   Package,
   MapPin,
+  Filter,
+  X as XIcon,
+  RotateCcw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+interface EmployeeOption {
+  id: string
+  nom: string
+  role: string
+}
 
 interface DashboardData {
   prospects: {
@@ -106,6 +116,7 @@ interface DashboardData {
   topCommercials: { commercialId: string; nom: string; ca: number; nbOpportunites: number }[]
   topProducts: { produit: string; marque: string; ca: number; nbOperations: number }[]
   pipeline: { statut: string; count: number; montant: number }[]
+  employees: EmployeeOption[]
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -419,22 +430,50 @@ function PipelineFunnel({ pipeline }: { pipeline: DashboardData['pipeline'] }) {
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [employees, setEmployees] = useState<EmployeeOption[]>([])
+  
+  // Filter states
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [selectedEmployeId, setSelectedEmployeId] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
+      if (selectedEmployeId) params.set('employeId', selectedEmployeId)
+      
+      const qs = params.toString()
+      const res = await fetch(`/api/dashboard${qs ? `?${qs}` : ''}`)
+      if (!res.ok) throw new Error('Failed to fetch')
+      const json = await res.json()
+      setData(json)
+      if (json.employees) setEmployees(json.employees)
+    } catch (err) {
+      console.error('[Dashboard] fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [dateFrom, dateTo, selectedEmployeId])
 
   useEffect(() => {
-    async function fetchDashboard() {
-      try {
-        const res = await fetch('/api/dashboard')
-        if (!res.ok) throw new Error('Failed to fetch')
-        const json = await res.json()
-        setData(json)
-      } catch (err) {
-        console.error('[Dashboard] fetch error:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchDashboard()
-  }, [])
+  }, [fetchDashboard])
+
+  const resetFilters = () => {
+    setDateFrom('')
+    setDateTo('')
+    setSelectedEmployeId('')
+  }
+
+  const hasActiveFilters = dateFrom || dateTo || selectedEmployeId
+
+  const selectedEmployeeName = selectedEmployeId
+    ? employees.find(e => e.id === selectedEmployeId)?.nom
+    : null
 
   // ─── Prepare chart data ────────────────────────────────────────────────
 
@@ -524,14 +563,96 @@ export default function Dashboard() {
                 <h1 className="text-lg font-bold tracking-tight text-[#134885]">
                   Tableau de bord
                 </h1>
-                <p className="text-xs text-muted-foreground">Solutions Santé — Algérie</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedEmployeeName ? (
+                    <>Performance de <span className="font-semibold text-[#F6852A]">{selectedEmployeeName}</span></>
+                  ) : (
+                    'Solutions Santé — Algérie'
+                  )}
+                </p>
               </div>
             </div>
-            <Badge variant="outline" className="hidden sm:flex gap-1.5 border-[#134885]/20 bg-[#134885]/5 text-[#134885]">
-              <div className="h-2 w-2 rounded-full bg-[#F6852A] animate-pulse" />
-              En direct
-            </Badge>
+            <div className="flex items-center gap-2">
+              {hasActiveFilters && (
+                <Badge variant="outline" className="flex gap-1.5 border-[#F6852A]/30 bg-[#F6852A]/5 text-[#F6852A]">
+                  <Filter className="h-3 w-3" />
+                  Filtré
+                </Badge>
+              )}
+              {!hasActiveFilters && (
+                <Badge variant="outline" className="hidden sm:flex gap-1.5 border-[#134885]/20 bg-[#134885]/5 text-[#134885]">
+                  <div className="h-2 w-2 rounded-full bg-[#F6852A] animate-pulse" />
+                  En direct
+                </Badge>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className={`gap-1.5 ${showFilters ? 'border-[#134885] bg-[#134885]/5 text-[#134885]' : 'text-slate-600'}`}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Filtres</span>
+              </Button>
+            </div>
           </div>
+
+          {/* Filter Bar */}
+          {showFilters && (
+            <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+              {/* Date From */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Date début</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-9 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-700 focus:border-[#134885] focus:outline-none focus:ring-1 focus:ring-[#134885]/30"
+                />
+              </div>
+
+              {/* Date To */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Date fin</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="h-9 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-700 focus:border-[#134885] focus:outline-none focus:ring-1 focus:ring-[#134885]/30"
+                />
+              </div>
+
+              {/* Employee Select */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Employé</label>
+                <select
+                  value={selectedEmployeId}
+                  onChange={(e) => setSelectedEmployeId(e.target.value)}
+                  className="h-9 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-700 focus:border-[#134885] focus:outline-none focus:ring-1 focus:ring-[#134885]/30 min-w-[160px]"
+                >
+                  <option value="">Tous les employés</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.nom} ({emp.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Reset Button */}
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetFilters}
+                  className="gap-1.5 text-slate-500 hover:text-red-600 h-9"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Réinitialiser
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 

@@ -7,6 +7,12 @@ export async function GET(request: NextRequest) {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
+    const employeId = searchParams.get('employeId');
+
     // Build base filters based on user role
     const prospectWhere: Record<string, unknown> = {};
     const opportunityWhere: Record<string, unknown> = {};
@@ -29,7 +35,34 @@ export async function GET(request: NextRequest) {
       taskWhere.assigneAId = authUser.employeId;
       afterSaleWhere.employeId = authUser.employeId;
     }
-    // admin sees everything (no filters)
+    // admin sees everything (no role filters)
+
+    // Apply employee filter (admin can filter by any employee)
+    if (employeId) {
+      opportunityWhere.commercialId = employeId;
+      operationWhere.opportunity = { ...(operationWhere.opportunity as Record<string, unknown> || {}), commercialId: employeId };
+      taskWhere.OR = [
+        { assigneAId: employeId },
+        { opportunity: { commercialId: employeId } },
+      ];
+      afterSaleWhere.client = { opportunities: { some: { commercialId: employeId } } };
+      interactionWhere.employeId = employeId;
+      // For prospects: filter by interactions with this employee
+      prospectWhere.interactions = { some: { employeId } };
+    }
+
+    // Apply date range filter
+    const dateFilter: Record<string, unknown> = {};
+    if (dateFrom) dateFilter.gte = new Date(dateFrom);
+    if (dateTo) dateFilter.lte = new Date(new Date(dateTo).setHours(23, 59, 59, 999));
+    if (dateFrom || dateTo) {
+      opportunityWhere.createdAt = dateFilter;
+      operationWhere.createdAt = dateFilter;
+      taskWhere.createdAt = dateFilter;
+      interactionWhere.date = dateFilter;
+      prospectWhere.createdAt = dateFilter;
+      afterSaleWhere.createdAt = dateFilter;
+    }
 
     // 1. Total prospects and clients
     const [totalProspects, totalClients] = await Promise.all([
@@ -156,17 +189,20 @@ export async function GET(request: NextRequest) {
       where: taskWhere,
     });
 
-    // ── NEW: CA by month (last 12 months) ──────────────────────────────
+    // ── CA by month (last 12 months or within date range) ─────────────────
     const twelveMonthsAgo = new Date();
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
     twelveMonthsAgo.setDate(1);
     twelveMonthsAgo.setHours(0, 0, 0, 0);
 
+    const caMonthStart = dateFrom ? new Date(dateFrom) : twelveMonthsAgo;
+    const caMonthEnd = dateTo ? new Date(new Date(dateTo).setHours(23, 59, 59, 999)) : new Date();
+
     const opportunitiesForCA = await db.opportunity.findMany({
       where: {
         ...opportunityWhere,
         statut: 'Gagné',
-        createdAt: { gte: twelveMonthsAgo },
+        createdAt: { gte: caMonthStart, lte: caMonthEnd },
       },
       select: {
         montantEstime: true,
@@ -177,8 +213,15 @@ export async function GET(request: NextRequest) {
 
     // Group by month
     const caByMonth: { month: string; estime: number; reel: number }[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date();
+
+    // Calculate month range
+    const startMonth = new Date(caMonthStart.getFullYear(), caMonthStart.getMonth(), 1);
+    const endMonth = new Date(caMonthEnd.getFullYear(), caMonthEnd.getMonth(), 1);
+    const monthCount = (endMonth.getFullYear() - startMonth.getFullYear()) * 12 + (endMonth.getMonth() - startMonth.getMonth()) + 1;
+    const cappedMonthCount = Math.min(monthCount, 24); // Cap at 24 months
+
+    for (let i = cappedMonthCount - 1; i >= 0; i--) {
+      const d = new Date(endMonth);
       d.setMonth(d.getMonth() - i);
       const monthKey = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
       const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -195,7 +238,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ── NEW: Top commercials (by CA won) ──────────────────────────────
+    // ── Top commercials (by CA won) ──────────────────────────────
     const topCommercials = await db.opportunity.groupBy({
       by: ['commercialId'],
       _sum: { montantEstime: true },
@@ -224,7 +267,7 @@ export async function GET(request: NextRequest) {
       nbOpportunites: t._count.id,
     }));
 
-    // ── NEW: Top products (operations by prix) ─────────────────────────
+    // ── Top products (operations by prix) ─────────────────────────
     const topProducts = await db.operation.groupBy({
       by: ['produit', 'marque'],
       _sum: { prixEstime: true },
@@ -241,7 +284,7 @@ export async function GET(request: NextRequest) {
       nbOperations: p._count.id,
     }));
 
-    // ── NEW: SAV by type ───────────────────────────────────────────────
+    // ── SAV by type ───────────────────────────────────────────────
     const savByType = await db.afterSale.groupBy({
       by: ['type'],
       _count: { id: true },
@@ -254,7 +297,7 @@ export async function GET(request: NextRequest) {
       where: afterSaleWhere,
     });
 
-    // ── NEW: Prospects by wilaya (top 10) ──────────────────────────────
+    // ── Prospects by wilaya (top 10) ──────────────────────────────
     const prospectsByWilaya = await db.prospect.groupBy({
       by: ['wilaya'],
       _count: { id: true },
@@ -263,7 +306,7 @@ export async function GET(request: NextRequest) {
       take: 10,
     });
 
-    // ── NEW: Pipeline conversion rates ─────────────────────────────────
+    // ── Pipeline conversion rates ─────────────────────────────────
     const pipelineData = STATUT_ORDER.map((statut) => {
       const found = opportunitiesByStatut.find((s) => s.statut === statut);
       return {
@@ -271,6 +314,13 @@ export async function GET(request: NextRequest) {
         count: found?._count.statut ?? 0,
         montant: found?._sum.montantEstime ?? 0,
       };
+    });
+
+    // ── Employees list for filter dropdown ─────────────────────────
+    const employees = await db.employee.findMany({
+      where: { actif: true },
+      select: { id: true, nom: true, role: true },
+      orderBy: { nom: 'asc' },
     });
 
     return NextResponse.json({
@@ -335,11 +385,13 @@ export async function GET(request: NextRequest) {
         interactions: recentInteractions,
         tasks: recentTasks,
       },
-      // New enriched data
+      // Enriched data
       caByMonth,
       topCommercials: topCommercialsData,
       topProducts: topProductsData,
       pipeline: pipelineData,
+      // Filter metadata
+      employees,
     });
   } catch (error) {
     console.error('[DASHBOARD_GET]', error);
