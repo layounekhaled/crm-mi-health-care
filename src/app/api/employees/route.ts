@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthUser, canAccess } from '@/lib/auth-helpers';
+import bcrypt from 'bcryptjs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { nom: 'asc' },
       include: {
+        user: { select: { id: true, email: true, actif: true } },
         _count: {
           select: {
             opportunities: true,
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
         (t) => t.statut === 'termine'
       ).length;
 
-      const { opportunities, tasksAssigned, ...rest } = emp;
+      const { opportunities, tasksAssigned, user, ...rest } = emp;
 
       return {
         ...rest,
@@ -67,6 +69,9 @@ export async function GET(request: NextRequest) {
         tachesRealisees,
         nbOpportunites: emp._count.opportunities,
         nbOperations: emp._count.operations,
+        hasUserAccount: !!user,
+        userAccountEmail: user?.email || null,
+        userAccountActif: user?.actif ?? null,
       };
     });
 
@@ -84,23 +89,43 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { nom, email, telephone, role, actif, permissions } = body;
+    const { nom, email, telephone, role, actif, permissions, motDePasse } = body;
 
     if (!nom) {
-      return NextResponse.json({ error: 'Nom is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 });
     }
 
-    // Check for duplicate email
-    if (email) {
-      const existing = await db.employee.findFirst({ where: { email } });
-      if (existing) {
-        return NextResponse.json(
-          { error: 'An employee with this email already exists' },
-          { status: 409 }
-        );
-      }
+    if (!email) {
+      return NextResponse.json({ error: "L'email est requis pour créer les accès" }, { status: 400 });
     }
 
+    if (!motDePasse) {
+      return NextResponse.json({ error: 'Le mot de passe est requis pour créer les accès' }, { status: 400 });
+    }
+
+    if (motDePasse.length < 6) {
+      return NextResponse.json({ error: 'Le mot de passe doit contenir au moins 6 caractères' }, { status: 400 });
+    }
+
+    // Check for duplicate email in Employee
+    const existingEmployee = await db.employee.findFirst({ where: { email } });
+    if (existingEmployee) {
+      return NextResponse.json(
+        { error: 'Un employé avec cet email existe déjà' },
+        { status: 409 }
+      );
+    }
+
+    // Check for duplicate email in User
+    const existingUser = await db.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'Un compte utilisateur avec cet email existe déjà' },
+        { status: 409 }
+      );
+    }
+
+    // Create employee
     const employee = await db.employee.create({
       data: {
         nom,
@@ -112,7 +137,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(employee, { status: 201 });
+    // Create linked User account with hashed password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(motDePasse, salt);
+
+    await db.user.create({
+      data: {
+        email,
+        motDePasse: hashedPassword,
+        employeId: employee.id,
+        role: role || 'commercial',
+        permissions: permissions || null,
+        actif: actif ?? true,
+      },
+    });
+
+    return NextResponse.json({ ...employee, hasUserAccount: true, userAccountEmail: email }, { status: 201 });
   } catch (error) {
     console.error('[EMPLOYEES_POST]', error);
     return NextResponse.json({ error: 'Failed to create employee' }, { status: 500 });

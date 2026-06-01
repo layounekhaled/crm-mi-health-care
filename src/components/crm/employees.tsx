@@ -92,6 +92,9 @@ interface Employee {
   tachesRealisees: number
   nbOpportunites: number
   nbOperations: number
+  hasUserAccount?: boolean
+  userAccountEmail?: string | null
+  userAccountActif?: boolean | null
 }
 
 interface Objective {
@@ -476,6 +479,7 @@ export default function EmployeesModule() {
     role: 'commercial',
     actif: true,
     permissions: createPermissionsFromRole('commercial'),
+    motDePasse: '',
   })
 
   // ─── Data Fetching ─────────────────────────────────────────────
@@ -529,6 +533,7 @@ export default function EmployeesModule() {
       role: 'commercial',
       actif: true,
       permissions: createPermissionsFromRole('commercial'),
+      motDePasse: '',
     })
     setShowFormDialog(true)
   }
@@ -555,6 +560,7 @@ export default function EmployeesModule() {
       role: emp.role,
       actif: emp.actif,
       permissions: mergedPerms,
+      motDePasse: '',
     })
     setShowFormDialog(true)
   }
@@ -569,6 +575,18 @@ export default function EmployeesModule() {
       toast({ title: 'Erreur', description: 'Le nom est requis.', variant: 'destructive' })
       return
     }
+    if (!editingId && !formData.email.trim()) {
+      toast({ title: 'Erreur', description: "L'email est requis pour créer les accès.", variant: 'destructive' })
+      return
+    }
+    if (!editingId && !formData.motDePasse.trim()) {
+      toast({ title: 'Erreur', description: 'Le mot de passe est requis pour créer les accès.', variant: 'destructive' })
+      return
+    }
+    if (formData.motDePasse && formData.motDePasse.length < 6) {
+      toast({ title: 'Erreur', description: 'Le mot de passe doit contenir au moins 6 caractères.', variant: 'destructive' })
+      return
+    }
     setSaving(true)
     try {
       // For admin, send null permissions (they get full access anyway)
@@ -581,6 +599,7 @@ export default function EmployeesModule() {
         role: formData.role,
         permissions: permsToSend,
         actif: formData.actif,
+        motDePasse: formData.motDePasse.trim() || undefined,
       }
 
       if (editingId) {
@@ -593,7 +612,7 @@ export default function EmployeesModule() {
           const errorData = await res.json()
           throw new Error(errorData.error || 'Update failed')
         }
-        toast({ title: 'Employé modifié', description: 'Les informations et permissions ont été mises à jour.' })
+        toast({ title: 'Employé modifié', description: 'Les informations, permissions et accès ont été mis à jour.' })
       } else {
         const res = await fetch('/api/employees', {
           method: 'POST',
@@ -604,7 +623,7 @@ export default function EmployeesModule() {
           const errorData = await res.json()
           throw new Error(errorData.error || 'Create failed')
         }
-        toast({ title: 'Employé ajouté', description: 'Le nouvel employé a été créé avec ses permissions.' })
+        toast({ title: 'Employé ajouté', description: 'Le nouvel employé a été créé avec ses accès de connexion.' })
       }
 
       setShowFormDialog(false)
@@ -836,11 +855,24 @@ export default function EmployeesModule() {
                               </div>
                             </div>
                           </div>
-                          {!emp.actif && (
-                            <Badge variant="secondary" className="text-[10px] bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                              Inactif
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {emp.hasUserAccount ? (
+                              <Badge variant="outline" className="gap-1 text-[10px] font-medium bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                <CheckCircle2 className="size-2.5" />
+                                Accès actif
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="gap-1 text-[10px] font-medium bg-red-50 text-red-500 border-red-200 dark:bg-red-900/30 dark:text-red-400">
+                                <XCircle className="size-2.5" />
+                                Sans accès
+                              </Badge>
+                            )}
+                            {!emp.actif && (
+                              <Badge variant="secondary" className="text-[10px] bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                Inactif
+                              </Badge>
+                            )}
+                          </div>
                         </div>
 
                         {/* Contact info */}
@@ -970,7 +1002,9 @@ export default function EmployeesModule() {
             {/* Email + Téléphone */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-sm">Email</Label>
+                <Label className="text-sm">
+                  Email {!editingId && <span className="text-red-500 ml-0.5">*</span>}
+                </Label>
                 <Input
                   type="email"
                   placeholder="email@exemple.com"
@@ -989,6 +1023,46 @@ export default function EmployeesModule() {
                 />
               </div>
             </div>
+
+            {/* Section: Accès de connexion */}
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#F6852A]" />
+              <h3 className="text-sm font-semibold text-slate-700">Accès de connexion</h3>
+            </div>
+
+            {!editingId ? (
+              /* Creation: password required */
+              <div className="space-y-1.5">
+                <Label className="text-sm">
+                  Mot de passe <span className="text-red-500 ml-0.5">*</span>
+                </Label>
+                <Input
+                  type="password"
+                  placeholder="Minimum 6 caractères"
+                  value={formData.motDePasse}
+                  onChange={e => setFormData(f => ({ ...f, motDePasse: e.target.value }))}
+                  className="bg-white"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Ce mot de passe sera utilisé par l'employé pour se connecter au CRM.
+                </p>
+              </div>
+            ) : (
+              /* Edit: password optional (reset) */
+              <div className="space-y-1.5">
+                <Label className="text-sm">Réinitialiser le mot de passe</Label>
+                <Input
+                  type="password"
+                  placeholder="Laisser vide pour ne pas changer"
+                  value={formData.motDePasse}
+                  onChange={e => setFormData(f => ({ ...f, motDePasse: e.target.value }))}
+                  className="bg-white"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Remplissez ce champ uniquement si vous souhaitez changer le mot de passe (min. 6 caractères).
+                </p>
+              </div>
+            )}
 
             {/* Section: Rôle & Permissions */}
             <div className="flex items-center gap-2 pt-2">
