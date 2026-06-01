@@ -53,6 +53,7 @@ interface Task {
   priorite: string
   description: string | null
   assigneA: { id: string; nom: string } | null
+  assignees?: { employeeId: string; employee: { id: string; nom: string } }[]
   prospect: { id: string; nom: string } | null
   opportunity: { id: string; nomProjet: string } | null
 }
@@ -575,13 +576,17 @@ function EventDetailDialog({
             </div>
           )}
 
-          {/* Assigned employee */}
-          {(item.kind === 'task' && item.data.assigneA) && (
+          {/* Assigned employees */}
+          {(item.kind === 'task' && (item.data.assignees?.length || item.data.assigneA)) && (
             <div className="flex items-start gap-3">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div>
-                <p className="text-xs text-muted-foreground">Assigné à</p>
-                <p className="text-sm font-medium">{item.data.assigneA.nom}</p>
+                <p className="text-xs text-muted-foreground">Assigné(s)</p>
+                <p className="text-sm font-medium">
+                  {item.data.assignees && item.data.assignees.length > 0
+                    ? item.data.assignees.map(a => a.employee.nom).join(', ')
+                    : item.data.assigneA?.nom || ''}
+                </p>
               </div>
             </div>
           )}
@@ -1144,10 +1149,12 @@ function DailyView({
                           <span className="capitalize">{item.data.priorite}</span>
                         </>
                       )}
-                      {item.kind === 'task' && item.data.assigneA && (
+                      {item.kind === 'task' && (item.data.assignees?.length || item.data.assigneA) && (
                         <span className="flex items-center gap-1">
                           <User className="h-3 w-3" />
-                          {item.data.assigneA.nom}
+                          {item.data.assignees && item.data.assignees.length > 0
+                            ? item.data.assignees.map(a => a.employee.nom).join(', ')
+                            : item.data.assigneA?.nom || ''}
                         </span>
                       )}
                       {item.kind === 'sav' && (

@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         task: { select: { id: true, titre: true } },
         afterSale: { select: { id: true, type: true, client: { select: { nom: true } } } },
         employe: { select: { id: true, nom: true, role: true } },
+        photos: true,
       },
     });
 
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
         task: { select: { id: true, titre: true } },
         afterSale: { select: { id: true, type: true } },
         employe: { select: { id: true, nom: true } },
+        photos: true,
       },
     });
 

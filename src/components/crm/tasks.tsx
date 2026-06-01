@@ -19,6 +19,9 @@ import {
   Search,
   X,
   MessageSquare,
+  Image,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -83,6 +86,30 @@ interface CRMEvent {
   date: string
 }
 
+interface InteractionPhoto {
+  id: string
+  url: string
+  fileName: string
+  fileSize: number
+}
+
+interface Interaction {
+  id: string
+  type: string
+  notes?: string | null
+  date: string
+  employeId?: string | null
+  taskId?: string | null
+  photos: InteractionPhoto[]
+  employe?: { id: string; nom: string; role?: string } | null
+}
+
+interface TaskAssignee {
+  id: string
+  employeeId: string
+  employee: { id: string; nom: string; role?: string }
+}
+
 interface Task {
   id: string
   titre: string
@@ -96,13 +123,17 @@ interface Task {
   dateEcheance?: string | null
   priorite: string
   statut: string
+  creeParId?: string | null
   createdAt: string
   updatedAt: string
   assigneA?: { id: string; nom: string; role?: string } | null
+  assignees?: TaskAssignee[]
   prospect?: { id: string; nom: string } | null
   opportunity?: { id: string; nomProjet: string } | null
   operation?: { id: string; produit: string; marque: string } | null
   event?: { id: string; nom: string; date?: string } | null
+  interactions?: Interaction[]
+  creePar?: { id: string; nom: string } | null
 }
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -126,6 +157,14 @@ const STATUSES = [
   { value: 'terminee', label: 'Terminée', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' },
 ] as const
 
+const INTERACTION_TYPE_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
+  appel: { label: 'Appel', color: 'text-blue-600', dotColor: 'bg-blue-500' },
+  whatsapp: { label: 'WhatsApp', color: 'text-green-600', dotColor: 'bg-green-500' },
+  email: { label: 'Email', color: 'text-purple-600', dotColor: 'bg-purple-500' },
+  visite: { label: 'Visite', color: 'text-amber-600', dotColor: 'bg-amber-500' },
+  autre: { label: 'Autre', color: 'text-slate-600', dotColor: 'bg-slate-500' },
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -134,6 +173,17 @@ function formatDate(dateStr: string | null | undefined): string {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+  })
+}
+
+function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -198,16 +248,19 @@ export default function TasksModule() {
   const [showAddInteractionDialog, setShowAddInteractionDialog] = useState(false)
   const [interactionTaskId, setInteractionTaskId] = useState<string | null>(null)
   const [interactionTaskName, setInteractionTaskName] = useState('')
-  const [completeOnInteraction, setCompleteOnInteraction] = useState(false)
   const [interactionProspectId, setInteractionProspectId] = useState<string | null>(null)
   const [interactionOpportunityId, setInteractionOpportunityId] = useState<string | null>(null)
+
+  // Task detail dialog
+  const [showDetailDialog, setShowDetailDialog] = useState(false)
+  const [detailTask, setDetailTask] = useState<Task | null>(null)
+  const [expandedPhotos, setExpandedPhotos] = useState<string | null>(null)
 
   // Form
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     titre: '',
     type: 'commerciale',
-    assigneAId: 'none',
     prospectId: 'none',
     opportunityId: 'none',
     operationId: 'none',
@@ -217,11 +270,13 @@ export default function TasksModule() {
     priorite: 'moyenne',
     statut: 'en_attente',
   })
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([])
 
   // Search
   const [searchTerm, setSearchTerm] = useState('')
   const [prospectSearch, setProspectSearch] = useState('')
   const [opportunitySearch, setOpportunitySearch] = useState('')
+  const [assigneeSearch, setAssigneeSearch] = useState('')
 
   // ─── Data Fetching ─────────────────────────────────────────────
 
@@ -335,7 +390,8 @@ export default function TasksModule() {
     if (searchTerm) {
       const search = searchTerm.toLowerCase()
       const matchTitle = task.titre.toLowerCase().includes(search)
-      const matchAssignee = task.assigneA?.nom?.toLowerCase().includes(search)
+      const matchAssignee = task.assignees?.some(a => a.employee.nom.toLowerCase().includes(search))
+        || task.assigneA?.nom?.toLowerCase().includes(search)
       const matchDescription = task.description?.toLowerCase().includes(search)
       if (!matchTitle && !matchAssignee && !matchDescription) return false
     }
@@ -345,22 +401,18 @@ export default function TasksModule() {
   // Sort: overdue first, then by priority (haute > moyenne > basse), then by date
   const priorityOrder: Record<string, number> = { haute: 0, moyenne: 1, basse: 2 }
   const sortedTasks = [...filteredTasks].sort((a, b) => {
-    // Overdue tasks first
     const aOverdue = isOverdue(a.dateEcheance, a.statut)
     const bOverdue = isOverdue(b.dateEcheance, b.statut)
     if (aOverdue && !bOverdue) return -1
     if (!aOverdue && bOverdue) return 1
 
-    // Then by status (en_attente > en_cours > terminee)
     const statusOrder: Record<string, number> = { en_attente: 0, en_cours: 1, terminee: 2 }
     const statusDiff = (statusOrder[a.statut] ?? 1) - (statusOrder[b.statut] ?? 1)
     if (statusDiff !== 0) return statusDiff
 
-    // Then by priority
     const prioDiff = (priorityOrder[a.priorite] ?? 1) - (priorityOrder[b.priorite] ?? 1)
     if (prioDiff !== 0) return prioDiff
 
-    // Then by due date (nulls last)
     if (a.dateEcheance && b.dateEcheance) {
       return new Date(a.dateEcheance).getTime() - new Date(b.dateEcheance).getTime()
     }
@@ -387,6 +439,11 @@ export default function TasksModule() {
     return o.nomProjet.toLowerCase().includes(opportunitySearch.toLowerCase())
   })
 
+  const filteredEmployees = employees.filter(emp => {
+    if (!assigneeSearch) return true
+    return emp.nom.toLowerCase().includes(assigneeSearch.toLowerCase())
+  })
+
   // ─── Form Handlers ─────────────────────────────────────────────
 
   const openCreateDialog = () => {
@@ -394,7 +451,6 @@ export default function TasksModule() {
     setFormData({
       titre: '',
       type: 'commerciale',
-      assigneAId: 'none',
       prospectId: 'none',
       opportunityId: 'none',
       operationId: 'none',
@@ -404,8 +460,10 @@ export default function TasksModule() {
       priorite: 'moyenne',
       statut: 'en_attente',
     })
+    setSelectedAssigneeIds([])
     setProspectSearch('')
     setOpportunitySearch('')
+    setAssigneeSearch('')
     setShowFormDialog(true)
   }
 
@@ -414,7 +472,6 @@ export default function TasksModule() {
     setFormData({
       titre: task.titre,
       type: task.type,
-      assigneAId: task.assigneAId || 'none',
       prospectId: task.prospectId || 'none',
       opportunityId: task.opportunityId || 'none',
       operationId: task.operationId || 'none',
@@ -424,8 +481,11 @@ export default function TasksModule() {
       priorite: task.priorite,
       statut: task.statut,
     })
+    // Set assignees from junction table
+    setSelectedAssigneeIds(task.assignees?.map(a => a.employeeId) || (task.assigneAId ? [task.assigneAId] : []))
     setProspectSearch(task.prospect?.nom || '')
     setOpportunitySearch(task.opportunity?.nomProjet || '')
+    setAssigneeSearch('')
     setShowFormDialog(true)
   }
 
@@ -433,13 +493,11 @@ export default function TasksModule() {
     if (!formData.titre.trim()) return
     setSaving(true)
     try {
-      // Convert "none" values to null for optional foreign keys
       const cleanId = (val: string) => (val && val !== 'none' ? val : null)
 
       const payload: Record<string, unknown> = {
         titre: formData.titre.trim(),
         type: formData.type,
-        assigneAId: cleanId(formData.assigneAId),
         prospectId: cleanId(formData.prospectId),
         opportunityId: cleanId(formData.opportunityId),
         operationId: cleanId(formData.operationId),
@@ -448,6 +506,7 @@ export default function TasksModule() {
         dateEcheance: formData.dateEcheance || null,
         priorite: formData.priorite,
         statut: formData.statut,
+        assigneAIds: selectedAssigneeIds,
       }
 
       if (editingId) {
@@ -516,13 +575,17 @@ export default function TasksModule() {
     setShowDeleteDialog(true)
   }
 
-  const openInteractionDialog = (task: Task, shouldComplete: boolean = false) => {
+  const openInteractionDialog = (task: Task) => {
     setInteractionTaskId(task.id)
     setInteractionTaskName(task.titre)
-    setCompleteOnInteraction(shouldComplete)
     setInteractionProspectId(task.prospectId || null)
     setInteractionOpportunityId(task.opportunityId || null)
     setShowAddInteractionDialog(true)
+  }
+
+  const openTaskDetail = (task: Task) => {
+    setDetailTask(task)
+    setShowDetailDialog(true)
   }
 
   // ─── Linked entity label ───────────────────────────────────────
@@ -535,6 +598,26 @@ export default function TasksModule() {
     return null
   }
 
+  // Get all assignees for display
+  function getAssignees(task: Task): { id: string; nom: string }[] {
+    if (task.assignees && task.assignees.length > 0) {
+      return task.assignees.map(a => ({ id: a.employee.id, nom: a.employee.nom }))
+    }
+    if (task.assigneA) {
+      return [{ id: task.assigneA.id, nom: task.assigneA.nom }]
+    }
+    return []
+  }
+
+  // Toggle assignee in form
+  const toggleAssignee = (empId: string) => {
+    setSelectedAssigneeIds(prev =>
+      prev.includes(empId)
+        ? prev.filter(id => id !== empId)
+        : [...prev, empId]
+    )
+  }
+
   // ─── Render ────────────────────────────────────────────────────
 
   return (
@@ -543,7 +626,6 @@ export default function TasksModule() {
       <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/80 backdrop-blur-md dark:border-blue-900/50 dark:bg-slate-950/80">
         <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-3">
-            {/* Top row: title + actions */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <img src="/logo.png" alt="MI HEALTH CARE" className="h-9 w-auto shrink-0 object-contain" />
@@ -557,7 +639,6 @@ export default function TasksModule() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                   <Input
@@ -567,7 +648,6 @@ export default function TasksModule() {
                     className="h-9 w-full pl-8 sm:w-48"
                   />
                 </div>
-                {/* My Tasks Toggle */}
                 <div className="flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 dark:bg-slate-900">
                   <Label htmlFor="my-tasks-toggle" className="cursor-pointer text-xs font-medium whitespace-nowrap">
                     {showMyTasks ? 'Mes tâches' : 'Toutes'}
@@ -586,7 +666,6 @@ export default function TasksModule() {
                     className="border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
                   />
                 </div>
-                {/* New Task Button */}
                 <Button
                   onClick={openCreateDialog}
                   className="gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885]"
@@ -693,9 +772,7 @@ export default function TasksModule() {
                 <ListChecks className="size-3.5 text-[#134885]" />
                 Total tâches
               </div>
-              <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
-                {totalTasks}
-              </p>
+              <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">{totalTasks}</p>
             </CardContent>
           </Card>
           <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
@@ -704,9 +781,7 @@ export default function TasksModule() {
                 <Clock className="size-3.5 text-amber-500" />
                 En attente
               </div>
-              <p className="mt-1 text-xl font-bold text-amber-600 dark:text-amber-400">
-                {enAttente}
-              </p>
+              <p className="mt-1 text-xl font-bold text-amber-600 dark:text-amber-400">{enAttente}</p>
             </CardContent>
           </Card>
           <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
@@ -715,9 +790,7 @@ export default function TasksModule() {
                 <Loader2 className="size-3.5 text-blue-500" />
                 En cours
               </div>
-              <p className="mt-1 text-xl font-bold text-blue-600 dark:text-blue-400">
-                {enCours}
-              </p>
+              <p className="mt-1 text-xl font-bold text-blue-600 dark:text-blue-400">{enCours}</p>
             </CardContent>
           </Card>
           <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
@@ -726,9 +799,7 @@ export default function TasksModule() {
                 <CheckCircle2 className="size-3.5 text-emerald-500" />
                 Terminées
               </div>
-              <p className="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                {terminees}
-              </p>
+              <p className="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">{terminees}</p>
             </CardContent>
           </Card>
           <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70 col-span-2 sm:col-span-1">
@@ -737,9 +808,7 @@ export default function TasksModule() {
                 <AlertTriangle className="size-3.5 text-red-500" />
                 En retard
               </div>
-              <p className="mt-1 text-xl font-bold text-red-600 dark:text-red-400">
-                {enRetard}
-              </p>
+              <p className="mt-1 text-xl font-bold text-red-600 dark:text-red-400">{enRetard}</p>
             </CardContent>
           </Card>
         </div>
@@ -754,9 +823,7 @@ export default function TasksModule() {
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-20 dark:border-slate-800">
             <CheckSquare className="mb-3 size-12 text-slate-300 dark:text-slate-700" />
             <p className="text-sm font-medium text-slate-500">Aucune tâche trouvée</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Créez une nouvelle tâche ou modifiez vos filtres
-            </p>
+            <p className="mt-1 text-xs text-slate-400">Créez une nouvelle tâche ou modifiez vos filtres</p>
             <Button
               onClick={openCreateDialog}
               className="mt-4 gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885]"
@@ -776,6 +843,8 @@ export default function TasksModule() {
                 const linkedEntity = getLinkedEntity(task)
                 const isDone = task.statut === 'terminee'
                 const TypeIcon = typeConfig.icon
+                const assignees = getAssignees(task)
+                const interactionCount = task.interactions?.length || 0
 
                 return (
                   <motion.div
@@ -787,11 +856,11 @@ export default function TasksModule() {
                     transition={{ duration: 0.2 }}
                   >
                     <Card
-                      className={`group relative overflow-hidden border-0 bg-white/90 shadow-sm transition-all duration-200 hover:shadow-md dark:bg-slate-900/90 ${
+                      className={`group relative overflow-hidden border-0 bg-white/90 shadow-sm transition-all duration-200 hover:shadow-md dark:bg-slate-900/90 cursor-pointer ${
                         overdue ? 'border-l-4 border-l-red-500' : ''
                       } ${isDone ? 'opacity-70' : ''}`}
+                      onClick={() => openTaskDetail(task)}
                     >
-                      {/* Overdue red left border accent */}
                       {overdue && (
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />
                       )}
@@ -799,29 +868,15 @@ export default function TasksModule() {
                       <CardContent className="p-4">
                         {/* Top: Checkbox + Title + Actions */}
                         <div className="flex items-start gap-3">
-                          <div className="flex items-center gap-1">
-                            <Checkbox
-                              checked={isDone}
-                              onCheckedChange={() => {
-                                if (!isDone) {
-                                  handleQuickComplete(task.id)
-                                }
-                              }}
-                              className="mt-0.5 shrink-0 border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
-                              disabled={isDone}
-                            />
-                            {task.statut !== 'terminee' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openInteractionDialog(task, true)
-                                }}
-                                className="text-[10px] text-[#F6852A] hover:underline ml-2"
-                              >
-                                Terminer + Interaction
-                              </button>
-                            )}
-                          </div>
+                          <Checkbox
+                            checked={isDone}
+                            onCheckedChange={(e) => {
+                              e.stopPropagation()
+                              if (!isDone) handleQuickComplete(task.id)
+                            }}
+                            className="mt-0.5 shrink-0 border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
+                            disabled={isDone}
+                          />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <h3
@@ -838,7 +893,7 @@ export default function TasksModule() {
                                   variant="ghost"
                                   size="sm"
                                   className="size-7 p-0 text-slate-400 hover:text-[#134885]"
-                                  onClick={() => openEditDialog(task)}
+                                  onClick={(e) => { e.stopPropagation(); openEditDialog(task) }}
                                 >
                                   <Edit3 className="size-3.5" />
                                 </Button>
@@ -846,10 +901,7 @@ export default function TasksModule() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0 text-[#134885]"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openInteractionDialog(task, task.statut !== 'terminee')
-                                  }}
+                                  onClick={(e) => { e.stopPropagation(); openInteractionDialog(task) }}
                                   title="Ajouter une interaction"
                                 >
                                   <MessageSquare className="h-3.5 w-3.5" />
@@ -858,14 +910,13 @@ export default function TasksModule() {
                                   variant="ghost"
                                   size="sm"
                                   className="size-7 p-0 text-slate-400 hover:text-red-600"
-                                  onClick={() => confirmDelete(task.id)}
+                                  onClick={(e) => { e.stopPropagation(); confirmDelete(task.id) }}
                                 >
                                   <Trash2 className="size-3.5" />
                                 </Button>
                               </div>
                             </div>
 
-                            {/* Description preview */}
                             {task.description && (
                               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                                 {task.description}
@@ -876,18 +927,15 @@ export default function TasksModule() {
 
                         {/* Badges row */}
                         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                          {/* Type badge */}
                           <Badge variant="outline" className={`gap-1 text-[10px] font-medium ${typeConfig.color}`}>
                             <TypeIcon className="size-3" />
                             {typeConfig.label}
                           </Badge>
 
-                          {/* Status badge */}
                           <Badge variant="outline" className={`text-[10px] font-medium ${statusConfig.color}`}>
                             {statusConfig.label}
                           </Badge>
 
-                          {/* Overdue badge */}
                           {overdue && (
                             <Badge variant="destructive" className="gap-1 text-[10px] font-bold">
                               <AlertTriangle className="size-3" />
@@ -895,13 +943,17 @@ export default function TasksModule() {
                             </Badge>
                           )}
 
-                          {/* Priority dot */}
                           <div className="flex items-center gap-1">
                             <span className={`inline-block size-2 rounded-full ${priorityConfig.dotColor}`} />
-                            <span className="text-[10px] text-muted-foreground capitalize">
-                              {priorityConfig.label}
-                            </span>
+                            <span className="text-[10px] text-muted-foreground capitalize">{priorityConfig.label}</span>
                           </div>
+
+                          {interactionCount > 0 && (
+                            <div className="flex items-center gap-1 text-[10px] text-[#134885]">
+                              <MessageSquare className="size-3" />
+                              {interactionCount}
+                            </div>
+                          )}
                         </div>
 
                         {/* Linked entity */}
@@ -916,16 +968,28 @@ export default function TasksModule() {
 
                         <Separator className="my-3 bg-slate-100 dark:bg-slate-800" />
 
-                        {/* Bottom: Assignee + Due date */}
+                        {/* Bottom: Assignees + Due date */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            {task.assigneA ? (
-                              <div className="flex items-center gap-2">
-                                <div className="flex size-6 items-center justify-center rounded-full bg-[#134885]/10 text-[10px] font-bold text-[#134885] dark:bg-[#134885]/20 dark:text-[#F6852A]">
-                                  {getInitials(task.assigneA.nom)}
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                  {task.assigneA.nom}
+                            {assignees.length > 0 ? (
+                              <div className="flex items-center">
+                                {assignees.slice(0, 3).map((a, i) => (
+                                  <div
+                                    key={a.id}
+                                    className="flex size-6 items-center justify-center rounded-full bg-[#134885]/10 text-[10px] font-bold text-[#134885] dark:bg-[#134885]/20 dark:text-[#F6852A] border-2 border-white dark:border-slate-900"
+                                    style={{ marginLeft: i > 0 ? -6 : 0, zIndex: 3 - i }}
+                                    title={a.nom}
+                                  >
+                                    {getInitials(a.nom)}
+                                  </div>
+                                ))}
+                                {assignees.length > 3 && (
+                                  <span className="ml-1 text-[10px] text-muted-foreground">
+                                    +{assignees.length - 3}
+                                  </span>
+                                )}
+                                <span className="ml-1.5 text-xs text-muted-foreground truncate max-w-[100px]">
+                                  {assignees.length === 1 ? assignees[0].nom : `${assignees.length} assignés`}
                                 </span>
                               </div>
                             ) : (
@@ -959,6 +1023,235 @@ export default function TasksModule() {
           </div>
         )}
       </main>
+
+      {/* ─── Task Detail Dialog ─────────────────────────────────── */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[700px]">
+          {detailTask && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
+                    <CheckSquare className="size-4 text-[#134885] dark:text-[#F6852A]" />
+                  </div>
+                  {detailTask.titre}
+                </DialogTitle>
+                <DialogDescription>
+                  Détails de la tâche et historique des interactions
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Task info */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase">Type</p>
+                    <p className="text-sm font-semibold">{getTypeConfig(detailTask.type).label}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase">Statut</p>
+                    <Badge variant="outline" className={`text-xs ${getStatusConfig(detailTask.statut).color}`}>
+                      {getStatusConfig(detailTask.statut).label}
+                    </Badge>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase">Priorité</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`inline-block size-2 rounded-full ${getPriorityConfig(detailTask.priorite).dotColor}`} />
+                      <span className="text-sm">{getPriorityConfig(detailTask.priorite).label}</span>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase">Échéance</p>
+                    <p className={`text-sm ${isOverdue(detailTask.dateEcheance, detailTask.statut) ? 'font-semibold text-red-600' : ''}`}>
+                      {formatDate(detailTask.dateEcheance)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Assignees */}
+                <div className="rounded-lg border p-3">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase mb-2">Assigné(s)</p>
+                  {getAssignees(detailTask).length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {getAssignees(detailTask).map(a => (
+                        <div key={a.id} className="flex items-center gap-1.5 rounded-full bg-[#134885]/10 px-2.5 py-1">
+                          <div className="flex size-5 items-center justify-center rounded-full bg-[#134885] text-[8px] font-bold text-white">
+                            {getInitials(a.nom)}
+                          </div>
+                          <span className="text-xs font-medium text-[#134885]">{a.nom}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400">Non assigné</p>
+                  )}
+                </div>
+
+                {/* Description */}
+                {detailTask.description && (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">Description</p>
+                    <p className="text-sm whitespace-pre-wrap">{detailTask.description}</p>
+                  </div>
+                )}
+
+                {/* Linked entity */}
+                {getLinkedEntity(detailTask) && (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">Lié à</p>
+                    <Badge variant="secondary" className="text-xs">
+                      <span className="mr-1 text-muted-foreground">{getLinkedEntity(detailTask)!.type}:</span>
+                      {getLinkedEntity(detailTask)!.label}
+                    </Badge>
+                  </div>
+                )}
+
+                <Separator />
+
+                {/* Interactions timeline */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <MessageSquare className="size-4 text-[#134885]" />
+                      Interactions
+                      {detailTask.interactions && detailTask.interactions.length > 0 && (
+                        <Badge variant="secondary" className="text-[10px]">{detailTask.interactions.length}</Badge>
+                      )}
+                    </h3>
+                    <Button
+                      size="sm"
+                      className="gap-1 text-xs bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white hover:from-[#0D3A6E] hover:to-[#134885]"
+                      onClick={() => {
+                        setShowDetailDialog(false)
+                        openInteractionDialog(detailTask)
+                      }}
+                    >
+                      <Plus className="size-3" />
+                      Interaction
+                    </Button>
+                  </div>
+
+                  {!detailTask.interactions || detailTask.interactions.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center">
+                      <MessageSquare className="mx-auto mb-2 size-8 text-slate-300" />
+                      <p className="text-sm text-slate-500">Aucune interaction enregistrée</p>
+                      <p className="text-xs text-slate-400">Ajoutez une interaction pour suivre l&apos;avancement</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {detailTask.interactions.map((interaction, idx) => {
+                        const intConfig = INTERACTION_TYPE_CONFIG[interaction.type] || INTERACTION_TYPE_CONFIG.autre
+                        return (
+                          <div key={interaction.id} className="relative rounded-lg border bg-white p-3">
+                            {/* Timeline connector */}
+                            {idx < (detailTask.interactions?.length || 0) - 1 && (
+                              <div className="absolute left-6 bottom-0 w-0.5 h-3 translate-y-full bg-slate-200" />
+                            )}
+
+                            <div className="flex items-start gap-3">
+                              {/* Type indicator */}
+                              <div className={`flex size-8 shrink-0 items-center justify-center rounded-full ${intConfig.dotColor} bg-opacity-10`}>
+                                <div className={`size-2.5 rounded-full ${intConfig.dotColor}`} />
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                {/* Header */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-xs font-semibold ${intConfig.color}`}>
+                                      {intConfig.label}
+                                    </span>
+                                    {interaction.employe && (
+                                      <span className="text-[10px] text-muted-foreground">
+                                        par {interaction.employe.nom}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {formatDateTime(interaction.date)}
+                                  </span>
+                                </div>
+
+                                {/* Notes */}
+                                {interaction.notes && (
+                                  <p className="mt-1 text-xs text-slate-600 whitespace-pre-wrap">
+                                    {interaction.notes}
+                                  </p>
+                                )}
+
+                                {/* Photos */}
+                                {interaction.photos && interaction.photos.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {interaction.photos.map(photo => (
+                                      <div key={photo.id} className="relative group">
+                                        <img
+                                          src={photo.url}
+                                          alt={photo.fileName}
+                                          className="h-16 w-16 rounded-lg border border-slate-200 object-cover cursor-pointer transition-shadow hover:shadow-md"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setExpandedPhotos(expandedPhotos === photo.url ? null : photo.url)
+                                          }}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowDetailDialog(false)
+                    openEditDialog(detailTask)
+                  }}
+                  className="gap-1"
+                >
+                  <Edit3 className="size-3.5" />
+                  Modifier
+                </Button>
+                {detailTask.statut !== 'terminee' && (
+                  <Button
+                    size="sm"
+                    className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
+                    onClick={() => {
+                      setShowDetailDialog(false)
+                      handleQuickComplete(detailTask.id)
+                    }}
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                    Terminer
+                  </Button>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Photo Expanded Dialog ──────────────────────────────── */}
+      <Dialog open={!!expandedPhotos} onOpenChange={() => setExpandedPhotos(null)}>
+        <DialogContent className="sm:max-w-[800px] p-2">
+          {expandedPhotos && (
+            <img
+              src={expandedPhotos}
+              alt="Photo agrandie"
+              className="w-full rounded-lg object-contain max-h-[80vh]"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
@@ -1048,31 +1341,59 @@ export default function TasksModule() {
               <h3 className="text-sm font-semibold text-slate-700">Assignation</h3>
             </div>
 
-            {/* Assigné à */}
-            <div className="space-y-1.5">
-              <Label className="text-sm">Assigné à</Label>
-              <Select
-                value={formData.assigneAId}
-                onValueChange={v => setFormData(f => ({ ...f, assigneAId: v }))}
-              >
-                <SelectTrigger className="w-full bg-white">
-                  <SelectValue placeholder="Sélectionner un employé" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Non assigné</SelectItem>
-                  {employees.map(emp => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      <span className="flex items-center gap-2">
-                        <span className="flex size-5 items-center justify-center rounded-full bg-[#134885]/10 text-[9px] font-bold text-[#134885]">
-                          {getInitials(emp.nom)}
-                        </span>
-                        {emp.nom}
-                        <span className="text-xs text-muted-foreground">({emp.role})</span>
-                      </span>
-                    </SelectItem>
+            {/* Multi-employee assignment */}
+            <div className="space-y-2">
+              <Label className="text-sm">Assigné à (plusieurs possibles)</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher un employé..."
+                  value={assigneeSearch}
+                  onChange={e => setAssigneeSearch(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-white"
+                />
+              </div>
+              <ScrollArea className="max-h-40 rounded-md border">
+                <div className="p-2 space-y-1">
+                  {filteredEmployees.map(emp => (
+                    <label
+                      key={emp.id}
+                      className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={selectedAssigneeIds.includes(emp.id)}
+                        onCheckedChange={() => toggleAssignee(emp.id)}
+                        className="border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
+                      />
+                      <div className="flex size-6 items-center justify-center rounded-full bg-[#134885]/10 text-[9px] font-bold text-[#134885]">
+                        {getInitials(emp.nom)}
+                      </div>
+                      <span className="text-sm">{emp.nom}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">({emp.role})</span>
+                    </label>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              </ScrollArea>
+              {selectedAssigneeIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {selectedAssigneeIds.map(id => {
+                    const emp = employees.find(e => e.id === id)
+                    if (!emp) return null
+                    return (
+                      <Badge key={id} variant="secondary" className="gap-1 text-xs">
+                        {emp.nom}
+                        <button
+                          type="button"
+                          onClick={() => toggleAssignee(id)}
+                          className="ml-0.5 text-muted-foreground hover:text-red-500"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </Badge>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Date d'échéance */}
@@ -1305,7 +1626,6 @@ export default function TasksModule() {
         prospectId={interactionProspectId || undefined}
         opportunityId={interactionOpportunityId || undefined}
         contextLabel={interactionTaskName || 'cette tâche'}
-        onCompleteTask={completeOnInteraction ? interactionTaskId || undefined : undefined}
         onSuccess={() => {
           fetchTasks()
         }}

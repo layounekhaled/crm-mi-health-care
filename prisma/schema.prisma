@@ -124,7 +124,7 @@ model Task {
   id            String    @id @default(cuid())
   titre         String
   type          String    @default("commerciale")
-  assigneAId    String?
+  assigneAId    String?   // Legacy: first assignee, kept for backward compat
   prospectId    String?
   opportunityId String?
   operationId   String?
@@ -133,6 +133,7 @@ model Task {
   dateEcheance  DateTime?
   priorite      String    @default("moyenne")
   statut        String    @default("en_attente")
+  creeParId     String?   // Employee who created the task
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -141,7 +142,22 @@ model Task {
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
   operation   Operation?   @relation(fields: [operationId], references: [id])
   event       Event?       @relation(fields: [eventId], references: [id])
+  creePar     Employee?    @relation("TaskCreator", fields: [creeParId], references: [id])
   interactions Interaction[]
+  assignees   TaskAssignee[]
+}
+
+model TaskAssignee {
+  id         String   @id @default(cuid())
+  taskId     String
+  employeeId String
+  createdAt  DateTime @default(now())
+
+  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, employeeId])
+  @@index([employeeId])
 }
 
 model Interaction {
@@ -161,9 +177,24 @@ model Interaction {
   task        Task?        @relation(fields: [taskId], references: [id])
   afterSale   AfterSale?   @relation(fields: [afterSaleId], references: [id])
   employe     Employee?    @relation(fields: [employeId], references: [id])
+  photos      InteractionPhoto[]
 
   @@index([taskId])
   @@index([afterSaleId])
+}
+
+model InteractionPhoto {
+  id             String   @id @default(cuid())
+  interactionId  String
+  url            String
+  pathname       String
+  fileName       String
+  fileSize       Int
+  createdAt      DateTime @default(now())
+
+  interaction Interaction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+
+  @@index([interactionId])
 }
 
 model AfterSale {
@@ -196,6 +227,8 @@ model Employee {
   opportunities  Opportunity[]
   operations     Operation[]
   tasksAssigned  Task[]
+  taskAssignments TaskAssignee[]
+  createdTasks    Task[]       @relation("TaskCreator")
   interactions   Interaction[]
   afterSales     AfterSale[]
   objectives     Objective[]

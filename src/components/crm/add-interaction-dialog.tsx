@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Phone, MessageCircle, Mail, Calendar, PhoneCall, Loader2 } from 'lucide-react'
+import { Phone, MessageCircle, Mail, Calendar, PhoneCall, Loader2, ImagePlus, X } from 'lucide-react'
 
 const INTERACTION_TYPES = [
   { value: 'appel', label: 'Appel téléphonique', icon: Phone, color: 'text-blue-600' },
@@ -52,6 +52,33 @@ export function AddInteractionDialog({
   const [notes, setNotes] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [submitting, setSubmitting] = useState(false)
+  const [photos, setPhotos] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    const validFiles = files.filter(f => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024)
+
+    setPhotos(prev => [...prev, ...validFiles])
+
+    // Generate previews
+    validFiles.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        setPhotoPreviews(prev => [...prev, ev.target?.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index))
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
+  }
 
   const handleSubmit = async () => {
     if (!notes.trim()) {
@@ -61,6 +88,7 @@ export function AddInteractionDialog({
 
     setSubmitting(true)
     try {
+      // 1. Create the interaction
       const res = await fetch('/api/interactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,7 +108,27 @@ export function AddInteractionDialog({
         throw new Error(data.error || 'Erreur')
       }
 
-      // If we need to mark a task as completed
+      const interaction = await res.json()
+
+      // 2. Upload photos if any
+      if (photos.length > 0) {
+        const photoFormData = new FormData()
+        photoFormData.append('interactionId', interaction.id)
+        photos.forEach(file => {
+          photoFormData.append('files', file)
+        })
+
+        const photoRes = await fetch('/api/interactions/photos', {
+          method: 'POST',
+          body: photoFormData,
+        })
+
+        if (!photoRes.ok) {
+          console.error('Photo upload failed, but interaction was saved')
+        }
+      }
+
+      // 3. If we need to mark a task as completed
       if (onCompleteTask) {
         await fetch(`/api/tasks/${onCompleteTask}`, {
           method: 'PUT',
@@ -99,6 +147,8 @@ export function AddInteractionDialog({
       setType('appel')
       setNotes('')
       setDate(new Date().toISOString().split('T')[0])
+      setPhotos([])
+      setPhotoPreviews([])
       onOpenChange(false)
       onSuccess?.()
     } catch (error: any) {
@@ -108,9 +158,17 @@ export function AddInteractionDialog({
     }
   }
 
+  const handleClose = (isOpen: boolean) => {
+    if (!isOpen) {
+      setPhotos([])
+      setPhotoPreviews([])
+    }
+    onOpenChange(isOpen)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Phone className="h-5 w-5 text-[#134885]" />
@@ -166,6 +224,49 @@ export function AddInteractionDialog({
             />
           </div>
 
+          {/* Photos */}
+          <div className="grid gap-2">
+            <Label>Photos</Label>
+            <div className="flex flex-wrap gap-2">
+              {photoPreviews.map((preview, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={preview}
+                    alt={`Photo ${index + 1}`}
+                    className="h-16 w-16 rounded-lg border border-slate-200 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(index)}
+                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400 transition-colors hover:border-[#134885] hover:text-[#134885]"
+              >
+                <ImagePlus className="h-6 w-6" />
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePhotoSelect}
+              className="hidden"
+            />
+            {photos.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {photos.length} photo(s) sélectionnée(s)
+              </p>
+            )}
+          </div>
+
           {onCompleteTask && (
             <p className="text-xs text-amber-600 flex items-center gap-1.5">
               ✅ La tâche sera automatiquement marquée comme terminée
@@ -174,7 +275,7 @@ export function AddInteractionDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleClose(false)}>
             Annuler
           </Button>
           <Button

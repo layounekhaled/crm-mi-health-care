@@ -22,10 +22,14 @@ export async function GET(request: NextRequest) {
     if (authUser.role === 'commercial' && authUser.employeId) {
       where.OR = [
         { assigneAId: authUser.employeId },
+        { assignees: { some: { employeeId: authUser.employeId } } },
         { opportunity: { commercialId: authUser.employeId } },
       ];
     } else if (authUser.role === 'technicien' && authUser.employeId) {
-      where.assigneAId = authUser.employeId;
+      where.OR = [
+        { assigneAId: authUser.employeId },
+        { assignees: { some: { employeeId: authUser.employeId } } },
+      ];
     }
     // admin sees everything
 
@@ -42,7 +46,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (assigneAId) {
-      where.assigneAId = assigneAId;
+      // Support filtering by any assigned employee (legacy or junction table)
+      where.OR = [
+        { assigneAId },
+        { assignees: { some: { employeeId: assigneAId } } },
+      ];
     }
 
     if (prospectId) {
@@ -66,10 +74,23 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       include: {
         assigneA: { select: { id: true, nom: true, role: true } },
+        assignees: {
+          include: {
+            employee: { select: { id: true, nom: true, role: true } },
+          },
+        },
         prospect: { select: { id: true, nom: true, wilaya: true } },
         opportunity: { select: { id: true, nomProjet: true, statut: true } },
         operation: { select: { id: true, produit: true, marque: true } },
         event: { select: { id: true, nom: true, date: true } },
+        interactions: {
+          orderBy: { date: 'desc' },
+          include: {
+            employe: { select: { id: true, nom: true, role: true } },
+            photos: true,
+          },
+        },
+        creePar: { select: { id: true, nom: true } },
       },
     });
 
@@ -91,6 +112,7 @@ export async function POST(request: NextRequest) {
       titre,
       type,
       assigneAId,
+      assigneAIds, // Array of employee IDs for multi-assignment
       prospectId,
       opportunityId,
       operationId,
@@ -105,11 +127,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'titre is required' }, { status: 400 });
     }
 
+    // Build assignees list
+    const employeeIds: string[] = assigneAIds || (assigneAId ? [assigneAId] : []);
+    const firstAssigneeId = employeeIds.length > 0 ? employeeIds[0] : null;
+
     const task = await db.task.create({
       data: {
         titre,
         type: type || 'commerciale',
-        assigneAId: assigneAId || null,
+        assigneAId: firstAssigneeId, // Keep first as legacy field
         prospectId: prospectId || null,
         opportunityId: opportunityId || null,
         operationId: operationId || null,
@@ -118,15 +144,51 @@ export async function POST(request: NextRequest) {
         dateEcheance: dateEcheance ? new Date(dateEcheance) : null,
         priorite: priorite || 'moyenne',
         statut: statut || 'en_attente',
+        creeParId: authUser.employeId || null,
+        // Create assignees via junction table
+        assignees: {
+          create: employeeIds.map((empId: string) => ({
+            employeeId: empId,
+          })),
+        },
       },
       include: {
         assigneA: { select: { id: true, nom: true } },
+        assignees: {
+          include: {
+            employee: { select: { id: true, nom: true } },
+          },
+        },
         prospect: { select: { id: true, nom: true } },
         opportunity: { select: { id: true, nomProjet: true } },
         operation: { select: { id: true, produit: true, marque: true } },
         event: { select: { id: true, nom: true } },
       },
     });
+
+    // Create notifications for assigned employees
+    for (const empId of employeeIds) {
+      // Don't notify the creator if they assigned it to themselves
+      if (empId === authUser.employeId) continue;
+
+      const employee = await db.employee.findUnique({
+        where: { id: empId },
+        include: { user: true },
+      });
+
+      if (employee?.user) {
+        await db.notification.create({
+          data: {
+            userId: employee.user.id,
+            type: 'tache_assignee',
+            titre: 'Nouvelle tâche assignée',
+            message: `La tâche "${titre}" vous a été assignée.`,
+            lien: '/?page=tasks',
+            referenceId: task.id,
+          },
+        });
+      }
+    }
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {

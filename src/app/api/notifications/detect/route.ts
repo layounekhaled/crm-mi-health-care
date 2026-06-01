@@ -16,42 +16,64 @@ export async function POST(request: NextRequest) {
 
     let createdCount = 0
 
+    // Helper: get all assigned employee user IDs for a task
+    async function getTaskAssigneeUserIds(task: { id: string; assigneAId: string | null; assignees: { employeeId: string; employee: { user: { id: string } | null } }[] }): Promise<string[]> {
+      const userIds = new Set<string>()
+      // From junction table
+      for (const a of task.assignees) {
+        if (a.employee?.user?.id) userIds.add(a.employee.user.id)
+      }
+      // From legacy field (if not already covered by junction table)
+      if (task.assigneAId && userIds.size === 0) {
+        const emp = await db.employee.findUnique({
+          where: { id: task.assigneAId },
+          include: { user: true },
+        })
+        if (emp?.user?.id) userIds.add(emp.user.id)
+      }
+      return Array.from(userIds)
+    }
+
     // 1. Tasks with dateEcheance < now AND statut != 'terminee' → "Tâche en retard"
     const overdueTasks = await db.task.findMany({
       where: {
         dateEcheance: { lt: now },
         statut: { notIn: ['terminee', 'terminé', 'termine'] },
-        assigneAId: { not: null },
+        OR: [
+          { assigneAId: { not: null } },
+          { assignees: { some: {} } },
+        ],
       },
       include: {
         assigneA: { include: { user: true } },
+        assignees: { include: { employee: { include: { user: true } } } },
       },
     })
 
     for (const task of overdueTasks) {
-      if (!task.assigneA?.user) continue
+      const userIds = await getTaskAssigneeUserIds(task)
+      for (const userId of userIds) {
+        const existing = await db.notification.findFirst({
+          where: {
+            userId,
+            type: 'tache_retard',
+            referenceId: task.id,
+          },
+        })
+        if (existing) continue
 
-      // Check if notification already exists for this task
-      const existing = await db.notification.findFirst({
-        where: {
-          userId: task.assigneA.user.id,
-          type: 'tache_retard',
-          referenceId: task.id,
-        },
-      })
-      if (existing) continue
-
-      await db.notification.create({
-        data: {
-          userId: task.assigneA.user.id,
-          type: 'tache_retard',
-          titre: 'Tâche en retard',
-          message: `La tâche "${task.titre}" est en retard. Échéance dépassée.`,
-          lien: '/?page=tasks',
-          referenceId: task.id,
-        },
-      })
-      createdCount++
+        await db.notification.create({
+          data: {
+            userId,
+            type: 'tache_retard',
+            titre: 'Tâche en retard',
+            message: `La tâche "${task.titre}" est en retard. Échéance dépassée.`,
+            lien: '/?page=tasks',
+            referenceId: task.id,
+          },
+        })
+        createdCount++
+      }
     }
 
     // 2. Tasks with dateEcheance within 24h AND statut != 'terminee' → "Tâche due bientôt"
@@ -59,36 +81,41 @@ export async function POST(request: NextRequest) {
       where: {
         dateEcheance: { gte: now, lte: in24h },
         statut: { notIn: ['terminee', 'terminé', 'termine'] },
-        assigneAId: { not: null },
+        OR: [
+          { assigneAId: { not: null } },
+          { assignees: { some: {} } },
+        ],
       },
       include: {
         assigneA: { include: { user: true } },
+        assignees: { include: { employee: { include: { user: true } } } },
       },
     })
 
     for (const task of soonDueTasks) {
-      if (!task.assigneA?.user) continue
+      const userIds = await getTaskAssigneeUserIds(task)
+      for (const userId of userIds) {
+        const existing = await db.notification.findFirst({
+          where: {
+            userId,
+            type: 'tache_bientot',
+            referenceId: task.id,
+          },
+        })
+        if (existing) continue
 
-      const existing = await db.notification.findFirst({
-        where: {
-          userId: task.assigneA.user.id,
-          type: 'tache_bientot',
-          referenceId: task.id,
-        },
-      })
-      if (existing) continue
-
-      await db.notification.create({
-        data: {
-          userId: task.assigneA.user.id,
-          type: 'tache_bientot',
-          titre: 'Tâche due bientôt',
-          message: `La tâche "${task.titre}" arrive à échéance dans moins de 24h.`,
-          lien: '/?page=tasks',
-          referenceId: task.id,
-        },
-      })
-      createdCount++
+        await db.notification.create({
+          data: {
+            userId,
+            type: 'tache_bientot',
+            titre: 'Tâche due bientôt',
+            message: `La tâche "${task.titre}" arrive à échéance dans moins de 24h.`,
+            lien: '/?page=tasks',
+            referenceId: task.id,
+          },
+        })
+        createdCount++
+      }
     }
 
     // 3. Opportunities with no interaction in last 7 days AND statut in specific statuses → "Opportunité stagnante"
@@ -110,7 +137,6 @@ export async function POST(request: NextRequest) {
     for (const opp of stagnantOpportunities) {
       if (!opp.commercial?.user) continue
 
-      // Check if last interaction is older than 7 days (or no interaction at all)
       const lastInteraction = opp.interactions[0]
       if (lastInteraction && new Date(lastInteraction.date) > sevenDaysAgo) continue
 
