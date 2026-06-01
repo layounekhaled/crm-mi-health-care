@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
       ];
       afterSaleWhere.client = { opportunities: { some: { commercialId: employeId } } };
       interactionWhere.employeId = employeId;
-      // For prospects: filter by interactions with this employee
-      prospectWhere.interactions = { some: { employeId } };
+      // For prospects: filter by who created them (creeParId)
+      prospectWhere.creeParId = employeId;
     }
 
     // Apply date range filter
@@ -316,6 +316,32 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // ── Employee-specific prospect stats (when employee is selected) ────
+    let employeeProspectStats = null;
+    if (employeId) {
+      const employeeDateFilter: Record<string, unknown> = {};
+      if (dateFrom) employeeDateFilter.gte = new Date(dateFrom);
+      if (dateTo) employeeDateFilter.lte = new Date(new Date(dateTo).setHours(23, 59, 59, 999));
+
+      const employeeProspectWhere: Record<string, unknown> = { creeParId: employeId };
+      if (dateFrom || dateTo) employeeProspectWhere.createdAt = employeeDateFilter;
+
+      const [prospectAjoutes, prospectConvertis] = await Promise.all([
+        db.prospect.count({ where: employeeProspectWhere }),
+        db.prospect.count({ where: { ...employeeProspectWhere, isClient: true } }),
+      ]);
+
+      const tauxConversionEmploye = prospectAjoutes > 0
+        ? Math.round((prospectConvertis / prospectAjoutes) * 10000) / 100
+        : 0;
+
+      employeeProspectStats = {
+        prospectAjoutes,
+        prospectConvertis,
+        tauxConversion: tauxConversionEmploye,
+      };
+    }
+
     // ── Employees list for filter dropdown ─────────────────────────
     const employees = await db.employee.findMany({
       where: { actif: true },
@@ -392,6 +418,7 @@ export async function GET(request: NextRequest) {
       pipeline: pipelineData,
       // Filter metadata
       employees,
+      employeeProspectStats,
     });
   } catch (error) {
     console.error('[DASHBOARD_GET]', error);

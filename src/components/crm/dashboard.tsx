@@ -117,6 +117,11 @@ interface DashboardData {
   topProducts: { produit: string; marque: string; ca: number; nbOperations: number }[]
   pipeline: { statut: string; count: number; montant: number }[]
   employees: EmployeeOption[]
+  employeeProspectStats: {
+    prospectAjoutes: number
+    prospectConvertis: number
+    tauxConversion: number
+  } | null
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -657,6 +662,60 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6 flex-1">
+        {/* ─── Employee Prospect Stats Banner ─────────────────────────── */}
+        {!loading && data?.employeeProspectStats && selectedEmployeId && (
+          <section aria-label="Statistiques prospect de l'employé">
+            <div className="rounded-xl border-2 border-[#134885]/20 bg-gradient-to-r from-[#134885]/5 via-white to-[#F6852A]/5 p-4 sm:p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#134885]/10">
+                  <Users className="h-5 w-5 text-[#134885]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#134885]">
+                    Performance de <span className="text-[#F6852A]">{selectedEmployeeName}</span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Prospects ajoutés et convertis en clients</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                <div className="rounded-lg bg-white border border-blue-100 p-3 text-center shadow-sm">
+                  <div className="flex items-center justify-center gap-1.5 mb-1">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Ajoutés</span>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-600">{formatNumber(data.employeeProspectStats.prospectAjoutes)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">prospects ajoutés</p>
+                </div>
+                <div className="rounded-lg bg-white border border-green-100 p-3 text-center shadow-sm">
+                  <div className="flex items-center justify-center gap-1.5 mb-1">
+                    <UserCheck className="h-4 w-4 text-green-600" />
+                    <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Convertis</span>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600">{formatNumber(data.employeeProspectStats.prospectConvertis)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">devenus clients</p>
+                </div>
+                <div className="rounded-lg bg-white border border-purple-100 p-3 text-center shadow-sm">
+                  <div className="flex items-center justify-center gap-1.5 mb-1">
+                    <TrendingUp className="h-4 w-4 text-purple-600" />
+                    <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Conversion</span>
+                  </div>
+                  <p className="text-2xl font-bold text-purple-600">{data.employeeProspectStats.tauxConversion.toFixed(1)}%</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">taux de conversion</p>
+                </div>
+              </div>
+              {/* Progress bar for conversion rate */}
+              <div className="mt-3">
+                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#134885] to-[#F6852A] transition-all duration-700 ease-out"
+                    style={{ width: `${Math.min(data.employeeProspectStats.tauxConversion, 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* ─── KPI Cards (8 cards) ──────────────────────────────────── */}
         <section aria-label="Indicateurs clés de performance">
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-4">

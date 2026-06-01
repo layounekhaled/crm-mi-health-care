@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
         source: source || 'prospection',
         recommandePar: recommandePar || null,
         recommandeParId: recommandeParId || null,
+        creeParId: authUser.employeId || null,
         tarif: tarif ? parseInt(tarif) : null,
         isClient: isClient ?? false,
         notes: notes || null,
