@@ -20,6 +20,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  XCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
