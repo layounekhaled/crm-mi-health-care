@@ -56,7 +56,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { nom, ville, date, type, marques, equipe, notes, employeeIds } = body;
+    const { nom, ville, date, dateFin, type, marques, equipe, notes, employeeIds } = body;
 
     const existing = await db.event.findUnique({
       where: { id },
@@ -73,6 +73,7 @@ export async function PUT(
         ...(nom !== undefined && { nom }),
         ...(ville !== undefined && { ville }),
         ...(date !== undefined && { date: new Date(date) }),
+        ...(dateFin !== undefined && { dateFin: dateFin ? new Date(dateFin) : null }),
         ...(type !== undefined && { type }),
         ...(marques !== undefined && { marques }),
         ...(equipe !== undefined && { equipe }),

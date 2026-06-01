@@ -63,6 +63,7 @@ interface CRMEvent {
   nom: string
   ville: string | null
   date: string
+  dateFin: string | null
   type: string
   marques: string | null
   equipe: string | null
@@ -478,14 +479,16 @@ function EventDetailDialog({
                 {item.kind === 'task' && item.data.dateEcheance
                   ? formatDateFull(item.data.dateEcheance)
                   : item.kind === 'event'
-                  ? formatDateFull(item.data.date)
+                  ? (item.data.dateFin
+                    ? `${formatDateFull(item.data.date)} → ${formatDateFull(item.data.dateFin)}`
+                    : formatDateFull(item.data.date))
                   : item.kind === 'interaction'
                   ? formatDateFull(item.data.date)
                   : item.kind === 'sav' && item.data.date
                   ? formatDateFull(item.data.date)
                   : 'Date non renseignée'}
               </p>
-              {(item.kind === 'interaction' || item.kind === 'event') && (
+              {(item.kind === 'interaction' || (item.kind === 'event' && !item.data.dateFin)) && (
                 <p className="text-xs text-muted-foreground">
                   {formatTime(
                     item.kind === 'event' ? item.data.date : item.data.date
@@ -1317,13 +1320,30 @@ export default function CalendarModule() {
       }
     }
 
-    // Events
+    // Events — span from date to dateFin
     for (const event of events) {
-      const key = getDateKey(event.date)
-      if (key) {
-        const arr = map.get(key) || []
+      const startKey = getDateKey(event.date)
+      if (startKey) {
+        const arr = map.get(startKey) || []
         arr.push({ kind: 'event', data: event })
-        map.set(key, arr)
+        map.set(startKey, arr)
+      }
+      // If event has dateFin, add to all days in range
+      if (event.dateFin) {
+        const start = new Date(event.date)
+        const end = new Date(event.dateFin)
+        // Set to start of day for comparison
+        start.setHours(0, 0, 0, 0)
+        end.setHours(0, 0, 0, 0)
+        const current = new Date(start)
+        current.setDate(current.getDate() + 1) // skip start date, already added
+        while (current <= end) {
+          const key = toDateString(current)
+          const arr = map.get(key) || []
+          arr.push({ kind: 'event', data: event })
+          map.set(key, arr)
+          current.setDate(current.getDate() + 1)
+        }
       }
     }
 

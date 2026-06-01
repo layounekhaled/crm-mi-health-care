@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { nom, ville, date, type, marques, equipe, notes, employeeIds } = body;
+    const { nom, ville, date, dateFin, type, marques, equipe, notes, employeeIds } = body;
 
     if (!nom || !date) {
       return NextResponse.json({ error: 'Nom and date are required' }, { status: 400 });
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
         nom,
         ville: ville || null,
         date: new Date(date),
+        dateFin: dateFin ? new Date(dateFin) : null,
         type: type || 'congres',
         marques: marques || null,
         equipe: equipe || null,
@@ -101,6 +102,14 @@ export async function POST(request: NextRequest) {
         const dateStr = new Date(date).toLocaleDateString('fr-FR', {
           day: 'numeric', month: 'long', year: 'numeric',
         });
+        const dateFinStr = dateFin
+          ? new Date(dateFin).toLocaleDateString('fr-FR', {
+              day: 'numeric', month: 'long', year: 'numeric',
+            })
+          : null;
+        const periodeStr = dateFinStr
+          ? `du ${dateStr} au ${dateFinStr}`
+          : `le ${dateStr}`;
 
         for (const user of users) {
           await db.notification.create({
@@ -108,7 +117,7 @@ export async function POST(request: NextRequest) {
               userId: user.id,
               type: 'evenement_assigne',
               titre: 'Événement assigné',
-              message: `Vous avez été assigné(e) à l'événement « ${nom} » le ${dateStr}${ville ? ` à ${ville}` : ''}.`,
+              message: `Vous avez été assigné(e) à l'événement « ${nom} » ${periodeStr}${ville ? ` à ${ville}` : ''}.`,
               lien: '/?page=calendar',
               referenceId: event.id,
             },
