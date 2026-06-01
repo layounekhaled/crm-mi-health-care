@@ -1255,371 +1255,364 @@ export default function TasksModule() {
 
       {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[700px] p-0">
-          <DialogHeader className="px-6 pt-6 pb-0">
-            <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="sm:max-w-[780px] p-0 gap-0">
+          <DialogHeader className="px-6 pt-5 pb-3">
+            <DialogTitle className="flex items-center gap-2.5">
               <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#134885] to-[#1A5A9E] shadow-sm">
-                <CheckSquare className="size-4.5 text-white" />
+                <CheckSquare className="size-4 text-white" />
               </div>
               {editingId ? 'Modifier la tâche' : 'Nouvelle tâche'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               {editingId ? 'Modifiez les informations de la tâche.' : 'Créez et assignez une nouvelle tâche.'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 px-6 py-4">
-            {/* Section: Informations */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="flex size-5 items-center justify-center rounded-md bg-[#134885]/10">
-                  <CheckSquare className="size-3 text-[#134885]" />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-700">Informations</h3>
-              </div>
-
-              <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-                {/* Titre */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">
-                    Titre <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    placeholder="Ex: Relancer le client pour devis"
-                    value={formData.titre}
-                    onChange={e => setFormData(f => ({ ...f, titre: e.target.value }))}
-                    className="h-9 bg-white text-sm"
-                  />
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-0">
+            {/* Left column: Informations + Liens */}
+            <div className="space-y-4 px-6 pb-4 border-r border-slate-100 dark:border-slate-800">
+              {/* Section: Informations */}
+              <div>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="flex size-5 items-center justify-center rounded-md bg-[#134885]/10">
+                    <CheckSquare className="size-3 text-[#134885]" />
+                  </div>
+                  <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Informations</h3>
                 </div>
 
-                {/* Type + Priorité + Date d'échéance */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-600">Type</Label>
-                    <Select
-                      value={formData.type}
-                      onValueChange={v => setFormData(f => ({ ...f, type: v }))}
-                    >
-                      <SelectTrigger className="h-9 bg-white text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TASK_TYPES.map(t => (
-                          <SelectItem key={t.value} value={t.value}>
-                            <span className="flex items-center gap-2">
-                              <t.icon className="size-3.5" />
-                              {t.label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-600">Priorité</Label>
-                    <Select
-                      value={formData.priorite}
-                      onValueChange={v => setFormData(f => ({ ...f, priorite: v }))}
-                    >
-                      <SelectTrigger className="h-9 bg-white text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PRIORITIES.map(p => (
-                          <SelectItem key={p.value} value={p.value}>
-                            <span className="flex items-center gap-2">
-                              <span className={`inline-block size-2 rounded-full ${p.dotColor}`} />
-                              {p.label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-600">Échéance</Label>
+                <div className="space-y-2.5">
+                  {/* Titre */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-600">
+                      Titre <span className="text-red-500">*</span>
+                    </Label>
                     <Input
-                      type="date"
-                      value={formData.dateEcheance}
-                      onChange={e => setFormData(f => ({ ...f, dateEcheance: e.target.value }))}
-                      className="h-9 bg-white text-sm"
+                      placeholder="Ex: Relancer le client pour devis"
+                      value={formData.titre}
+                      onChange={e => setFormData(f => ({ ...f, titre: e.target.value }))}
+                      className="h-8 bg-white text-sm"
+                    />
+                  </div>
+
+                  {/* Type + Priorité */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-600">Type</Label>
+                      <Select
+                        value={formData.type}
+                        onValueChange={v => setFormData(f => ({ ...f, type: v }))}
+                      >
+                        <SelectTrigger className="h-8 bg-white text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TASK_TYPES.map(t => (
+                            <SelectItem key={t.value} value={t.value}>
+                              <span className="flex items-center gap-2">
+                                <t.icon className="size-3.5" />
+                                {t.label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-600">Priorité</Label>
+                      <Select
+                        value={formData.priorite}
+                        onValueChange={v => setFormData(f => ({ ...f, priorite: v }))}
+                      >
+                        <SelectTrigger className="h-8 bg-white text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PRIORITIES.map(p => (
+                            <SelectItem key={p.value} value={p.value}>
+                              <span className="flex items-center gap-2">
+                                <span className={`inline-block size-2 rounded-full ${p.dotColor}`} />
+                                {p.label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Échéance + Statut */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-600">Échéance</Label>
+                      <Input
+                        type="date"
+                        value={formData.dateEcheance}
+                        onChange={e => setFormData(f => ({ ...f, dateEcheance: e.target.value }))}
+                        className="h-8 bg-white text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-600">Statut</Label>
+                      <Select
+                        value={formData.statut}
+                        onValueChange={v => setFormData(f => ({ ...f, statut: v }))}
+                      >
+                        <SelectTrigger className="h-8 bg-white text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUSES.map(s => (
+                            <SelectItem key={s.value} value={s.value}>
+                              <span className="flex items-center gap-2">
+                                <span className={`inline-block size-2 rounded-full ${s.value === 'en_attente' ? 'bg-amber-500' : s.value === 'en_cours' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+                                {s.label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-600">Description</Label>
+                    <Textarea
+                      placeholder="Détails de la tâche..."
+                      value={formData.description}
+                      onChange={e => setFormData(f => ({ ...f, description: e.target.value }))}
+                      rows={3}
+                      className="bg-white text-sm resize-none"
                     />
                   </div>
                 </div>
+              </div>
 
-                {/* Statut */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">Statut</Label>
-                  <Select
-                    value={formData.statut}
-                    onValueChange={v => setFormData(f => ({ ...f, statut: v }))}
-                  >
-                    <SelectTrigger className="h-9 bg-white text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUSES.map(s => (
-                        <SelectItem key={s.value} value={s.value}>
-                          <span className="flex items-center gap-2">
-                            <span className={`inline-block size-2 rounded-full ${s.value === 'en_attente' ? 'bg-amber-500' : s.value === 'en_cours' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
-                            {s.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {/* Section: Liens */}
+              <div>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="flex size-5 items-center justify-center rounded-md bg-[#134885]/10">
+                    <Phone className="size-3 text-[#134885]" />
+                  </div>
+                  <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Liens</h3>
                 </div>
 
-                {/* Description */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">Description</Label>
-                  <Textarea
-                    placeholder="Détails de la tâche..."
-                    value={formData.description}
-                    onChange={e => setFormData(f => ({ ...f, description: e.target.value }))}
-                    rows={3}
-                    className="bg-white text-sm resize-none"
-                  />
+                <div className="space-y-2.5">
+                  {/* Prospect + Opportunité */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-600">Prospect</Label>
+                      <Select
+                        value={formData.prospectId}
+                        onValueChange={v => {
+                          setFormData(f => ({ ...f, prospectId: v }))
+                          const p = prospects.find(pr => pr.id === v)
+                          if (p) setProspectSearch(p.nom)
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectValue placeholder="Sélectionner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <div className="px-2 py-1.5">
+                            <input
+                              placeholder="Rechercher..."
+                              value={prospectSearch}
+                              onChange={e => setProspectSearch(e.target.value)}
+                              className="w-full rounded border px-2 py-1 text-xs"
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </div>
+                          <SelectItem value="none">Aucun</SelectItem>
+                          {filteredProspects.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.nom} {p.wilaya ? `(${p.wilaya})` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-600">Opportunité</Label>
+                      <Select
+                        value={formData.opportunityId}
+                        onValueChange={v => {
+                          setFormData(f => ({ ...f, opportunityId: v }))
+                          const o = opportunities.find(op => op.id === v)
+                          if (o) setOpportunitySearch(o.nomProjet)
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectValue placeholder="Sélectionner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <div className="px-2 py-1.5">
+                            <input
+                              placeholder="Rechercher..."
+                              value={opportunitySearch}
+                              onChange={e => setOpportunitySearch(e.target.value)}
+                              className="w-full rounded border px-2 py-1 text-xs"
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </div>
+                          <SelectItem value="none">Aucune</SelectItem>
+                          {filteredOpportunities.map(o => (
+                            <SelectItem key={o.id} value={o.id}>
+                              {o.nomProjet}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Opération + Événement */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-600">Opération</Label>
+                      <Select
+                        value={formData.operationId}
+                        onValueChange={v => setFormData(f => ({ ...f, operationId: v }))}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectValue placeholder="Sélectionner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Aucune</SelectItem>
+                          {operations.map(o => (
+                            <SelectItem key={o.id} value={o.id}>
+                              {o.produit} — {o.marque}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-600">Événement</Label>
+                      <Select
+                        value={formData.eventId}
+                        onValueChange={v => setFormData(f => ({ ...f, eventId: v }))}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectValue placeholder="Sélectionner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Aucun</SelectItem>
+                          {events.map(e => (
+                            <SelectItem key={e.id} value={e.id}>
+                              {e.nom} — {formatDate(e.date)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Section: Assignation */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
+            {/* Right column: Assignation */}
+            <div className="px-4 py-4">
+              <div className="flex items-center gap-2 mb-2.5">
                 <div className="flex size-5 items-center justify-center rounded-md bg-[#134885]/10">
                   <User className="size-3 text-[#134885]" />
                 </div>
-                <h3 className="text-sm font-semibold text-slate-700">Assignation</h3>
+                <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Assignation</h3>
                 {selectedAssigneeIds.length > 0 && (
                   <Badge className="ml-auto h-5 bg-[#134885]/10 text-[#134885] text-[10px] font-medium border-0">
-                    {selectedAssigneeIds.length} sélectionné{selectedAssigneeIds.length > 1 ? 's' : ''}
+                    {selectedAssigneeIds.length}
                   </Badge>
                 )}
               </div>
 
-              <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-                {/* Search */}
-                <div className="relative mb-2">
-                  <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher un employé..."
-                    value={assigneeSearch}
-                    onChange={e => setAssigneeSearch(e.target.value)}
-                    className="h-8 pl-8 text-xs bg-white"
-                  />
-                </div>
+              {/* Search */}
+              <div className="relative mb-2">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher..."
+                  value={assigneeSearch}
+                  onChange={e => setAssigneeSearch(e.target.value)}
+                  className="h-8 pl-7 text-xs bg-white"
+                />
+              </div>
 
-                {/* Employee list */}
-                <ScrollArea className="max-h-36 rounded-md border bg-white">
-                  <div className="p-1.5 space-y-0.5">
-                    {filteredEmployees.map(emp => (
-                      <label
-                        key={emp.id}
-                        className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 cursor-pointer transition-colors ${
-                          selectedAssigneeIds.includes(emp.id)
-                            ? 'bg-[#134885]/5 ring-1 ring-[#134885]/20'
-                            : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <Checkbox
-                          checked={selectedAssigneeIds.includes(emp.id)}
-                          onCheckedChange={() => toggleAssignee(emp.id)}
-                          className="border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
-                        />
-                        <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-[#134885]/10 to-[#134885]/20 text-[10px] font-bold text-[#134885]">
-                          {getInitials(emp.nom)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-slate-700">{emp.nom}</span>
-                          <span className="text-[11px] text-muted-foreground ml-2">{emp.role}</span>
-                        </div>
-                        {selectedAssigneeIds.includes(emp.id) && (
-                          <CheckCircle2 className="size-4 text-[#134885] shrink-0" />
-                        )}
-                      </label>
-                    ))}
-                    {filteredEmployees.length === 0 && (
-                      <div className="py-4 text-center text-xs text-muted-foreground">
-                        Aucun employé trouvé
-                      </div>
+              {/* Employee list - simple scrollable div */}
+              <div className="max-h-[260px] overflow-y-auto rounded-md border bg-white">
+                {filteredEmployees.map(emp => (
+                  <label
+                    key={emp.id}
+                    className={`flex items-center gap-2 px-2.5 py-1.5 cursor-pointer transition-colors border-b border-slate-50 last:border-0 ${
+                      selectedAssigneeIds.includes(emp.id)
+                        ? 'bg-[#134885]/5'
+                        : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={selectedAssigneeIds.includes(emp.id)}
+                      onCheckedChange={() => toggleAssignee(emp.id)}
+                      className="shrink-0 border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
+                    />
+                    <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#134885]/10 text-[9px] font-bold text-[#134885]">
+                      {getInitials(emp.nom)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-slate-700 truncate">{emp.nom}</p>
+                      <p className="text-[10px] text-muted-foreground">{emp.role}</p>
+                    </div>
+                    {selectedAssigneeIds.includes(emp.id) && (
+                      <CheckCircle2 className="size-3.5 text-[#134885] shrink-0" />
                     )}
-                  </div>
-                </ScrollArea>
-
-                {/* Selected badges */}
-                {selectedAssigneeIds.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                    {selectedAssigneeIds.map(id => {
-                      const emp = employees.find(e => e.id === id)
-                      if (!emp) return null
-                      return (
-                        <Badge key={id} variant="secondary" className="gap-1 text-xs bg-[#134885]/5 text-[#134885] border-[#134885]/10 hover:bg-[#134885]/10">
-                          <span className="flex size-4 items-center justify-center rounded-full bg-[#134885] text-[7px] font-bold text-white">
-                            {getInitials(emp.nom)}
-                          </span>
-                          {emp.nom}
-                          <button
-                            type="button"
-                            onClick={() => toggleAssignee(id)}
-                            className="ml-0.5 text-[#134885]/50 hover:text-red-500"
-                          >
-                            <X className="size-3" />
-                          </button>
-                        </Badge>
-                      )
-                    })}
+                  </label>
+                ))}
+                {filteredEmployees.length === 0 && (
+                  <div className="py-6 text-center text-xs text-muted-foreground">
+                    Aucun employé trouvé
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Section: Liens */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="flex size-5 items-center justify-center rounded-md bg-[#134885]/10">
-                  <Phone className="size-3 text-[#134885]" />
+              {/* Selected badges */}
+              {selectedAssigneeIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2.5">
+                  {selectedAssigneeIds.map(id => {
+                    const emp = employees.find(e => e.id === id)
+                    if (!emp) return null
+                    return (
+                      <Badge key={id} variant="secondary" className="gap-1 text-[11px] bg-[#134885]/5 text-[#134885] border-[#134885]/10 hover:bg-[#134885]/10 px-1.5 py-0">
+                        {emp.nom}
+                        <button
+                          type="button"
+                          onClick={() => toggleAssignee(id)}
+                          className="ml-0.5 text-[#134885]/40 hover:text-red-500"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </Badge>
+                    )
+                  })}
                 </div>
-                <h3 className="text-sm font-semibold text-slate-700">Liens</h3>
-              </div>
-
-              <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-                {/* Prospect + Opportunité in 2 columns */}
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Prospect */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-600">Prospect</Label>
-                    <Select
-                      value={formData.prospectId}
-                      onValueChange={v => {
-                        setFormData(f => ({ ...f, prospectId: v }))
-                        const p = prospects.find(pr => pr.id === v)
-                        if (p) setProspectSearch(p.nom)
-                      }}
-                    >
-                      <SelectTrigger className="h-9 text-xs bg-white">
-                        <SelectValue placeholder="Sélectionner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="px-2 py-1.5">
-                          <input
-                            placeholder="Rechercher..."
-                            value={prospectSearch}
-                            onChange={e => setProspectSearch(e.target.value)}
-                            className="w-full rounded border px-2 py-1 text-xs"
-                            onClick={e => e.stopPropagation()}
-                          />
-                        </div>
-                        <SelectItem value="none">Aucun</SelectItem>
-                        {filteredProspects.map(p => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.nom} {p.wilaya ? `(${p.wilaya})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Opportunité */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-600">Opportunité</Label>
-                    <Select
-                      value={formData.opportunityId}
-                      onValueChange={v => {
-                        setFormData(f => ({ ...f, opportunityId: v }))
-                        const o = opportunities.find(op => op.id === v)
-                        if (o) setOpportunitySearch(o.nomProjet)
-                      }}
-                    >
-                      <SelectTrigger className="h-9 text-xs bg-white">
-                        <SelectValue placeholder="Sélectionner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="px-2 py-1.5">
-                          <input
-                            placeholder="Rechercher..."
-                            value={opportunitySearch}
-                            onChange={e => setOpportunitySearch(e.target.value)}
-                            className="w-full rounded border px-2 py-1 text-xs"
-                            onClick={e => e.stopPropagation()}
-                          />
-                        </div>
-                        <SelectItem value="none">Aucune</SelectItem>
-                        {filteredOpportunities.map(o => (
-                          <SelectItem key={o.id} value={o.id}>
-                            {o.nomProjet}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Opération + Événement in 2 columns */}
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Opération */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-600">Opération</Label>
-                    <Select
-                      value={formData.operationId}
-                      onValueChange={v => setFormData(f => ({ ...f, operationId: v }))}
-                    >
-                      <SelectTrigger className="h-9 text-xs bg-white">
-                        <SelectValue placeholder="Sélectionner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Aucune</SelectItem>
-                        {operations.map(o => (
-                          <SelectItem key={o.id} value={o.id}>
-                            {o.produit} — {o.marque}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Événement */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-600">Événement</Label>
-                    <Select
-                      value={formData.eventId}
-                      onValueChange={v => setFormData(f => ({ ...f, eventId: v }))}
-                    >
-                      <SelectTrigger className="h-9 text-xs bg-white">
-                        <SelectValue placeholder="Sélectionner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Aucun</SelectItem>
-                        {events.map(e => (
-                          <SelectItem key={e.id} value={e.id}>
-                            {e.nom} — {formatDate(e.date)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
-          <DialogFooter className="px-6 pb-6 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <DialogFooter className="px-6 py-3 border-t border-slate-100 dark:border-slate-800">
             <Button
               variant="outline"
               onClick={() => setShowFormDialog(false)}
               disabled={saving}
-              className="h-9"
+              className="h-8 text-xs"
             >
               Annuler
             </Button>
             <Button
               onClick={handleSave}
               disabled={saving || !formData.titre.trim()}
-              className="gap-1.5 h-9 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-md shadow-[#134885]/20 hover:from-[#0D3A6E] hover:to-[#134885]"
+              className="gap-1.5 h-8 text-xs bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-md shadow-[#134885]/20 hover:from-[#0D3A6E] hover:to-[#134885]"
             >
-              {saving && <Loader2 className="size-4 animate-spin" />}
+              {saving && <Loader2 className="size-3.5 animate-spin" />}
               {editingId ? 'Enregistrer' : 'Créer la tâche'}
             </Button>
           </DialogFooter>
