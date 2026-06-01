@@ -72,6 +72,7 @@ interface EventItem {
   nom: string
   ville: string | null
   date: string
+  dateFin: string | null
   type: string
   marques: string | null
   equipe: string | null
@@ -236,6 +237,7 @@ export default function EventsModule() {
     type: 'congres',
     ville: '',
     date: '',
+    dateFin: '',
     marques: [] as string[],
     equipe: '',
     employeeIds: [] as string[],
@@ -367,6 +369,7 @@ export default function EventsModule() {
       type: 'congres',
       ville: '',
       date: '',
+      dateFin: '',
       marques: [],
       equipe: '',
       employeeIds: [],
@@ -383,6 +386,7 @@ export default function EventsModule() {
       type: event.type,
       ville: event.ville || '',
       date: event.date ? new Date(event.date).toISOString().split('T')[0] : '',
+      dateFin: event.dateFin ? new Date(event.dateFin).toISOString().split('T')[0] : '',
       marques: event.marques ? event.marques.split(',').map(m => m.trim()) : [],
       equipe: event.equipe || '',
       employeeIds: event.employees ? event.employees.map(e => e.employeeId) : [],
@@ -395,7 +399,10 @@ export default function EventsModule() {
   const validateForm = () => {
     const errors: Record<string, string> = {}
     if (!formData.nom.trim()) errors.nom = "Le nom de l'événement est requis"
-    if (!formData.date) errors.date = 'La date est requise'
+    if (!formData.date) errors.date = 'La date de début est requise'
+    if (formData.dateFin && formData.date && formData.dateFin < formData.date) {
+      errors.dateFin = 'La date de fin doit être après la date de début'
+    }
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -410,6 +417,7 @@ export default function EventsModule() {
         type: formData.type,
         ville: formData.ville || null,
         date: formData.date,
+        dateFin: formData.dateFin || null,
         marques: formData.marques.length > 0 ? formData.marques.join(',') : null,
         equipe: formData.equipe.trim() || null,
         employeeIds: formData.employeeIds,
@@ -771,7 +779,9 @@ export default function EventsModule() {
                       )}
                       <span className="flex items-center gap-1">
                         <Clock className="size-3" />
-                        {formatDate(event.date)}
+                        {event.dateFin
+                          ? `${formatDate(event.date)} → ${formatDate(event.dateFin)}`
+                          : formatDate(event.date)}
                       </span>
                     </div>
 
@@ -939,21 +949,42 @@ export default function EventsModule() {
               </div>
             </div>
 
-            {/* Date */}
-            <div className="grid gap-2">
-              <Label htmlFor="event-date" className="flex items-center gap-1">
-                Date <span className="text-red-500 ml-0.5">*</span>
-              </Label>
-              <Input
-                id="event-date"
-                type="date"
-                value={formData.date}
-                onChange={e => setFormData({ ...formData, date: e.target.value })}
-                className={formErrors.date ? 'border-destructive bg-white' : 'bg-white'}
-              />
-              {formErrors.date && (
-                <p className="text-xs text-destructive">{formErrors.date}</p>
-              )}
+            {/* Date de début + Date de fin */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="event-date" className="flex items-center gap-1">
+                  Date de début <span className="text-red-500 ml-0.5">*</span>
+                </Label>
+                <Input
+                  id="event-date"
+                  type="date"
+                  value={formData.date}
+                  onChange={e => setFormData({ ...formData, date: e.target.value })}
+                  className={formErrors.date ? 'border-destructive bg-white' : 'bg-white'}
+                />
+                {formErrors.date && (
+                  <p className="text-xs text-destructive">{formErrors.date}</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="event-datefin" className="flex items-center gap-1">
+                  Date de fin
+                </Label>
+                <Input
+                  id="event-datefin"
+                  type="date"
+                  value={formData.dateFin}
+                  min={formData.date || undefined}
+                  onChange={e => setFormData({ ...formData, dateFin: e.target.value })}
+                  className={formErrors.dateFin ? 'border-destructive bg-white' : 'bg-white'}
+                />
+                {formErrors.dateFin && (
+                  <p className="text-xs text-destructive">{formErrors.dateFin}</p>
+                )}
+                {!formErrors.dateFin && (
+                  <p className="text-xs text-muted-foreground">Optionnel — pour les événements sur plusieurs jours</p>
+                )}
+              </div>
             </div>
 
             {/* Section: Marques & Équipe */}

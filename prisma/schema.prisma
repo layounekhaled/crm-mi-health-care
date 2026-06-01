@@ -43,7 +43,8 @@ model Event {
   id        String   @id @default(cuid())
   nom       String
   ville     String?
-  date      DateTime
+  date      DateTime          // Date de début
+  dateFin   DateTime?         // Date de fin
   type      String    @default("congres")
   marques   String?
   equipe    String?
