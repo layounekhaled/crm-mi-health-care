@@ -225,26 +225,7 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              {/* Demo credentials */}
-              <div className="mt-6 rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-3">
-                <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Comptes de démonstration
-                </p>
-                <div className="space-y-1 text-xs text-slate-500">
-                  <div className="flex justify-between">
-                    <span className="font-medium text-slate-600">Admin</span>
-                    <span>khaled@mihealthcare.dz / admin123</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-slate-600">Commercial</span>
-                    <span>amine@mihealthcare.dz / com123</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-slate-600">Technicien</span>
-                    <span>youcef@mihealthcare.dz / tech123</span>
-                  </div>
-                </div>
-              </div>
+
             </CardContent>
           </Card>
         </motion.div>
