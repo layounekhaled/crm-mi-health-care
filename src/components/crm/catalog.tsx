@@ -107,6 +107,11 @@ const CATEGORIES = [
   'Échographie',
   'Cardiologie',
   'Anesthésie',
+  'Spirométrie',
+  'Respiration',
+  'Oxygénothérapie',
+  'Orthopédie',
+  'Diagnostic',
   'Autre',
 ]
 
