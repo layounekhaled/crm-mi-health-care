@@ -25,10 +25,11 @@ export const BUCKET_NAME = 'Documents'
 // Brand folders
 export const BRAND_FOLDERS: Record<string, string> = {
   'MIR': 'mir',
-  'BOS': 'bos',
+  'BOSO BOSCH': 'boso-bosch',
   'Löwenstein': 'lowenstein',
   'Yuwell': 'yuwell',
   'Gelenke': 'gelenke',
+  'DRIVE DEVILBISS': 'drive-devilbiss',
   'Autres': 'autres',
 }
 

@@ -127,14 +127,15 @@ const EVENT_TYPES = [
   { value: 'formation', label: 'Formation', color: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100' },
 ]
 
-const MARQUES = ['MIR', 'BOS', 'Löwenstein', 'Yuwell', 'Gelenke']
+const MARQUES = ['MIR', 'BOSO BOSCH', 'Löwenstein', 'Yuwell', 'Gelenke', 'DRIVE DEVILBISS']
 
 const MARQUE_COLORS: Record<string, string> = {
   MIR: 'bg-[#134885]/10 text-[#134885] border-[#134885]/20 hover:bg-[#134885]/10',
-  BOS: 'bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100',
+  'BOSO BOSCH': 'bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100',
   Löwenstein: 'bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100',
   Yuwell: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100',
   Gelenke: 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-100',
+  'DRIVE DEVILBISS': 'bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-100',
 }
 
 const TYPE_FILTER_OPTIONS = [

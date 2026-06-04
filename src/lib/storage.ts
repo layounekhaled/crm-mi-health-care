@@ -3,10 +3,11 @@ import { put, del, list, head } from '@vercel/blob'
 // Brand folders for document organization
 export const BRAND_FOLDERS: Record<string, string> = {
   'MIR': 'mir',
-  'BOS': 'bos',
+  'BOSO BOSCH': 'boso-bosch',
   'Löwenstein': 'lowenstein',
   'Yuwell': 'yuwell',
   'Gelenke': 'gelenke',
+  'DRIVE DEVILBISS': 'drive-devilbiss',
   'Autres': 'autres',
 }
 

@@ -121,10 +121,11 @@ interface Employee {
 
 const MARQUES = [
   { value: 'MIR', label: 'MIR', color: 'blue' },
-  { value: 'BOS', label: 'BOS', color: 'blue' },
+  { value: 'BOSO BOSCH', label: 'BOSO BOSCH', color: 'blue' },
   { value: 'Löwenstein', label: 'Löwenstein', color: 'purple' },
   { value: 'Yuwell', label: 'Yuwell', color: 'amber' },
   { value: 'Gelenke', label: 'Gelenke', color: 'rose' },
+  { value: 'DRIVE DEVILBISS', label: 'DRIVE DEVILBISS', color: 'teal' },
 ] as const
 
 const STATUTS = [
