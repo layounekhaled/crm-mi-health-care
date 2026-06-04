@@ -1028,7 +1028,7 @@ export default function CatalogModule() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDetailDialog(false)}>Fermer</Button>
-            {(isAdmin || isCommercial) && selectedProduct && (
+            {canEdit && selectedProduct && (
               <Button
                 onClick={() => {
                   setShowDetailDialog(false)
