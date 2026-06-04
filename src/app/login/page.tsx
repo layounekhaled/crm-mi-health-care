@@ -246,21 +246,6 @@ export default function LoginPage() {
         >
           <Card className="border-white/10 bg-white/[0.07] backdrop-blur-2xl shadow-2xl shadow-black/20">
             <CardHeader className="space-y-4 pb-2 text-center">
-              {/* Logo inside card (desktop) */}
-              <motion.div
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 200, delay: 0.3 }}
-                className="mx-auto hidden lg:block"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/logo.png"
-                  alt="MI HEALTH CARE"
-                  className="mx-auto h-14 w-auto object-contain brightness-0 invert opacity-80"
-                />
-              </motion.div>
-
               {/* Header text */}
               <div>
                 <h2 className="text-2xl font-bold tracking-tight text-white">
