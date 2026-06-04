@@ -68,7 +68,7 @@ interface ProspectOption {
   telephone?: string | null
 }
 
-const BRANDS = ['MIR', 'BOS', 'Löwenstein', 'Yuwell', 'Gelenke', 'Autres']
+const BRANDS = ['MIR', 'BOSO BOSCH', 'Löwenstein', 'Yuwell', 'Gelenke', 'DRIVE DEVILBISS', 'Autres']
 const DOCUMENT_TYPES = [
   { value: 'catalogue', label: 'Catalogue' },
   { value: 'prospectus', label: 'Prospectus' },
@@ -80,10 +80,11 @@ const DOCUMENT_TYPES = [
 
 const BRAND_COLORS: Record<string, string> = {
   'MIR': 'bg-blue-100 text-blue-800',
-  'BOS': 'bg-emerald-100 text-emerald-800',
+  'BOSO BOSCH': 'bg-emerald-100 text-emerald-800',
   'Löwenstein': 'bg-violet-100 text-violet-800',
   'Yuwell': 'bg-amber-100 text-amber-800',
   'Gelenke': 'bg-rose-100 text-rose-800',
+  'DRIVE DEVILBISS': 'bg-teal-100 text-teal-800',
   'Autres': 'bg-slate-100 text-slate-800',
 }
 
