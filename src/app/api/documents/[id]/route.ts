@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser, canAccess, staleSessionResponse } from '@/lib/auth-helpers'
+import { getAuthUser, canAccess, hasPermission, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 import { deleteFile } from '@/lib/storage'
 
@@ -42,7 +42,7 @@ export async function PUT(
 ) {
   try {
     const authUser = await getAuthUser(request)
-    if (!authUser || !canAccess(authUser, ['admin'])) {
+    if (!authUser || !hasPermission(authUser, 'documents', 'edit')) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
     if (!authUser.employeId) return staleSessionResponse()
@@ -79,7 +79,7 @@ export async function DELETE(
 ) {
   try {
     const authUser = await getAuthUser(request)
-    if (!authUser || !canAccess(authUser, ['admin'])) {
+    if (!authUser || !hasPermission(authUser, 'documents', 'delete')) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 

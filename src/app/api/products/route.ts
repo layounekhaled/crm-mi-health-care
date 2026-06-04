@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getAuthUser, canAccess } from '@/lib/auth-helpers';
+import { getAuthUser, canAccess, hasPermission } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    if (!hasPermission(authUser, 'catalog', 'create')) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
     const { nom, marque, categorie, reference, description, prix1, prix2, prix3, actif } = body;

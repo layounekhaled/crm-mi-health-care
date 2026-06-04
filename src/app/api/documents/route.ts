@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
-import { getAuthUser, canAccess, staleSessionResponse } from '@/lib/auth-helpers'
+import { getAuthUser, canAccess, hasPermission, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 import { uploadFile, BRAND_FOLDERS } from '@/lib/storage'
 
@@ -68,8 +68,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request)
-    if (!authUser || !canAccess(authUser, ['admin'])) {
-      return NextResponse.json({ error: 'Accès refusé. Admin uniquement.' }, { status: 403 })
+    if (!authUser || !hasPermission(authUser, 'documents', 'create')) {
+      return NextResponse.json({ error: 'Accès refusé. Permission créer requise.' }, { status: 403 })
     }
     if (!authUser.employeId) return staleSessionResponse()
 

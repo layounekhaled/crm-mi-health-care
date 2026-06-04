@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getAuthUser, canAccess } from '@/lib/auth-helpers';
+import { getAuthUser, canAccess, hasPermission } from '@/lib/auth-helpers';
 
 export async function GET(
   request: NextRequest,
@@ -28,7 +28,7 @@ export async function PUT(
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    if (!hasPermission(authUser, 'catalog', 'edit')) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const { id } = await params;
     const body = await request.json();
@@ -63,7 +63,7 @@ export async function DELETE(
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé - Admin uniquement' }, { status: 403 });
+    if (!hasPermission(authUser, 'catalog', 'delete')) return NextResponse.json({ error: 'Accès refusé - Permission supprimer requise' }, { status: 403 });
 
     const { id } = await params;
 

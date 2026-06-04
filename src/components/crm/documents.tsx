@@ -97,7 +97,10 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 export default function DocumentsModule() {
-  const { user } = useAuth()
+  const { user, hasPermission } = useAuth()
+  const canCreate = hasPermission('documents', 'create')
+  const canEdit = hasPermission('documents', 'edit')
+  const canDelete = hasPermission('documents', 'delete')
   const isAdmin = user?.role === 'admin'
 
   // State
@@ -436,7 +439,7 @@ export default function DocumentsModule() {
                 Init Stockage
               </Button>
             )}
-            {isAdmin && (
+            {canCreate && (
               <Button
                 onClick={() => setShowUpload(true)}
                 className="bg-[#F6852A] hover:bg-[#e5761f] text-white"
@@ -508,7 +511,7 @@ export default function DocumentsModule() {
                   ))}
                 </SelectContent>
               </Select>
-              {isAdmin && (
+              {canEdit && (
                 <Button
                   variant={showArchived ? 'default' : 'outline'}
                   size="sm"
@@ -557,7 +560,7 @@ export default function DocumentsModule() {
                 <FileText className="h-16 w-16 mb-4 opacity-30" />
                 <p className="text-lg font-medium">Aucun document trouvé</p>
                 <p className="text-sm mt-1">
-                  {isAdmin ? 'Cliquez sur "Ajouter" pour uploader votre premier document' : 'Aucun document actif disponible'}
+                  {canCreate ? 'Cliquez sur "Ajouter" pour uploader votre premier document' : 'Aucun document actif disponible'}
                 </p>
               </div>
             ) : (
@@ -658,7 +661,7 @@ export default function DocumentsModule() {
                         >
                           <Send className="h-3.5 w-3.5" />
                         </Button>
-                        {isAdmin && (
+                        {(canEdit || canDelete) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
@@ -666,18 +669,24 @@ export default function DocumentsModule() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEdit(doc)}>
-                                Modifier
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleArchive(doc, doc.status === 'active' ? 'archived' : 'active')}>
-                                {doc.status === 'active' ? 'Archiver' : 'Restaurer'}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={() => { setDeleteTarget(doc); setShowDeleteConfirm(true) }}
-                              >
-                                Supprimer
-                              </DropdownMenuItem>
+                              {canEdit && (
+                                <DropdownMenuItem onClick={() => openEdit(doc)}>
+                                  Modifier
+                                </DropdownMenuItem>
+                              )}
+                              {canEdit && (
+                                <DropdownMenuItem onClick={() => handleArchive(doc, doc.status === 'active' ? 'archived' : 'active')}>
+                                  {doc.status === 'active' ? 'Archiver' : 'Restaurer'}
+                                </DropdownMenuItem>
+                              )}
+                              {canDelete && (
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => { setDeleteTarget(doc); setShowDeleteConfirm(true) }}
+                                >
+                                  Supprimer
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}

@@ -37,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useCRMStore } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
 import {
   Plus,
   Search,
@@ -116,8 +117,10 @@ function getMarqueInfo(marque: string) {
 // ── Main Component ─────────────────────────────
 export default function CatalogModule() {
   const { currentUser } = useCRMStore()
-  const isAdmin = currentUser?.role === 'admin'
-  const isCommercial = currentUser?.role === 'commercial'
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('catalog', 'create')
+  const canEdit = hasPermission('catalog', 'edit')
+  const canDelete = hasPermission('catalog', 'delete')
 
   // State
   const [products, setProducts] = useState<Product[]>([])
@@ -273,7 +276,7 @@ export default function CatalogModule() {
         title="Catalogue Produits"
         subtitle={`${totalActive} produits actifs · ${marquesCount} marques`}
         actions={
-          (isAdmin || isCommercial) ? (
+          canCreate ? (
             <Button
               onClick={() => { resetForm(); setShowCreateDialog(true) }}
               className="bg-[#134885] hover:bg-[#0D3A6E] text-white gap-2"
@@ -489,12 +492,12 @@ export default function CatalogModule() {
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedProduct(product); setShowDetailDialog(true) }}>
                                   <Eye className="mr-2 h-4 w-4" /> Voir détails
                                 </DropdownMenuItem>
-                                {(isAdmin || isCommercial) && (
+                                {canEdit && (
                                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(product) }}>
                                     <Pencil className="mr-2 h-4 w-4" /> Modifier
                                   </DropdownMenuItem>
                                 )}
-                                {isAdmin && (
+                                {canDelete && (
                                   <DropdownMenuItem
                                     onClick={(e) => { e.stopPropagation(); setSelectedProduct(product); setShowDeleteDialog(true) }}
                                     className="text-red-600 focus:text-red-600"
