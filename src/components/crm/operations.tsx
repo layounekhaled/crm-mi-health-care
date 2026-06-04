@@ -1419,20 +1419,7 @@ export default function OperationsModule() {
                   className="bg-white"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm flex items-center gap-1">
-                  <BarChart3 className="size-3.5" />
-                  Marge (DZD)
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={formData.marge}
-                  onChange={e => setFormData(f => ({ ...f, marge: e.target.value }))}
-                  min={0}
-                  className="bg-white"
-                />
-              </div>
+
             </div>
 
             {/* Statut & Priorité */}
