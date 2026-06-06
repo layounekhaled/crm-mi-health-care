@@ -94,6 +94,7 @@ const MARQUES = [
   { value: 'Yuwell', label: 'Yuwell', color: '#7C3AED', bg: '#F5F3FF' },
   { value: 'Gelenke', label: 'Gelenke', color: '#D97706', bg: '#FFFBEB' },
   { value: 'DRIVE DEVILBISS', label: 'DRIVE DEVILBISS', color: '#0D9488', bg: '#F0FDFA' },
+  { value: 'INOGEN', label: 'INOGEN', color: '#7C3AED', bg: '#F5F3FF' },
   { value: 'Autres', label: 'Autres', color: '#6B7280', bg: '#F9FAFB' },
 ]
 

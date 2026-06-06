@@ -126,6 +126,7 @@ const MARQUES = [
   { value: 'Yuwell', label: 'Yuwell', color: 'amber' },
   { value: 'Gelenke', label: 'Gelenke', color: 'rose' },
   { value: 'DRIVE DEVILBISS', label: 'DRIVE DEVILBISS', color: 'teal' },
+  { value: 'INOGEN', label: 'INOGEN', color: 'purple' },
 ] as const
 
 const STATUTS = [

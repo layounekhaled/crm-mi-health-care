@@ -8,6 +8,7 @@ export const BRAND_FOLDERS: Record<string, string> = {
   'Yuwell': 'yuwell',
   'Gelenke': 'gelenke',
   'DRIVE DEVILBISS': 'drive-devilbiss',
+  'INOGEN': 'inogen',
   'Autres': 'autres',
 }
 
