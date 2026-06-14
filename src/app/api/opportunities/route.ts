@@ -41,6 +41,9 @@ export async function GET(request: NextRequest) {
         commercial: {
           select: { id: true, nom: true, role: true },
         },
+        creePar: {
+          select: { id: true, nom: true },
+        },
         operations: {
           include: {
             responsable: { select: { id: true, nom: true } },
@@ -76,11 +79,13 @@ export async function POST(request: NextRequest) {
         statut: statut || 'Nouveau',
         montantEstime: montantEstime ?? null,
         commercialId: commercialId || null,
+        creeParId: authUser.employeId || null,
         motifPerte: motifPerte || null,
       },
       include: {
         client: { select: { id: true, nom: true } },
         commercial: { select: { id: true, nom: true } },
+        creePar: { select: { id: true, nom: true } },
       },
     });
 

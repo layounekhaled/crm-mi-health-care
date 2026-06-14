@@ -134,11 +134,13 @@ interface Opportunity {
   statut: string
   montantEstime?: number | null
   commercialId?: string | null
+  creeParId?: string | null
   motifPerte?: string | null
   createdAt: string
   updatedAt: string
   client?: Prospect | null
   commercial?: Employee | null
+  creePar?: { id: string; nom: string } | null
   operations?: Operation[]
   tasks?: Task[]
   interactions?: Interaction[]
@@ -970,6 +972,7 @@ export default function OpportunitiesModule() {
                             </span>
                           </TableHead>
                           <TableHead>Commercial</TableHead>
+                          <TableHead>Créé par</TableHead>
                           <TableHead className="cursor-pointer" onClick={() => toggleSort('montantEstime')}>
                             <span className="flex items-center gap-1">
                               Montant <ArrowUpDown className="size-3" />
@@ -1007,6 +1010,7 @@ export default function OpportunitiesModule() {
                               <TableCell className="font-medium">{opp.nomProjet}</TableCell>
                               <TableCell>{opp.client?.nom || '—'}</TableCell>
                               <TableCell>{opp.commercial?.nom || '—'}</TableCell>
+                              <TableCell>{opp.creePar?.nom || '—'}</TableCell>
                               <TableCell className="font-mono text-sm">{formatDZD(opp.montantEstime)}</TableCell>
                               <TableCell><StatutBadge statut={opp.statut} /></TableCell>
                               <TableCell>{formatDate(opp.createdAt)}</TableCell>
@@ -1328,7 +1332,7 @@ export default function OpportunitiesModule() {
               </DialogHeader>
 
               {/* Key Info */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                 <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
                   <p className="text-xs text-muted-foreground">Client</p>
                   <p className="text-sm font-medium">{selectedOpportunity.client?.nom || '—'}</p>
@@ -1336,6 +1340,10 @@ export default function OpportunitiesModule() {
                 <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
                   <p className="text-xs text-muted-foreground">Commercial</p>
                   <p className="text-sm font-medium">{selectedOpportunity.commercial?.nom || '—'}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                  <p className="text-xs text-muted-foreground">Créé par</p>
+                  <p className="text-sm font-medium">{selectedOpportunity.creePar?.nom || '—'}</p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
                   <p className="text-xs text-muted-foreground">Montant</p>
@@ -1990,6 +1998,11 @@ function KanbanCard({
                 {opportunity.commercial?.nom || '—'}
               </span>
             </div>
+            {opportunity.creePar && opportunity.creePar.nom !== opportunity.commercial?.nom && (
+              <span className="text-[10px] text-slate-400" title={`Créé par ${opportunity.creePar.nom}`}>
+                par {opportunity.creePar.nom}
+              </span>
+            )}
             {(opportunity.operations?.length ?? 0) > 0 && (
               <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
                 <Wrench className="mr-0.5 size-2.5" />

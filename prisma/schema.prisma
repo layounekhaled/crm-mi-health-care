@@ -90,12 +90,14 @@ model Opportunity {
   statut        String    @default("Nouveau")
   montantEstime Float?
   commercialId  String?
+  creeParId     String?
   motifPerte    String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   client       Prospect?  @relation(fields: [clientId], references: [id])
   commercial   Employee?  @relation(fields: [commercialId], references: [id])
+  creePar      Employee?  @relation("OpportunitesCrees", fields: [creeParId], references: [id])
   operations   Operation[]
   tasks        Task[]
   interactions Interaction[]
@@ -249,6 +251,7 @@ model Employee {
   uploadedPhotos     ProspectPhoto[]
   eventParticipations EventEmployee[]
   prospectsCrees     Prospect[]  @relation("ProspectCreePar")
+  opportunitesCrees  Opportunity[] @relation("OpportunitesCrees")
 }
 
 model Objective {
