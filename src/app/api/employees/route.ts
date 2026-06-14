@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    if (!canAccess(authUser, ['admin'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
     const actif = searchParams.get('actif');
@@ -74,6 +73,20 @@ export async function GET(request: NextRequest) {
         userAccountActif: user?.actif ?? null,
       };
     });
+
+    // Non-admin users only get basic info (for task assignment, etc.)
+    if (authUser.role !== 'admin') {
+      const basicInfo = employees.map((emp) => ({
+        id: emp.id,
+        nom: emp.nom,
+        email: emp.email,
+        telephone: emp.telephone,
+        role: emp.role,
+        actif: emp.actif,
+        initiales: emp.nom.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+      }));
+      return NextResponse.json(basicInfo);
+    }
 
     return NextResponse.json(employeesWithStats);
   } catch (error) {
