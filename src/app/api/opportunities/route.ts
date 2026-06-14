@@ -44,6 +44,9 @@ export async function GET(request: NextRequest) {
         creePar: {
           select: { id: true, nom: true },
         },
+        modifiePar: {
+          select: { id: true, nom: true },
+        },
         operations: {
           include: {
             responsable: { select: { id: true, nom: true } },
@@ -86,6 +89,7 @@ export async function POST(request: NextRequest) {
         client: { select: { id: true, nom: true } },
         commercial: { select: { id: true, nom: true } },
         creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 

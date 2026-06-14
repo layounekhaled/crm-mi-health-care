@@ -31,6 +31,8 @@ export async function GET(
             assigneA: { select: { id: true, nom: true } },
           },
         },
+        creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 
@@ -78,6 +80,7 @@ export async function PUT(
         ...(marques !== undefined && { marques }),
         ...(equipe !== undefined && { equipe }),
         ...(notes !== undefined && { notes }),
+        modifieParId: authUser.employeId || null,
       },
     });
 

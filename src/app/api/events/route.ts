@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
             employee: { select: { id: true, nom: true, role: true } },
           },
         },
+        creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 
@@ -70,6 +72,7 @@ export async function POST(request: NextRequest) {
         marques: marques || null,
         equipe: equipe || null,
         notes: notes || null,
+        creeParId: authUser.employeId || null,
         employees: employeeIds && employeeIds.length > 0
           ? {
               create: employeeIds.map((empId: string) => ({
@@ -85,6 +88,7 @@ export async function POST(request: NextRequest) {
             employee: { select: { id: true, nom: true } },
           },
         },
+        creePar: { select: { id: true, nom: true } },
       },
     });
 

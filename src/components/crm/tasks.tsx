@@ -134,6 +134,7 @@ interface Task {
   event?: { id: string; nom: string; date?: string } | null
   interactions?: Interaction[]
   creePar?: { id: string; nom: string } | null
+  modifiePar?: { id: string; nom: string } | null
 }
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -1104,6 +1105,24 @@ export default function TasksModule() {
                       <span className="mr-1 text-muted-foreground">{getLinkedEntity(detailTask)!.type}:</span>
                       {getLinkedEntity(detailTask)!.label}
                     </Badge>
+                  </div>
+                )}
+
+                {/* Créé par / Modifié par */}
+                {(detailTask.creePar || detailTask.modifiePar) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {detailTask.creePar && (
+                      <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                        <p className="text-xs text-muted-foreground">Créé par</p>
+                        <p className="text-sm font-medium">{detailTask.creePar.nom}</p>
+                      </div>
+                    )}
+                    {detailTask.modifiePar && (
+                      <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                        <p className="text-xs text-muted-foreground">Modifié par</p>
+                        <p className="text-sm font-medium">{detailTask.modifiePar.nom}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 

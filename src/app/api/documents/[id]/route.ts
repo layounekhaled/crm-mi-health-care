@@ -21,6 +21,7 @@ export async function GET(
       where: { id },
       include: {
         uploader: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     })
 
@@ -59,9 +60,11 @@ export async function PUT(
         ...(body.productName !== undefined && { productName: body.productName || null }),
         ...(body.documentType && { documentType: body.documentType }),
         ...(body.status && { status: body.status }),
+        modifieParId: authUser.employeId || null,
       },
       include: {
         uploader: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     })
 

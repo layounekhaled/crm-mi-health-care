@@ -77,10 +77,13 @@ export async function PUT(
         ...(montantEstime !== undefined && { montantEstime }),
         ...(commercialId !== undefined && { commercialId }),
         ...(motifPerte !== undefined && { motifPerte }),
+        modifieParId: authUser.employeId || null,
       },
       include: {
         client: { select: { id: true, nom: true } },
         commercial: { select: { id: true, nom: true } },
+        creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 

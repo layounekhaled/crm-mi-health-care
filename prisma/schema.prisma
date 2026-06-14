@@ -40,21 +40,25 @@ model Prospect {
 }
 
 model Event {
-  id        String   @id @default(cuid())
-  nom       String
-  ville     String?
-  date      DateTime          // Date de début
-  dateFin   DateTime?         // Date de fin
-  type      String    @default("congres")
-  marques   String?
-  equipe    String?
-  notes     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id           String   @id @default(cuid())
+  nom          String
+  ville        String?
+  date         DateTime          // Date de début
+  dateFin      DateTime?         // Date de fin
+  type         String    @default("congres")
+  marques      String?
+  equipe       String?
+  notes        String?
+  creeParId    String?           // Employee who created this event
+  modifieParId String?           // Employee who last modified this event
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  prospects  EventProspect[]
-  employees  EventEmployee[]
-  tasks      Task[]
+  prospects    EventProspect[]
+  employees    EventEmployee[]
+  tasks        Task[]
+  creePar      Employee?  @relation("EventCreePar", fields: [creeParId], references: [id])
+  modifiePar   Employee?  @relation("EventModifiePar", fields: [modifieParId], references: [id])
 }
 
 model EventProspect {
@@ -91,6 +95,7 @@ model Opportunity {
   montantEstime Float?
   commercialId  String?
   creeParId     String?
+  modifieParId  String?            // Employee who last modified this opportunity
   motifPerte    String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -98,6 +103,7 @@ model Opportunity {
   client       Prospect?  @relation(fields: [clientId], references: [id])
   commercial   Employee?  @relation(fields: [commercialId], references: [id])
   creePar      Employee?  @relation("OpportunitesCrees", fields: [creeParId], references: [id])
+  modifiePar   Employee?  @relation("OpportunitesModifiees", fields: [modifieParId], references: [id])
   operations   Operation[]
   tasks        Task[]
   interactions Interaction[]
@@ -116,6 +122,8 @@ model Operation {
   statut        String   @default("en_attente")
   datePrevue    DateTime?
   priorite      String   @default("moyenne")
+  creeParId     String?           // Employee who created this operation
+  modifieParId  String?           // Employee who last modified this operation
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -123,6 +131,8 @@ model Operation {
   responsable Employee?  @relation(fields: [responsableId], references: [id])
   produitRef  Product?   @relation(fields: [produitId], references: [id])
   tasks       Task[]
+  creePar     Employee?  @relation("OperationCreePar", fields: [creeParId], references: [id])
+  modifiePar  Employee?  @relation("OperationModifiePar", fields: [modifieParId], references: [id])
 }
 
 model Task {
@@ -139,6 +149,7 @@ model Task {
   priorite      String    @default("moyenne")
   statut        String    @default("en_attente")
   creeParId     String?   // Employee who created the task
+  modifieParId  String?   // Employee who last modified the task
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -148,6 +159,7 @@ model Task {
   operation   Operation?   @relation(fields: [operationId], references: [id])
   event       Event?       @relation(fields: [eventId], references: [id])
   creePar     Employee?    @relation("TaskCreator", fields: [creeParId], references: [id])
+  modifiePar  Employee?    @relation("TaskModifier", fields: [modifieParId], references: [id])
   interactions Interaction[]
   assignees   TaskAssignee[]
 }
@@ -203,18 +215,22 @@ model InteractionPhoto {
 }
 
 model AfterSale {
-  id        String   @id @default(cuid())
-  clientId  String
-  type      String   @default("livraison")
-  statut    String   @default("en_attente")
-  notes     String?
-  date      DateTime?
-  employeId String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  clientId     String
+  type         String   @default("livraison")
+  statut       String   @default("en_attente")
+  notes        String?
+  date         DateTime?
+  employeId    String?
+  creeParId    String?           // Employee who created this after-sale
+  modifieParId String?           // Employee who last modified this after-sale
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  client  Prospect @relation(fields: [clientId], references: [id])
-  employe Employee? @relation(fields: [employeId], references: [id])
+  client     Prospect @relation(fields: [clientId], references: [id])
+  employe    Employee? @relation(fields: [employeId], references: [id])
+  creePar    Employee? @relation("AfterSaleCreePar", fields: [creeParId], references: [id])
+  modifiePar Employee? @relation("AfterSaleModifiePar", fields: [modifieParId], references: [id])
   interactions Interaction[]
 }
 
@@ -229,29 +245,39 @@ model Employee {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  opportunities  Opportunity[]
-  operations     Operation[]
-  tasksAssigned  Task[]
-  taskAssignments TaskAssignee[]
-  createdTasks    Task[]       @relation("TaskCreator")
-  interactions   Interaction[]
-  afterSales     AfterSale[]
-  objectives     Objective[]
-  user           User?
-  chatParticipants ChatParticipant[]
-  sentMessages   ChatMessage[]
-  emailConfig    EmailConfig?
-  leaveRequests    LeaveRequest[]
-  approvedRequests LeaveRequest[] @relation("ApprovedRequests")
-  leaveMovements   LeaveMovement[]
-  documents        Document[]
-  documentSends    DocumentSend[]
-  chargesAsEmployee  Charge[] @relation("EmployeeCharges")
-  chargesAsCreator   Charge[] @relation("ChargeCreator")
-  uploadedPhotos     ProspectPhoto[]
+  opportunities       Opportunity[]
+  opportunitesModifiees Opportunity[] @relation("OpportunitesModifiees")
+  operations          Operation[]
+  operationsCrees     Operation[]  @relation("OperationCreePar")
+  operationsModifiees Operation[]  @relation("OperationModifiePar")
+  tasksAssigned       Task[]
+  taskAssignments     TaskAssignee[]
+  createdTasks        Task[]       @relation("TaskCreator")
+  tasksModifiees      Task[]       @relation("TaskModifier")
+  interactions        Interaction[]
+  afterSales          AfterSale[]
+  afterSalesCrees     AfterSale[]  @relation("AfterSaleCreePar")
+  afterSalesModifiees AfterSale[]  @relation("AfterSaleModifiePar")
+  objectives          Objective[]
+  user                User?
+  chatParticipants    ChatParticipant[]
+  sentMessages        ChatMessage[]
+  emailConfig         EmailConfig?
+  leaveRequests       LeaveRequest[]
+  approvedRequests    LeaveRequest[] @relation("ApprovedRequests")
+  leaveMovements      LeaveMovement[]
+  documents           Document[]   @relation("DocumentUploader")
+  documentsModifies   Document[]   @relation("DocumentModifiePar")
+  documentSends       DocumentSend[]
+  chargesAsEmployee   Charge[] @relation("EmployeeCharges")
+  chargesAsCreator    Charge[] @relation("ChargeCreator")
+  chargesModifiees    Charge[] @relation("ChargeModifier")
+  uploadedPhotos      ProspectPhoto[]
   eventParticipations EventEmployee[]
-  prospectsCrees     Prospect[]  @relation("ProspectCreePar")
-  opportunitesCrees  Opportunity[] @relation("OpportunitesCrees")
+  eventsCrees         Event[]      @relation("EventCreePar")
+  eventsModifies      Event[]      @relation("EventModifiePar")
+  prospectsCrees      Prospect[]  @relation("ProspectCreePar")
+  opportunitesCrees   Opportunity[] @relation("OpportunitesCrees")
 }
 
 model Objective {
@@ -444,12 +470,14 @@ model Document {
   filePath      String   // chemin storage
   fileName      String
   fileSize      Int      // en octets
-  uploadedBy    String?  // employeId
+  uploadedBy    String?  // employeId who uploaded (created) the document
+  modifieParId  String?  // employeId who last modified the document
   status        String   @default("active") // active / archived
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  uploader     Employee?     @relation(fields: [uploadedBy], references: [id])
+  uploader     Employee?     @relation("DocumentUploader", fields: [uploadedBy], references: [id])
+  modifiePar   Employee?     @relation("DocumentModifiePar", fields: [modifieParId], references: [id])
 
   @@index([brand])
   @@index([documentType])
@@ -484,6 +512,7 @@ model Charge {
   employeId      String    // the employee who incurred the expense
   opportunityId  String?   // optional: link to an opportunity
   createdBy      String?   // employeId of who recorded it
+  modifieParId   String?   // employeId who last modified the charge
   justificatifUrl String?  // URL du justificatif (bon, ticket, reçu)
   isPrivate      Boolean   @default(false) // admin-only: personal charge invisible to others
   createdAt      DateTime  @default(now())
@@ -492,6 +521,7 @@ model Charge {
   employe     Employee     @relation("EmployeeCharges", fields: [employeId], references: [id])
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
   creator     Employee?    @relation("ChargeCreator", fields: [createdBy], references: [id])
+  modifiePar  Employee?    @relation("ChargeModifier", fields: [modifieParId], references: [id])
 
   @@index([employeId])
   @@index([opportunityId])

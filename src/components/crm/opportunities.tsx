@@ -70,6 +70,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
 import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
@@ -141,6 +142,8 @@ interface Opportunity {
   client?: Prospect | null
   commercial?: Employee | null
   creePar?: { id: string; nom: string } | null
+  modifieParId?: string | null
+  modifiePar?: { id: string; nom: string } | null
   operations?: Operation[]
   tasks?: Task[]
   interactions?: Interaction[]
@@ -973,6 +976,7 @@ export default function OpportunitiesModule() {
                           </TableHead>
                           <TableHead>Commercial</TableHead>
                           <TableHead>Créé par</TableHead>
+                          <TableHead>Modifié par</TableHead>
                           <TableHead className="cursor-pointer" onClick={() => toggleSort('montantEstime')}>
                             <span className="flex items-center gap-1">
                               Montant <ArrowUpDown className="size-3" />
@@ -990,7 +994,7 @@ export default function OpportunitiesModule() {
                       <TableBody>
                         {sortedOpportunities.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                            <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                               <div className="flex flex-col items-center">
                                 <Briefcase className="mb-2 size-8 opacity-20" />
                                 Aucune opportunité trouvée
@@ -1010,7 +1014,13 @@ export default function OpportunitiesModule() {
                               <TableCell className="font-medium">{opp.nomProjet}</TableCell>
                               <TableCell>{opp.client?.nom || '—'}</TableCell>
                               <TableCell>{opp.commercial?.nom || '—'}</TableCell>
-                              <TableCell>{opp.creePar?.nom || '—'}</TableCell>
+                              <TableCell>
+                                <div>{opp.creePar?.nom || '—'}</div>
+                                {opp.modifiePar && opp.modifiePar.nom !== opp.creePar?.nom && (
+                                  <div className="text-[10px] text-slate-400">mod. par {opp.modifiePar.nom}</div>
+                                )}
+                              </TableCell>
+                              <TableCell>{opp.modifiePar?.nom || '—'}</TableCell>
                               <TableCell className="font-mono text-sm">{formatDZD(opp.montantEstime)}</TableCell>
                               <TableCell><StatutBadge statut={opp.statut} /></TableCell>
                               <TableCell>{formatDate(opp.createdAt)}</TableCell>
@@ -1345,6 +1355,12 @@ export default function OpportunitiesModule() {
                   <p className="text-xs text-muted-foreground">Créé par</p>
                   <p className="text-sm font-medium">{selectedOpportunity.creePar?.nom || '—'}</p>
                 </div>
+                {selectedOpportunity.modifiePar && (
+                  <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                    <p className="text-xs text-muted-foreground">Modifié par</p>
+                    <p className="text-sm font-medium">{selectedOpportunity.modifiePar.nom}</p>
+                  </div>
+                )}
                 <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
                   <p className="text-xs text-muted-foreground">Montant</p>
                   <p className="text-sm font-semibold text-[#134885] dark:text-[#F6852A]">
@@ -2002,6 +2018,16 @@ function KanbanCard({
               <span className="text-[10px] text-slate-400" title={`Créé par ${opportunity.creePar.nom}`}>
                 par {opportunity.creePar.nom}
               </span>
+            )}
+            {opportunity.modifiePar && opportunity.modifiePar.nom !== opportunity.creePar?.nom && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[10px] text-amber-500 dark:text-amber-400">mod. {opportunity.modifiePar.nom}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>Modifié par {opportunity.modifiePar.nom}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
             {(opportunity.operations?.length ?? 0) > 0 && (
               <Badge variant="secondary" className="text-[10px] h-5 px-1.5">

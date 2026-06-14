@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
         responsable: {
           select: { id: true, nom: true, role: true },
         },
+        creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 
@@ -93,12 +95,14 @@ export async function POST(request: NextRequest) {
         statut: statut || 'en_attente',
         datePrevue: datePrevue ? new Date(datePrevue) : null,
         priorite: priorite || 'moyenne',
+        creeParId: authUser.employeId || null,
       },
       include: {
         opportunity: {
           select: { id: true, nomProjet: true },
         },
         responsable: { select: { id: true, nom: true } },
+        creePar: { select: { id: true, nom: true } },
       },
     });
 

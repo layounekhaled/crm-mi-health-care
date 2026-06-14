@@ -124,6 +124,7 @@ export async function GET(request: NextRequest) {
         employe: { select: { id: true, nom: true, role: true } },
         opportunity: { select: { id: true, nomProjet: true, montantEstime: true } },
         creator: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 
@@ -177,6 +178,7 @@ export async function POST(request: NextRequest) {
         employe: { select: { id: true, nom: true } },
         opportunity: { select: { id: true, nomProjet: true } },
         creator: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 

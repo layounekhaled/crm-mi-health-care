@@ -20,6 +20,7 @@ export async function GET(
         employe: { select: { id: true, nom: true, role: true } },
         opportunity: { select: { id: true, nomProjet: true, montantEstime: true } },
         creator: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 
@@ -85,11 +86,13 @@ export async function PUT(
         ...(justificatifUrl !== undefined && { justificatifUrl: justificatifUrl || null }),
         // Only admin can toggle isPrivate
         ...(isAdmin(authUser) && isPrivate !== undefined && { isPrivate: isPrivate === true }),
+        modifieParId: authUser.employeId || null,
       },
       include: {
         employe: { select: { id: true, nom: true } },
         opportunity: { select: { id: true, nomProjet: true } },
         creator: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 

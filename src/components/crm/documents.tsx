@@ -44,6 +44,7 @@ interface DocumentRecord {
   createdAt: string
   updatedAt: string
   uploader: { id: string; nom: string } | null
+  modifiePar?: { id: string; nom: string } | null
 }
 
 interface DocumentSendRecord {
@@ -616,9 +617,23 @@ export default function DocumentsModule() {
                       )}
 
                       {/* File info */}
-                      <p className="text-[10px] text-slate-400 text-center mb-3">
+                      <p className="text-[10px] text-slate-400 text-center mb-1">
                         {formatFileSize(doc.fileSize)} • {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
                       </p>
+
+                      {/* Uploader / Modifié par */}
+                      {doc.uploader && (
+                        <p className="text-[10px] text-slate-400 text-center">
+                          Ajouté par {doc.uploader.nom}
+                        </p>
+                      )}
+                      {doc.modifiePar && (
+                        <p className="text-[10px] text-slate-400 text-center">
+                          Modifié par {doc.modifiePar.nom}
+                        </p>
+                      )}
+                      {(doc.uploader || doc.modifiePar) && <div className="mb-2" />}
+                      <div className="mb-1" />
 
                       {/* Actions */}
                       <div className="flex items-center justify-center gap-1">

@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           uploader: { select: { id: true, nom: true } },
+          modifiePar: { select: { id: true, nom: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -130,6 +131,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         uploader: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     })
 

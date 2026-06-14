@@ -88,6 +88,8 @@ interface AfterSale {
   updatedAt: string
   client: { id: string; nom: string; wilaya?: string | null; telephone?: string | null }
   employe?: { id: string; nom: string; role: string } | null
+  creePar?: { id: string; nom: string } | null
+  modifiePar?: { id: string; nom: string } | null
 }
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -366,6 +368,9 @@ export default function AfterSalesModule() {
   const savEnCours = afterSales.filter(a => a.type === 'sav' && a.statut === 'en_cours').length
 
   const hasFilters = filterType !== 'all' || filterStatut !== 'all'
+
+  // Current after-sale being edited (for detail fields like creePar/modifiePar)
+  const currentAfterSale = editingId ? afterSales.find(a => a.id === editingId) : null
 
   // Techniciens for the employe select
   const techniciens = employees.filter(e => e.role === 'technicien')
@@ -797,6 +802,29 @@ export default function AfterSalesModule() {
                 rows={3}
               />
             </div>
+
+            {/* Section: Suivi (only when editing) */}
+            {currentAfterSale && (
+              <>
+                <div className="flex items-center gap-2 pt-2">
+                  <div className="h-5 w-1 rounded-full bg-[#134885]" />
+                  <h3 className="text-sm font-semibold text-slate-700">Suivi</h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                    <p className="text-xs text-muted-foreground">Créé par</p>
+                    <p className="text-sm font-medium">{currentAfterSale.creePar?.nom || '—'}</p>
+                  </div>
+                  {currentAfterSale.modifiePar && (
+                    <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                      <p className="text-xs text-muted-foreground">Modifié par</p>
+                      <p className="text-sm font-medium">{currentAfterSale.modifiePar.nom}</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter>

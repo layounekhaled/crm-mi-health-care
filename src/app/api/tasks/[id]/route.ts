@@ -33,6 +33,7 @@ export async function GET(
           },
         },
         creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 
@@ -105,7 +106,10 @@ export async function PUT(
       // Technicien can only update statut
       const task = await db.task.update({
         where: { id },
-        data: { ...(statut !== undefined && { statut }) },
+        data: { 
+          ...(statut !== undefined && { statut }),
+          modifieParId: authUser.employeId || null,
+        },
         include: {
           assigneA: { select: { id: true, nom: true } },
           assignees: { include: { employee: { select: { id: true, nom: true } } } },
@@ -147,6 +151,7 @@ export async function PUT(
       ...(statut !== undefined && { statut }),
       ...(assigneAIds !== undefined && { assigneAId: firstAssigneeId }),
       ...(!assigneAIds && assigneAId !== undefined && { assigneAId }),
+      modifieParId: authUser.employeId || null,
     };
 
     if (assigneeUpdateNeeded) {

@@ -89,6 +89,8 @@ interface Operation {
     client?: { id: string; nom: string } | null
   }
   responsable?: { id: string; nom: string; role: string } | null
+  creePar?: { id: string; nom: string } | null
+  modifiePar?: { id: string; nom: string } | null
 }
 
 interface Product {
@@ -775,6 +777,16 @@ export default function OperationsModule() {
                     <Tag className="size-3" />
                     <span>Créé le: {formatDate(op.createdAt)}</span>
                   </div>
+                  <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                    <p className="text-xs text-muted-foreground">Créé par</p>
+                    <p className="text-sm font-medium">{op.creePar?.nom || '—'}</p>
+                  </div>
+                  {op.modifiePar && (
+                    <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                      <p className="text-xs text-muted-foreground">Modifié par</p>
+                      <p className="text-sm font-medium">{op.modifiePar.nom}</p>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2 pt-2">
                     <Button
@@ -1191,6 +1203,16 @@ export default function OperationsModule() {
                                           <p className="text-xs text-muted-foreground mb-1">Priorité</p>
                                           <PrioriteBadge priorite={op.priorite} />
                                         </div>
+                                        <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                                          <p className="text-xs text-muted-foreground">Créé par</p>
+                                          <p className="text-sm font-medium">{op.creePar?.nom || '—'}</p>
+                                        </div>
+                                        {op.modifiePar && (
+                                          <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                                            <p className="text-xs text-muted-foreground">Modifié par</p>
+                                            <p className="text-sm font-medium">{op.modifiePar.nom}</p>
+                                          </div>
+                                        )}
                                       </div>
                                     </motion.div>
                                   </TableCell>

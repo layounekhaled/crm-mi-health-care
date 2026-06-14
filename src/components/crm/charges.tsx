@@ -98,6 +98,7 @@ interface Charge {
   employe: { id: string; nom: string; role: string }
   opportunity?: { id: string; nomProjet: string; montantEstime: number | null } | null
   creator?: { id: string; nom: string } | null
+  modifiePar?: { id: string; nom: string } | null
 }
 
 interface ChargeStats {
@@ -1318,6 +1319,33 @@ export default function ChargesModule() {
                 )}
               </div>
             </div>
+
+            {/* Section: Suivi */}
+            {editingId && (() => {
+              const editedCharge = charges.find(c => c.id === editingId)
+              return (editedCharge?.creator || editedCharge?.modifiePar) ? (
+                <>
+                  <div className="flex items-center gap-2 pt-2">
+                    <div className="h-5 w-1 rounded-full bg-[#134885]" />
+                    <h3 className="text-sm font-semibold text-slate-700">Suivi</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {editedCharge?.creator && (
+                      <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                        <p className="text-xs text-muted-foreground">Créé par</p>
+                        <p className="text-sm font-medium">{editedCharge.creator.nom}</p>
+                      </div>
+                    )}
+                    {editedCharge?.modifiePar && (
+                      <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                        <p className="text-xs text-muted-foreground">Modifié par</p>
+                        <p className="text-sm font-medium">{editedCharge.modifiePar.nom}</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : null
+            })()}
 
             {/* Section: Options */}
             {isAdminUser && (

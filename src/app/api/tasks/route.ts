@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
           },
         },
         creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 

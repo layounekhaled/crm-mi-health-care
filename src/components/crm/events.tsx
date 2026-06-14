@@ -85,6 +85,8 @@ interface EventItem {
     employees: number
   }
   employees?: EventEmployee[]
+  creePar?: { id: string; nom: string } | null
+  modifiePar?: { id: string; nom: string } | null
 }
 
 interface EventProspectLink {
@@ -1092,6 +1094,34 @@ export default function EventsModule() {
               />
             </div>
           </div>
+
+          {/* Section: Créé par / Modifié par (only when editing) */}
+          {editingId && (() => {
+            const currentEvent = events.find(e => e.id === editingId)
+            if (!currentEvent) return null
+            const showModifiePar = currentEvent.modifiePar && currentEvent.modifiePar?.id !== currentEvent.creePar?.id
+            return (
+              <>
+                <Separator />
+                <div className="flex items-center gap-2 pt-2">
+                  <div className="h-5 w-1 rounded-full bg-slate-400" />
+                  <h3 className="text-sm font-semibold text-slate-700">Suivi</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                    <p className="text-xs text-muted-foreground">Créé par</p>
+                    <p className="text-sm font-medium">{currentEvent.creePar?.nom || '—'}</p>
+                  </div>
+                  {showModifiePar && (
+                    <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                      <p className="text-xs text-muted-foreground">Modifié par</p>
+                      <p className="text-sm font-medium">{currentEvent.modifiePar!.nom}</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )
+          })()}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>

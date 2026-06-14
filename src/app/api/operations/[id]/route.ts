@@ -22,6 +22,8 @@ export async function GET(
           },
         },
         responsable: { select: { id: true, nom: true, role: true } },
+        creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
         tasks: {
           include: { assigneA: { select: { id: true, nom: true } } },
         },
@@ -92,10 +94,13 @@ export async function PUT(
         ...(statut !== undefined && { statut }),
         ...(datePrevue !== undefined && { datePrevue: datePrevue ? new Date(datePrevue) : null }),
         ...(priorite !== undefined && { priorite }),
+        modifieParId: authUser.employeId || null,
       },
       include: {
         opportunity: { select: { id: true, nomProjet: true } },
         responsable: { select: { id: true, nom: true } },
+        creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 

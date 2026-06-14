@@ -17,6 +17,8 @@ export async function GET(
       include: {
         client: { select: { id: true, nom: true, wilaya: true, telephone: true } },
         employe: { select: { id: true, nom: true, role: true } },
+        creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 
@@ -60,7 +62,10 @@ export async function PUT(
       }
       const afterSale = await db.afterSale.update({
         where: { id },
-        data: { ...(statut !== undefined && { statut }) },
+        data: { 
+          ...(statut !== undefined && { statut }),
+          modifieParId: authUser.employeId || null,
+        },
         include: {
           client: { select: { id: true, nom: true } },
           employe: { select: { id: true, nom: true } },
@@ -83,10 +88,13 @@ export async function PUT(
         ...(notes !== undefined && { notes }),
         ...(date !== undefined && { date: date ? new Date(date) : null }),
         ...(employeId !== undefined && { employeId }),
+        modifieParId: authUser.employeId || null,
       },
       include: {
         client: { select: { id: true, nom: true } },
         employe: { select: { id: true, nom: true } },
+        creePar: { select: { id: true, nom: true } },
+        modifiePar: { select: { id: true, nom: true } },
       },
     });
 
