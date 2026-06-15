@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import {
   BarChart,
   Bar,
@@ -42,11 +43,15 @@ import {
   Filter,
   X as XIcon,
   RotateCcw,
+  FileText,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
+
+// Dynamically import the Employee Activity Report to avoid bloating initial bundle
+const EmployeeActivityReport = dynamic(() => import('./employee-activity-report'), { ssr: false })
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -437,6 +442,7 @@ export default function Dashboard() {
   const [dateTo, setDateTo] = useState('')
   const [selectedEmployeId, setSelectedEmployeId] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true)
@@ -594,6 +600,15 @@ export default function Dashboard() {
                 <Filter className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Filtres</span>
               </Button>
+              <Button
+                variant={showReport ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowReport(!showReport)}
+                className={`gap-1.5 ${showReport ? 'bg-[#F6852A] hover:bg-[#e07820] text-white' : 'border-[#F6852A]/30 text-[#F6852A] hover:bg-[#F6852A]/5'}`}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Rapport employé</span>
+              </Button>
             </div>
           </div>
 
@@ -657,6 +672,11 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6 flex-1">
+        {/* ─── Employee Activity Report Section ─────────────────────── */}
+        {showReport && (
+          <EmployeeActivityReport employees={employees} />
+        )}
+
         {/* ─── KPI Cards (8 cards) ──────────────────────────────────── */}
         <section aria-label="Indicateurs clés de performance">
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-4">
