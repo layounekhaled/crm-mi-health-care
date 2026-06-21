@@ -2,6 +2,34 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
+/**
+ * Build a canonical external URL for the current request.
+ *
+ * When running behind a reverse proxy (Traefik on Coolify),
+ * `request.url` is built from the internal Host header (e.g. `0.0.0.0:3000`).
+ * This helper reconstructs the URL the end-user actually sees, by honoring
+ * the standard `X-Forwarded-Host` / `X-Forwarded-Proto` headers, and falling
+ * back to `NEXTAUTH_URL` if present.
+ */
+function getExternalUrl(request: NextRequest): string {
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const forwardedProto = request.headers.get('x-forwarded-proto')
+  const originalUrl = request.nextUrl.pathname + request.nextUrl.search
+
+  if (forwardedHost) {
+    const proto = forwardedProto || 'https'
+    return `${proto}://${forwardedHost}${originalUrl}`
+  }
+
+  // Fallback to NEXTAUTH_URL if the request doesn't carry forwarded headers
+  const nextAuthUrl = process.env.NEXTAUTH_URL
+  if (nextAuthUrl) {
+    return `${nextAuthUrl.replace(/\/$/, '')}${originalUrl}`
+  }
+
+  return request.url
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -41,8 +69,9 @@ export async function middleware(request: NextRequest) {
         )
       }
       // For page routes, redirect to login
-      const loginUrl = new URL('/login', request.url)
-      loginUrl.searchParams.set('callbackUrl', request.url)
+      const externalUrl = getExternalUrl(request)
+      const loginUrl = new URL('/login', externalUrl)
+      loginUrl.searchParams.set('callbackUrl', externalUrl)
       return NextResponse.redirect(loginUrl)
     }
   } catch {
@@ -54,7 +83,8 @@ export async function middleware(request: NextRequest) {
       )
     }
     // For page routes, redirect to login
-    const loginUrl = new URL('/login', request.url)
+    const externalUrl = getExternalUrl(request)
+    const loginUrl = new URL('/login', externalUrl)
     return NextResponse.redirect(loginUrl)
   }
 
