@@ -9,8 +9,10 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma
 
 # Install ALL dependencies (including dev — needed for the build: @tailwindcss/postcss, typescript, etc.)
-# postinstall script runs `prisma generate` automatically
-RUN npm ci
+# Coolify injects NODE_ENV=production as a build arg, which makes npm ci skip devDependencies.
+# Force NODE_ENV=development during install so devDependencies are installed.
+# postinstall script runs `prisma generate` automatically.
+RUN NODE_ENV=development npm ci --include=dev
 
 # ─── Stage 2: builder ───────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
