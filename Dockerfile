@@ -8,9 +8,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 
-# Install dependencies (postinstall runs `prisma generate`)
-RUN npm ci --omit=dev --ignore-scripts && \
-    npx prisma generate
+# Install ALL dependencies (including dev — needed for the build: @tailwindcss/postcss, typescript, etc.)
+# postinstall script runs `prisma generate` automatically
+RUN npm ci
 
 # ─── Stage 2: builder ───────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
