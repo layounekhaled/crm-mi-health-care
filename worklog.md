@@ -118,3 +118,42 @@ Stage Summary:
   • `src/components/crm/sidebar.tsx`
   • `src/app/page.tsx`
   • `src/app/api/dashboard/route.ts`
+
+---
+Task ID: dalia-deploy-fix-permissions
+Agent: Super Z
+Task: Déployer sur Coolify le fix des permissions Dashboard pour les employés.
+
+Work Log:
+- Vérification du statut de l'app Coolify (ad4uuhzdhxblr5tweze534d8) : status "running:unknown", dernière activité récente.
+- Découverte du PROBLÈME INITIAL : les commits locaux (ee23abc, e35c3f6) contenant le fix n'étaient PAS pushés sur GitHub.
+  - `git log origin/main` → d0552cc (ancien code)
+  - `git log HEAD` → ee23abc (code avec fix)
+  - Donc Coolify ne pouvait pas récupérer les changements.
+- Push des commits sur origin/main : `d0552cc..ee23abc  main -> main` ✓
+- Déclenchement déploiement Coolify avec `force_rebuild: false` : deployment UUID ii3qvj3wwe86i4h603dv2tke
+- Premier déploiement terminé mais COOLIFY A SKIPPÉ LE BUILD car il avait déjà une image avec le même SHA (config_hash inchangé).
+  - Log : "No build configuration changed & image found (...) with the same Git Commit SHA. Build step skipped."
+- Solution : créer un commit vide pour générer un nouveau SHA.
+  - `git commit --allow-empty -m "trigger: force rebuild for dashboard permission fix"` → b6563c3
+  - Push sur origin/main ✓
+- Déclenchement déploiement avec `force_rebuild: true` : deployment UUID jvf9knxedck2wwagh9ge4pmh
+- Build RÉUSSI cette fois :
+  - "Image not found (...) Building new image."
+  - `✓ Compiled successfully in 26.3s` (Next.js 16.1.3 Turbopack)
+  - 35 pages statiques générées
+  - Nouveau container démarré à 15:59:08
+  - Rolling update completed.
+- Vérification post-déploiement :
+  - Site accessible sur https://dalia.fret.direct (HTTP 200)
+  - Chunks JS servis avec `last-modified: 15:58:33` (post-build)
+  - API /api/dashboard retourne 401 sans auth (middleware fonctionne)
+  - Code source vérifié : `PREFERRED_FALLBACK_ORDER`, `hasAnyAccessiblePage`, `firstAccessible`, "Accès refusé" tous présents dans src/app/page.tsx et src/components/crm/sidebar.tsx
+
+Stage Summary:
+- Le fix des permissions Dashboard est maintenant DÉPLOYÉ en production sur https://dalia.fret.direct
+- Coolify avait skippé le build initial à cause d'un cache basé sur le SHA du commit. La solution a été de créer un commit vide pour forcer un nouveau build.
+- L'utilisateur doit maintenant :
+  1. Vider le cache navigateur (Ctrl+Shift+R) pour recharger les nouveaux chunks JS
+  2. Se déconnecter et se reconnecter
+  3. Tester avec un compte employé sans permission dashboard → il doit être redirigé vers la première page accessible (pas Dashboard)
