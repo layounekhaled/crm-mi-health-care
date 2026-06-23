@@ -51,6 +51,16 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
+# Create persistent storage directory for uploaded documents (PDFs)
+# Coolify mounts /data/dalia-documents as a volume — the directory must exist
+# and be writable by the nextjs user (uid 1001)
+RUN mkdir -p /data/dalia-documents && \
+    chown -R 1001:1001 /data/dalia-documents && \
+    chmod 755 /data/dalia-documents
+
+# Set the documents storage path env var
+ENV DOCUMENTS_STORAGE_PATH=/data/dalia-documents
+
 USER nextjs
 EXPOSE 3000
 
