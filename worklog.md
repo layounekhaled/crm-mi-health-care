@@ -157,3 +157,62 @@ Stage Summary:
   1. Vider le cache navigateur (Ctrl+Shift+R) pour recharger les nouveaux chunks JS
   2. Se déconnecter et se reconnecter
   3. Tester avec un compte employé sans permission dashboard → il doit être redirigé vers la première page accessible (pas Dashboard)
+
+---
+Task ID: dalia-events-gps
+Agent: Super Z
+Task: Ajouter la position GPS dans les événements (module Événements).
+
+Work Log:
+- Exploration du modèle Event dans prisma/schema.prisma (modèle existant avec nom, ville, date, dateFin, type, marques, equipe, notes).
+- Ajout de 2 champs au modèle Event : `latitude Float?` et `longitude Float?` (optionnels, commentés avec exemples pour Alger).
+- Mise à jour de l'API POST /api/events/route.ts :
+  • Extraction de latitude/longitude du body
+  • Validation : plage (-90 à 90 pour lat, -180 à 180 pour lng), les deux doivent être renseignés ensemble
+  • Conversion en number, gestion des chaînes vides
+  • Stockage dans la DB via Prisma
+- Mise à jour de l'API PUT /api/events/[id]/route.ts :
+  • Même validation que POST
+  • Gestion du cas où seule une des 2 coordonnées est envoyée (utilise la valeur existante pour l'autre)
+  • Permet de vider les coordonnées (mettre à null)
+- Mise à jour de l'UI src/components/crm/events.tsx :
+  • Ajout de `latitude` et `longitude` au formData (string, edit en décimal)
+  • Interface EventItem mise à jour avec les nouveaux champs
+  • Validation dans `validateForm()` : les 2 doivent être ensemble, plages valides
+  • Nouveau handler `handleUseMyLocation()` : utilise `navigator.geolocation.getCurrentPosition` pour détecter la position actuelle
+  • Nouvelle section "Position GPS" dans le formulaire avec :
+    - Input Latitude + Input Longitude (saisie décimale, accepte virgule ou point)
+    - Bouton "Ma position" (icône Crosshair) qui déclenche la géolocalisation navigateur
+    - Badge vert de prévisualisation avec lien direct vers OpenStreetMap
+    - Message d'aide
+  • Carte événement : ajout d'un badge "GPS" cliquable qui ouvre OpenStreetMap si l'événement a des coordonnées
+- Mise à jour de src/components/crm/calendar.tsx :
+  • Interface CRMEvent mise à jour avec latitude/longitude
+  • Détail d'un événement : ajout d'une section "Position GPS" avec coordonnées formatées + lien OpenStreetMap
+- Base de données Neon :
+  • `prisma db push` exécuté avec succès : "Your database is now in sync with your Prisma schema. Done in 8.85s"
+  • Prisma Client régénéré
+- Vérifications :
+  • TypeScript : aucune erreur sur les fichiers modifiés
+  • ESLint : aucune erreur sur les fichiers modifiés
+- Déploiement Coolify :
+  • Commit `1f011ba` poussé sur origin/main
+  • Déploiement déclenché : `s8lom94an8gstbk5rp5486uv`
+  • Build réussi : "✓ Compiled successfully in 32.2s"
+  • Nouveau container démarré et rolling update completed à 21:20:34
+  • Site accessible sur https://dalia.fret.direct (HTTP 200)
+  • API events répond (401 sans auth = middleware OK)
+
+Stage Summary:
+- Feature GPS déployée en production sur https://dalia.fret.direct
+- L'utilisateur peut maintenant :
+  1. Ajouter une position GPS à un événement (manuellement ou via "Ma position")
+  2. Voir un lien "GPS" sur chaque carte d'événement qui ouvre OpenStreetMap
+  3. Voir les coordonnées GPS dans la vue détail du calendrier
+- La carte utilise OpenStreetMap (pas de clé API requise, gratuit)
+- Files modified:
+  • prisma/schema.prisma (modèle Event)
+  • src/app/api/events/route.ts (POST)
+  • src/app/api/events/[id]/route.ts (PUT)
+  • src/components/crm/events.tsx (formulaire + carte)
+  • src/components/crm/calendar.tsx (détail événement)
