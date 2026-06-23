@@ -55,10 +55,30 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { nom, ville, date, dateFin, type, marques, equipe, notes, employeeIds } = body;
+    const { nom, ville, latitude, longitude, date, dateFin, type, marques, equipe, notes, employeeIds } = body;
 
     if (!nom || !date) {
       return NextResponse.json({ error: 'Nom and date are required' }, { status: 400 });
+    }
+
+    // Validate GPS coordinates if provided
+    let latVal: number | null = null;
+    let lngVal: number | null = null;
+    if (latitude !== undefined && latitude !== null && latitude !== '') {
+      latVal = typeof latitude === 'number' ? latitude : parseFloat(String(latitude));
+      if (Number.isNaN(latVal) || latVal < -90 || latVal > 90) {
+        return NextResponse.json({ error: 'Latitude invalide (doit être entre -90 et 90)' }, { status: 400 });
+      }
+    }
+    if (longitude !== undefined && longitude !== null && longitude !== '') {
+      lngVal = typeof longitude === 'number' ? longitude : parseFloat(String(longitude));
+      if (Number.isNaN(lngVal) || lngVal < -180 || lngVal > 180) {
+        return NextResponse.json({ error: 'Longitude invalide (doit être entre -180 et 180)' }, { status: 400 });
+      }
+    }
+    // Both must be set together (or both empty)
+    if ((latVal === null) !== (lngVal === null)) {
+      return NextResponse.json({ error: 'Latitude et longitude doivent être renseignées ensemble' }, { status: 400 });
     }
 
     // Create event with employee assignments
@@ -66,6 +86,8 @@ export async function POST(request: NextRequest) {
       data: {
         nom,
         ville: ville || null,
+        latitude: latVal,
+        longitude: lngVal,
         date: new Date(date),
         dateFin: dateFin ? new Date(dateFin) : null,
         type: type || 'congres',

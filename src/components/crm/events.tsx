@@ -17,6 +17,9 @@ import {
   Loader2,
   CheckCircle2,
   Filter,
+  Navigation,
+  ExternalLink,
+  Crosshair,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -71,6 +74,8 @@ interface EventItem {
   id: string
   nom: string
   ville: string | null
+  latitude: number | null
+  longitude: number | null
   date: string
   dateFin: string | null
   type: string
@@ -240,6 +245,8 @@ export default function EventsModule() {
     nom: '',
     type: 'congres',
     ville: '',
+    latitude: '',
+    longitude: '',
     date: '',
     dateFin: '',
     marques: [] as string[],
@@ -249,6 +256,7 @@ export default function EventsModule() {
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [locating, setLocating] = useState(false)
 
   // ── Delete dialog state ─────────────────────────────────────────────────
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -372,6 +380,8 @@ export default function EventsModule() {
       nom: '',
       type: 'congres',
       ville: '',
+      latitude: '',
+      longitude: '',
       date: '',
       dateFin: '',
       marques: [],
@@ -389,6 +399,8 @@ export default function EventsModule() {
       nom: event.nom,
       type: event.type,
       ville: event.ville || '',
+      latitude: event.latitude != null ? String(event.latitude) : '',
+      longitude: event.longitude != null ? String(event.longitude) : '',
       date: event.date ? new Date(event.date).toISOString().split('T')[0] : '',
       dateFin: event.dateFin ? new Date(event.dateFin).toISOString().split('T')[0] : '',
       marques: event.marques ? event.marques.split(',').map(m => m.trim()) : [],
@@ -407,8 +419,61 @@ export default function EventsModule() {
     if (formData.dateFin && formData.date && formData.dateFin < formData.date) {
       errors.dateFin = 'La date de fin doit être après la date de début'
     }
+    // GPS validation: both must be set together, must be valid numbers in range
+    const lat = formData.latitude.trim()
+    const lng = formData.longitude.trim()
+    if (lat || lng) {
+      if (!lat || !lng) {
+        errors.latitude = 'Latitude et longitude doivent être renseignées ensemble'
+      } else {
+        const latNum = parseFloat(lat.replace(',', '.'))
+        const lngNum = parseFloat(lng.replace(',', '.'))
+        if (Number.isNaN(latNum) || latNum < -90 || latNum > 90) {
+          errors.latitude = 'Latitude invalide (-90 à 90)'
+        }
+        if (Number.isNaN(lngNum) || lngNum < -180 || lngNum > 180) {
+          errors.longitude = 'Longitude invalide (-180 à 180)'
+        }
+      }
+    }
     setFormErrors(errors)
     return Object.keys(errors).length === 0
+  }
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("La géolocalisation n'est pas supportée par votre navigateur")
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords
+        setFormData(prev => ({
+          ...prev,
+          latitude: latitude.toFixed(6),
+          longitude: longitude.toFixed(6),
+        }))
+        setFormErrors(prev => {
+          const next = { ...prev }
+          delete next.latitude
+          delete next.longitude
+          return next
+        })
+        toast.success('Position GPS détectée')
+        setLocating(false)
+      },
+      (err) => {
+        setLocating(false)
+        const messages: Record<number, string> = {
+          1: 'Permission de localisation refusée',
+          2: 'Position indisponible',
+          3: 'Délai de localisation dépassé',
+        }
+        toast.error(messages[err.code] || 'Erreur de géolocalisation')
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
   }
 
   const handleSubmit = async () => {
@@ -416,10 +481,14 @@ export default function EventsModule() {
 
     setSubmitting(true)
     try {
+      const lat = formData.latitude.trim()
+      const lng = formData.longitude.trim()
       const payload = {
         nom: formData.nom.trim(),
         type: formData.type,
         ville: formData.ville || null,
+        latitude: lat ? parseFloat(lat.replace(',', '.')) : null,
+        longitude: lng ? parseFloat(lng.replace(',', '.')) : null,
         date: formData.date,
         dateFin: formData.dateFin || null,
         marques: formData.marques.length > 0 ? formData.marques.join(',') : null,
@@ -773,8 +842,8 @@ export default function EventsModule() {
                       </div>
                     </div>
 
-                    {/* City + Date */}
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+                    {/* City + Date + GPS */}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 flex-wrap">
                       {event.ville && (
                         <span className="flex items-center gap-1">
                           <MapPin className="size-3" />
@@ -787,6 +856,19 @@ export default function EventsModule() {
                           ? `${formatDate(event.date)} → ${formatDate(event.dateFin)}`
                           : formatDate(event.date)}
                       </span>
+                      {event.latitude != null && event.longitude != null && (
+                        <a
+                          href={`https://www.openstreetmap.org/?mlat=${event.latitude}&mlon=${event.longitude}#map=15/${event.latitude}/${event.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[#134885] hover:underline"
+                          title="Voir la position sur la carte"
+                        >
+                          <Navigation className="size-3" />
+                          GPS
+                          <ExternalLink className="size-2.5" />
+                        </a>
+                      )}
                     </div>
 
                     {/* Marques badges */}
@@ -990,6 +1072,90 @@ export default function EventsModule() {
                 )}
               </div>
             </div>
+
+            {/* Section: Localisation GPS */}
+            <Separator />
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-5 w-1 rounded-full bg-[#134885]" />
+              <h3 className="text-sm font-semibold text-slate-700">Position GPS</h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+              <div className="grid gap-2">
+                <Label htmlFor="event-latitude" className="flex items-center gap-1">
+                  <Navigation className="size-3.5" />
+                  Latitude
+                </Label>
+                <Input
+                  id="event-latitude"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="ex: 36.7538"
+                  value={formData.latitude}
+                  onChange={e => setFormData({ ...formData, latitude: e.target.value })}
+                  className={formErrors.latitude ? 'border-destructive bg-white' : 'bg-white'}
+                />
+                {formErrors.latitude && (
+                  <p className="text-xs text-destructive">{formErrors.latitude}</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="event-longitude" className="flex items-center gap-1">
+                  <Navigation className="size-3.5" />
+                  Longitude
+                </Label>
+                <Input
+                  id="event-longitude"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="ex: 3.0588"
+                  value={formData.longitude}
+                  onChange={e => setFormData({ ...formData, longitude: e.target.value })}
+                  className={formErrors.longitude ? 'border-destructive bg-white' : 'bg-white'}
+                />
+                {formErrors.longitude && (
+                  <p className="text-xs text-destructive">{formErrors.longitude}</p>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleUseMyLocation}
+                disabled={locating}
+                className="h-9 gap-1.5 border-[#134885]/30 text-[#134885] hover:bg-[#134885]/5"
+                title="Détecter ma position actuelle"
+              >
+                {locating ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Crosshair className="size-3.5" />
+                )}
+                <span className="hidden sm:inline">Ma position</span>
+              </Button>
+            </div>
+            {formData.latitude && formData.longitude && !formErrors.latitude && !formErrors.longitude && (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 flex items-center gap-2">
+                <MapPin className="size-3.5" />
+                <span>
+                  Position: {formData.latitude}, {formData.longitude}
+                </span>
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${encodeURIComponent(formData.latitude)}&mlon=${encodeURIComponent(formData.longitude)}#map=15/${encodeURIComponent(formData.latitude)}/${encodeURIComponent(formData.longitude)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto inline-flex items-center gap-1 font-medium text-emerald-800 hover:underline"
+                >
+                  Voir sur la carte
+                  <ExternalLink className="size-3" />
+                </a>
+              </div>
+            )}
+            {!formData.latitude && !formData.longitude && (
+              <p className="text-xs text-muted-foreground">
+                Optionnel — Cliquez sur « Ma position » pour géolocaliser automatiquement le lieu de l&apos;événement.
+              </p>
+            )}
 
             {/* Section: Marques & Équipe */}
             <Separator />
