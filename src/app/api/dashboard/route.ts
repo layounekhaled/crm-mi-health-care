@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getAuthUser } from '@/lib/auth-helpers';
+import { getAuthUser, canViewModule } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
+    // Defense-in-depth: ensure the user actually has dashboard.view permission.
+    // Even though the client should redirect them away from the Dashboard page,
+    // we must also reject the API call so unauthorized users cannot read
+    // aggregated metrics by hitting the endpoint directly.
+    if (!canViewModule(authUser, 'dashboard')) {
+      return NextResponse.json(
+        { error: 'Accès refusé', message: "Vous n'avez pas la permission d'accéder au tableau de bord." },
+        { status: 403 }
+      );
+    }
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);

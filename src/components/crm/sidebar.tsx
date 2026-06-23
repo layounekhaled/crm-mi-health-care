@@ -218,14 +218,25 @@ export function CRMSidebar() {
   const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, toggleSidebar } = useCRMStore()
   const { user, logout, canViewModule: userCanView } = useAuth()
 
-  // Redirect to dashboard if current page is not accessible
+  // Redirect to the first accessible page if the current page is not accessible.
+  // This includes the case where the user lands on 'dashboard' (default) without
+  // the dashboard.view permission — previously the code always forced 'dashboard'
+  // even when the user lacked permission, leaving them stuck on a forbidden page.
   useEffect(() => {
-    if (user?.role) {
-      const allItems = navGroups.flatMap(g => g.items)
-      const accessiblePages = allItems.filter(item => userCanView(item.permissionModule))
-      const currentPageAccessible = accessiblePages.some(item => item.page === currentPage)
-      if (!currentPageAccessible && currentPage !== 'dashboard') {
-        setCurrentPage('dashboard')
+    if (!user?.role) return
+
+    const allItems = navGroups.flatMap(g => g.items)
+    const accessibleItems = allItems.filter(item => userCanView(item.permissionModule))
+    const accessiblePages = accessibleItems.map(item => item.page)
+    const currentPageAccessible = accessiblePages.includes(currentPage)
+
+    if (!currentPageAccessible) {
+      // Redirect to the first accessible page (in navGroups order).
+      // If the user has NO accessible page at all, leave currentPage unchanged —
+      // the home page will display an "access denied" fallback.
+      const firstAccessible = accessiblePages[0]
+      if (firstAccessible) {
+        setCurrentPage(firstAccessible)
       }
     }
   }, [user, currentPage, setCurrentPage, userCanView])

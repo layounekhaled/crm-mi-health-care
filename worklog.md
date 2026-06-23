@@ -93,3 +93,28 @@ Added `recommandePar` field to the Prospect model and completely redesigned the 
 - Notes cleaning removes "Email:" lines to avoid duplication with the email contact card
 - `recommandePar` field is conditional - only shows when source is "recommandation"
 - Type assertions used for backward compatibility with existing data that doesn't have recommandePar
+
+---
+Task ID: dalia-perms-dashboard-redirect
+Agent: Super Z
+Task: Fix bug where employees without dashboard.view permission were landing on the Dashboard page after authentication.
+
+Work Log:
+- Investigated the login flow: `src/app/login/page.tsx` redirects to `/` after `signIn()` success; the home page (`src/app/page.tsx`) reads `currentPage` from the Zustand store which defaults to `'dashboard'`.
+- Found the root cause in `src/components/crm/sidebar.tsx`:
+  the `useEffect` that handles permission redirects had `&& currentPage !== 'dashboard'` — meaning even if a user lacked the dashboard.view permission, the code would NOT redirect them away from the dashboard.
+- Rewrote the `useEffect` in `sidebar.tsx` so that when the current page is not accessible (including `'dashboard'`), it now redirects to the FIRST accessible page in `navGroups` order. If the user has NO accessible pages, `currentPage` is left unchanged and the home page renders an "Accès refusé" fallback.
+- Updated `src/app/page.tsx`:
+  • Added a `useEffect` that mirrors the sidebar's redirect logic as a defense-in-depth safety net (in case `CRMSidebar` is not yet mounted).
+  • Added a permission guard in `renderPage()`: if the user can't view the current page, either show an "Accès refusé" screen (no accessible modules at all) or a "Redirection..." spinner (waiting for the redirect effect to kick in).
+- Updated `src/app/api/dashboard/route.ts` to reject the request with HTTP 403 when the authenticated user lacks `dashboard.view` permission (defense-in-depth on the backend).
+- Verified with `npx tsc --noEmit` and `npx eslint` that the three modified files compile cleanly (no new errors introduced).
+
+Stage Summary:
+- Bug fixed: employees without `dashboard.view` permission are now redirected to the first module they CAN view (e.g. prospects, operations, tasks, after-sales…).
+- Added an "Accès refusé" page for users with zero accessible modules.
+- Server-side `/api/dashboard` now also returns 403 to unauthorized users, so even direct API calls cannot leak aggregated metrics.
+- Files modified:
+  • `src/components/crm/sidebar.tsx`
+  • `src/app/page.tsx`
+  • `src/app/api/dashboard/route.ts`
