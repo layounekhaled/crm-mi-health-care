@@ -640,12 +640,12 @@ function EventDetailDialog({
                         {item.data.latitude.toFixed(6)}, {item.data.longitude.toFixed(6)}
                       </p>
                       <a
-                        href={`https://www.openstreetmap.org/?mlat=${item.data.latitude}&mlon=${item.data.longitude}#map=15/${item.data.latitude}/${item.data.longitude}`}
+                        href={`https://www.google.com/maps?q=${item.data.latitude},${item.data.longitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-[#134885] hover:underline"
                       >
-                        Ouvrir la carte
+                        Ouvrir dans Google Maps
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     </div>
