@@ -216,3 +216,28 @@ Stage Summary:
   • src/app/api/events/[id]/route.ts (PUT)
   • src/components/crm/events.tsx (formulaire + carte)
   • src/components/crm/calendar.tsx (détail événement)
+
+---
+Task ID: dalia-events-gps-maps
+Agent: Super Z
+Task: Remplacer les liens OpenStreetMap par des liens Google Maps dans le module Événements (et le calendrier) pour faciliter la navigation des employés.
+
+Work Log:
+- Lecture du worklog précédent (Task dalia-events-gps) : constat que les coordonnées GPS étaient déjà ajoutées au modèle Event mais liaient vers OpenStreetMap.
+- Recherche des références OpenStreetMap dans src/ → 2 fichiers : events.tsx (2 occurrences) et calendar.tsx (1 occurrence).
+- Remplacement du format URL `https://www.openstreetmap.org/?mlat=LAT&mlon=LNG#map=15/LAT/LNG` par `https://www.google.com/maps?q=LAT,LNG` :
+  • events.tsx ligne 861 : badge "GPS" sur la carte d'événement → ouvre Google Maps
+  • events.tsx ligne 1144 : lien "Voir sur la carte" dans le formulaire → renommé "Voir sur Google Maps"
+  • calendar.tsx ligne 643 : lien "Ouvrir la carte" dans le détail d'un événement du calendrier → renommé "Ouvrir dans Google Maps"
+- Mise à jour des `title` aria et libellés pour mentionner explicitement Google Maps.
+- Vérification : plus aucune référence openstreetmap dans src/.
+- Vérification TypeScript : aucune nouvelle erreur introduite (les erreurs préexistantes sont sur d'autres fichiers, non liées à ce changement).
+- Commit c02200d poussé sur origin/main.
+- Déploiement Coolify déclenché : deployment_uuid `alnk0ukg57beh91fp3gjzyzs`.
+- Vérification post-déploiement : https://dalia.fret.direct répond (307 redirect vers /login, comportement attendu pour app authentifiée).
+
+Stage Summary:
+- Les 3 liens GPS du module Événements et du Calendrier pointent maintenant vers Google Maps au lieu d'OpenStreetMap.
+- Format utilisé : `https://www.google.com/maps?q=LAT,LNG` — fonctionne sur desktop (ouvre maps.google.com) ET sur mobile (propose d'ouvrir l'app Google Maps native), ce qui facilite la navigation turn-by-turn pour les employés sur le terrain.
+- Changement déployé en production sur https://dalia.fret.direct.
+- L'utilisateur doit faire Ctrl+Shift+R (vider le cache) pour voir les nouveaux liens.
