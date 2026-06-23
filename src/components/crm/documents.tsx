@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { ModuleHeader } from '@/components/crm/module-header'
-import { formatFileSize } from '@/lib/storage'
+import { formatFileSize } from '@/lib/storage-utils'
 import { toast } from 'sonner'
 import {
   FileText, Upload, Search, Filter, Send, Eye, Copy, Download,

@@ -1,43 +1,25 @@
+// Server-only storage module — uses Node.js fs APIs
+// Re-exports pure utilities from storage-utils.ts for convenience in API routes
+// IMPORTANT: this module must only be imported from server-side code (API routes, server components)
+// because it uses Node.js 'fs' which is not available in the browser.
+
 import { promises as fs } from 'fs'
 import path from 'path'
 import os from 'os'
 
-// Brand folders for document organization
-export const BRAND_FOLDERS: Record<string, string> = {
-  'MIR': 'mir',
-  'BOSO BOSCH': 'boso-bosch',
-  'Löwenstein': 'lowenstein',
-  'Yuwell': 'yuwell',
-  'Gelenke': 'gelenke',
-  'DRIVE DEVILBISS': 'drive-devilbiss',
-  'INOGEN': 'inogen',
-  'Autres': 'autres',
-}
+// Re-export everything from storage-utils so API routes can still import from '@/lib/storage'
+export {
+  BRAND_FOLDERS,
+  getPublicUrl,
+  formatFileSize,
+} from './storage-utils'
+
+import { BRAND_FOLDERS, getPublicUrl } from './storage-utils'
 
 // Storage root: persistent volume mounted on Coolify (or local /tmp in dev)
 // On Coolify: /data/dalia-documents (mounted as a volume)
 // On Vercel/dev: /tmp/dalia-documents (ephemeral but works for testing)
 const STORAGE_ROOT = process.env.DOCUMENTS_STORAGE_PATH || '/data/dalia-documents'
-
-// Get public URL for a file (served via /api/files/[...path] route)
-export function getPublicUrl(filePath: string): string {
-  // If it's already an absolute URL (legacy Vercel Blob URLs), return as-is
-  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-    return filePath
-  }
-  // Otherwise serve via our local file route
-  // filePath is like "mir/1234567_file.pdf"
-  return `/api/files/${filePath}`
-}
-
-// Format file size
-export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
 
 // Ensure storage directory exists
 async function ensureStorageDir(dirPath: string): Promise<void> {
@@ -124,7 +106,6 @@ export async function deleteFile(url: string): Promise<void> {
     return
   }
   // Legacy Vercel Blob URLs - we can't delete those, just skip
-  // (would require @vercel/blob client which is no longer used)
   console.log(`[STORAGE] Skipping deletion of legacy URL: ${url}`)
 }
 
