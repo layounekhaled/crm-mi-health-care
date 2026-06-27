@@ -635,7 +635,7 @@ function EventDetailDialog({
                   <Navigation className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="flex-1">
                     <p className="text-xs text-muted-foreground">Position GPS</p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium font-mono">
                         {item.data.latitude.toFixed(6)}, {item.data.longitude.toFixed(6)}
                       </p>
@@ -645,8 +645,17 @@ function EventDetailDialog({
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-[#134885] hover:underline"
                       >
-                        Ouvrir dans Google Maps
+                        Voir
                         <ExternalLink className="h-3 w-3" />
+                      </a>
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${item.data.latitude},${item.data.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline"
+                      >
+                        <Navigation className="h-3 w-3" />
+                        Itinéraire
                       </a>
                     </div>
                   </div>

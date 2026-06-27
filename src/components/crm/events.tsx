@@ -857,17 +857,29 @@ export default function EventsModule() {
                           : formatDate(event.date)}
                       </span>
                       {event.latitude != null && event.longitude != null && (
-                        <a
-                          href={`https://www.google.com/maps?q=${event.latitude},${event.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[#134885] hover:underline"
-                          title="Voir la position sur Google Maps"
-                        >
-                          <Navigation className="size-3" />
-                          GPS
-                          <ExternalLink className="size-2.5" />
-                        </a>
+                        <div className="inline-flex items-center gap-2">
+                          <a
+                            href={`https://www.google.com/maps?q=${event.latitude},${event.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[#134885] hover:underline"
+                            title="Voir la position sur Google Maps"
+                          >
+                            <MapPin className="size-3" />
+                            GPS
+                            <ExternalLink className="size-2.5" />
+                          </a>
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-emerald-700 hover:underline"
+                            title="Itinéraire vers l'événement"
+                          >
+                            <Navigation className="size-3" />
+                            Itinéraire
+                          </a>
+                        </div>
                       )}
                     </div>
 
@@ -1140,15 +1152,26 @@ export default function EventsModule() {
                 <span>
                   Position: {formData.latitude}, {formData.longitude}
                 </span>
-                <a
-                  href={`https://www.google.com/maps?q=${encodeURIComponent(formData.latitude)},${encodeURIComponent(formData.longitude)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto inline-flex items-center gap-1 font-medium text-emerald-800 hover:underline"
-                >
-                  Voir sur Google Maps
-                  <ExternalLink className="size-3" />
-                </a>
+                <div className="ml-auto flex items-center gap-3">
+                  <a
+                    href={`https://www.google.com/maps?q=${encodeURIComponent(formData.latitude)},${encodeURIComponent(formData.longitude)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-medium text-emerald-800 hover:underline"
+                  >
+                    Voir sur Google Maps
+                    <ExternalLink className="size-3" />
+                  </a>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(formData.latitude)},${encodeURIComponent(formData.longitude)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-medium text-[#134885] hover:underline"
+                  >
+                    <Navigation className="size-3" />
+                    Itinéraire
+                  </a>
+                </div>
               </div>
             )}
             {!formData.latitude && !formData.longitude && (
