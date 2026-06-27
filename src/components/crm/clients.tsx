@@ -33,6 +33,7 @@ import {
   CircleDot,
   Loader2,
   DollarSign,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -95,6 +96,7 @@ interface Client {
   email: string | null
   adresse: string | null
   etablissement: string | null
+  lienMaps: string | null
   source: string | null
   recommandePar: string | null
   recommandeParId: string | null
@@ -466,6 +468,7 @@ export default function ClientsModule() {
     email: '',
     adresse: '',
     etablissement: '',
+    lienMaps: '',
     source: 'prospection',
     recommandePar: '',
     recommandeParId: '',
@@ -482,6 +485,13 @@ export default function ClientsModule() {
   const [recoDropdownOpen, setRecoDropdownOpen] = useState(false)
   const [recoSearching, setRecoSearching] = useState(false)
   const recoSearchTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  // Location search state
+  const [locQuery, setLocQuery] = useState('')
+  const [locResults, setLocResults] = useState<{ display_name: string; lat: string; lon: string }[]>([])
+  const [locSearching, setLocSearching] = useState(false)
+  const [locShow, setLocShow] = useState(false)
+  const locSearchTimeout = useRef<NodeJS.Timeout | null>(null)
 
   // Detail state
   const [selectedClient, setSelectedClient] = useState<ClientDetail | null>(null)
@@ -599,6 +609,42 @@ export default function ClientsModule() {
     setRecoDropdownOpen(false)
   }
 
+  // ── Location search handlers ────────────────────────────────────────────
+  const handleLocSearch = (query: string) => {
+    setLocQuery(query)
+    if (query.length < 3) {
+      setLocResults([])
+      setLocShow(false)
+      return
+    }
+    if (locSearchTimeout.current) clearTimeout(locSearchTimeout.current)
+    locSearchTimeout.current = setTimeout(() => {
+      setLocSearching(true)
+      setLocShow(true)
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=fr`, {
+        headers: { 'User-Agent': 'DaliaCRM/1.0' }
+      })
+        .then(r => r.json())
+        .then((data: { display_name: string; lat: string; lon: string }[]) => {
+          setLocResults(data)
+          setLocSearching(false)
+        })
+        .catch(() => {
+          setLocResults([])
+          setLocSearching(false)
+        })
+    }, 400)
+  }
+
+  const selectLocation = (result: { display_name: string; lat: string; lon: string }) => {
+    const mapsUrl = `https://www.google.com/maps?q=${result.lat},${result.lon}`
+    setFormData(prev => ({ ...prev, lienMaps: mapsUrl, adresse: result.display_name.split(',').slice(0, 2).join(',').trim() || prev.adresse }))
+    setLocQuery('')
+    setLocResults([])
+    setLocShow(false)
+    toast.success('Localisation sélectionnée')
+  }
+
   const openAddForm = () => {
     setEditingId(null)
     setFormData({
@@ -611,6 +657,7 @@ export default function ClientsModule() {
       email: '',
       adresse: '',
       etablissement: '',
+      lienMaps: '',
       source: 'prospection',
       recommandePar: '',
       recommandeParId: '',
@@ -634,6 +681,7 @@ export default function ClientsModule() {
       email: client.email || '',
       adresse: client.adresse || '',
       etablissement: client.etablissement || '',
+      lienMaps: (client as Client & { lienMaps?: string | null }).lienMaps || '',
       source: client.source || 'prospection',
       recommandePar: (client as Client & { recommandePar?: string | null }).recommandePar || '',
       recommandeParId: (client as Client & { recommandeParId?: string | null }).recommandeParId || '',
@@ -953,6 +1001,17 @@ export default function ClientsModule() {
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Adresse</p>
                 <p className="text-sm font-medium">{selectedClient.adresse}</p>
               </div>
+              {(selectedClient as ClientDetail & { lienMaps?: string | null }).lienMaps && (
+                <a
+                  href={(selectedClient as ClientDetail & { lienMaps?: string | null }).lienMaps!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline shrink-0"
+                >
+                  <ExternalLink className="size-3" />
+                  Google Maps
+                </a>
+              )}
             </div>
           )}
           {selectedClient.tarif && (
@@ -1984,6 +2043,85 @@ export default function ClientsModule() {
                     onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
                     className="bg-white"
                   />
+                </div>
+              </div>
+
+              {/* Location search + Lien Google Maps */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label className="flex items-center gap-1">
+                    <Search className="size-3.5 text-[#134885]" />
+                    Chercher un lieu
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="Ex: Cabinet Dr Benali Alger..."
+                      value={locQuery}
+                      onChange={e => handleLocSearch(e.target.value)}
+                      onFocus={() => locResults.length > 0 && setLocShow(true)}
+                      onBlur={() => setTimeout(() => setLocShow(false), 200)}
+                      className="bg-white pr-8"
+                    />
+                    {locQuery && (
+                      <button
+                        type="button"
+                        onClick={() => { setLocQuery(''); setLocResults([]); setLocShow(false) }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
+                    {locShow && (locSearching || locResults.length > 0) && (
+                      <div className="absolute z-50 left-0 right-0 top-full mt-1 rounded-md border bg-white shadow-lg max-h-60 overflow-y-auto">
+                        {locSearching && locResults.length === 0 && (
+                          <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                            <Loader2 className="size-3.5 animate-spin" />
+                            Recherche...
+                          </div>
+                        )}
+                        {locResults.map((r, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => selectLocation(r)}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b last:border-b-0 transition-colors"
+                          >
+                            <div className="flex items-start gap-2">
+                              <MapPin className="size-3.5 mt-0.5 shrink-0 text-[#134885]" />
+                              <span className="line-clamp-2">{r.display_name}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="lienMaps" className="flex items-center gap-1">
+                    <MapPin className="size-3.5 text-emerald-600" />
+                    Lien Google Maps
+                  </Label>
+                  <Input
+                    id="lienMaps"
+                    type="url"
+                    placeholder="https://maps.google.com/... ou cherchez à gauche"
+                    value={formData.lienMaps}
+                    onChange={(e) => setFormData({ ...formData, lienMaps: e.target.value })}
+                    className="bg-white"
+                  />
+                  {formData.lienMaps && formData.lienMaps.startsWith('http') && (
+                    <a
+                      href={formData.lienMaps}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline"
+                    >
+                      <ExternalLink className="size-3" />
+                      Tester le lien
+                    </a>
+                  )}
                 </div>
               </div>
 

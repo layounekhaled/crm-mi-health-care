@@ -19,6 +19,7 @@ model Prospect {
   email         String?
   adresse       String?
   etablissement String?
+  lienMaps      String?           // Lien Google Maps du lieu
   source        String?   @default("prospection")
   recommandePar   String?
   recommandeParId String?
