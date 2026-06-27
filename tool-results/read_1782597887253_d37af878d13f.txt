@@ -1,0 +1,1139 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from 'react'
+     4→import { useAuth } from '@/lib/auth-context'
+     5→import { useCRMStore } from '@/lib/store'
+     6→import { signOut } from 'next-auth/react'
+     7→import { motion, AnimatePresence } from 'framer-motion'
+     8→import { Input } from '@/components/ui/input'
+     9→import { Button } from '@/components/ui/button'
+    10→import { ScrollArea } from '@/components/ui/scroll-area'
+    11→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    12→import { toast } from 'sonner'
+    13→import {
+    14→  MessageCircle,
+    15→  X,
+    16→  Send,
+    17→  Search,
+    18→  Plus,
+    19→  ArrowLeft,
+    20→  Users,
+    21→  UserPlus,
+    22→  Loader2,
+    23→  CheckCheck,
+    24→  AlertCircle,
+    25→  Bell,
+    26→  BellOff,
+    27→  Check,
+    28→  Hash,
+    29→} from 'lucide-react'
+    30→
+    31→interface Conversation {
+    32→  id: string
+    33→  type: string
+    34→  nom: string | null
+    35→  updatedAt: string
+    36→  participants: {
+    37→    id: string
+    38→    employeId: string
+    39→    employe: { id: string; nom: string; role: string }
+    40→    lastReadAt: string
+    41→  }[]
+    42→  messages: {
+    43→    id: string
+    44→    contenu: string
+    45→    createdAt: string
+    46→    expediteurId: string
+    47→    expediteur: { id: string; nom: string }
+    48→  }[]
+    49→  unreadCount: number
+    50→}
+    51→
+    52→interface Employee {
+    53→  id: string
+    54→  nom: string
+    55→  role: string
+    56→}
+    57→
+    58→interface ChatMessage {
+    59→  id: string
+    60→  conversationId: string
+    61→  contenu: string
+    62→  createdAt: string
+    63→  expediteurId: string
+    64→  expediteur: { id: string; nom: string }
+    65→}
+    66→
+    67→const roleColors: Record<string, string> = {
+    68→  admin: 'bg-red-100 text-red-700',
+    69→  commercial: 'bg-blue-100 text-blue-700',
+    70→  technicien: 'bg-green-100 text-green-700',
+    71→}
+    72→
+    73→const roleLabels: Record<string, string> = {
+    74→  admin: 'Admin',
+    75→  commercial: 'Commercial',
+    76→  technicien: 'Technicien',
+    77→}
+    78→
+    79→function getInitials(nom: string) {
+    80→  return nom
+    81→    .split(' ')
+    82→    .map((n) => n[0])
+    83→    .join('')
+    84→    .toUpperCase()
+    85→    .slice(0, 2)
+    86→}
+    87→
+    88→function formatTime(dateStr: string) {
+    89→  const d = new Date(dateStr)
+    90→  const now = new Date()
+    91→  const diffMs = now.getTime() - d.getTime()
+    92→  const diffMins = Math.floor(diffMs / 60000)
+    93→  const diffHours = Math.floor(diffMs / 3600000)
+    94→  const diffDays = Math.floor(diffMs / 86400000)
+    95→
+    96→  if (diffMins < 1) return "à l'instant"
+    97→  if (diffMins < 60) return `il y a ${diffMins}min`
+    98→  if (diffHours < 24) return `il y a ${diffHours}h`
+    99→  if (diffDays < 7) return `il y a ${diffDays}j`
+   100→  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+   101→}
+   102→
+   103→// Son de notification léger
+   104→function playNotificationSound() {
+   105→  try {
+   106→    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+   107→    const oscillator = audioContext.createOscillator()
+   108→    const gainNode = audioContext.createGain()
+   109→    oscillator.connect(gainNode)
+   110→    gainNode.connect(audioContext.destination)
+   111→    oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
+   112→    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1)
+   113→    oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2)
+   114→    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime)
+   115→    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.35)
+   116→    oscillator.start(audioContext.currentTime)
+   117→    oscillator.stop(audioContext.currentTime + 0.35)
+   118→  } catch {
+   119→    // Audio non supporté, on ignore
+   120→  }
+   121→}
+   122→
+   123→export default function ChatWidget() {
+   124→  const { user } = useAuth()
+   125→  const { currentUser } = useCRMStore()
+   126→  const [isOpen, setIsOpen] = useState(false)
+   127→  const [conversations, setConversations] = useState<Conversation[]>([])
+   128→  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+   129→  const [messages, setMessages] = useState<Conversation['messages']>([])
+   130→  const [newMessage, setNewMessage] = useState('')
+   131→  const [searchQuery, setSearchQuery] = useState('')
+   132→  const [isLoading, setIsLoading] = useState(false)
+   133→  const [showNewChat, setShowNewChat] = useState(false)
+   134→  const [newChatMode, setNewChatMode] = useState<'direct' | 'group'>('direct')
+   135→  const [groupName, setGroupName] = useState('')
+   136→  const [selectedGroupMembers, setSelectedGroupMembers] = useState<Set<string>>(new Set())
+   137→  const [employees, setEmployees] = useState<Employee[]>([])
+   138→  const [isSending, setIsSending] = useState(false)
+   139→  const [chatError, setChatError] = useState<string | null>(null)
+   140→  const [employeesLoading, setEmployeesLoading] = useState(false)
+   141→  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+   142→  const [lastSeenUnread, setLastSeenUnread] = useState(0)
+   143→  const messagesEndRef = useRef<HTMLDivElement>(null)
+   144→  const inputRef = useRef<HTMLInputElement>(null)
+   145→  const pollingRef = useRef<NodeJS.Timeout | null>(null)
+   146→  const lastPollTimeRef = useRef<string>(new Date().toISOString())
+   147→  const previousConversationsRef = useRef<Map<string, { unreadCount: number; lastMessageId: string }>>(new Map())
+   148→  const hasInitializedRef = useRef(false)
+   149→
+   150→  const employeId = user?.employeId || currentUser?.employeId
+   151→
+   152→  // Fetch conversations
+   153→  const fetchConversations = useCallback(async () => {
+   154→    try {
+   155→      const res = await fetch('/api/chat/conversations', { credentials: 'same-origin' })
+   156→      if (res.ok) {
+   157→        const data = await res.json()
+   158→        if (Array.isArray(data)) {
+   159→          setConversations(data)
+   160→        }
+   161→      } else if (res.status === 401) {
+   162→        const err = await res.json().catch(() => ({}))
+   163→        if (err.action === 'relogin') {
+   164→          setChatError('Session obsolète. Reconnexion en cours...')
+   165→          setTimeout(() => signOut({ callbackUrl: '/login' }), 2000)
+   166→        }
+   167→      }
+   168→    } catch (err) {
+   169→      console.error('[CHAT] Erreur fetch conversations:', err)
+   170→    }
+   171→  }, [])
+   172→
+   173→  // Fetch messages for a conversation
+   174→  const fetchMessages = useCallback(async (conversationId: string) => {
+   175→    try {
+   176→      const res = await fetch(`/api/chat/conversations/${conversationId}`, { credentials: 'same-origin' })
+   177→      if (res.ok) {
+   178→        const data = await res.json()
+   179→        if (data && Array.isArray(data.messages)) {
+   180→          setMessages(data.messages)
+   181→          lastPollTimeRef.current = new Date().toISOString()
+   182→        }
+   183→      }
+   184→    } catch (err) {
+   185→      console.error('[CHAT] Erreur fetch messages:', err)
+   186→    }
+   187→  }, [])
+   188→
+   189→  // Get conversation name helper (used for notifications)
+   190→  const getConvNameHelper = useCallback((conv: Conversation) => {
+   191→    if (conv.type === 'group' && conv.nom) return conv.nom
+   192→    const other = conv.participants.find((p) => p.employeId !== employeId)
+   193→    return other?.employe?.nom || 'Conversation'
+   194→  }, [employeId])
+   195→
+   196→  // Poll for new messages (works when chat is open OR closed)
+   197→  const pollNewMessages = useCallback(async () => {
+   198→    try {
+   199→      const res = await fetch(
+   200→        `/api/chat/messages/latest?since=${encodeURIComponent(lastPollTimeRef.current)}`,
+   201→        { credentials: 'same-origin' }
+   202→      )
+   203→      if (res.ok) {
+   204→        const data = await res.json()
+   205→        const newMsgs: ChatMessage[] = data.messages || data
+   206→        if (Array.isArray(newMsgs) && newMsgs.length > 0) {
+   207→          // Filtrer les messages des autres (pas les nôtres)
+   208→          const otherMsgs = newMsgs.filter((m) => m.expediteurId !== employeId)
+   209→
+   210→          if (otherMsgs.length > 0) {
+   211→            // Mettre à jour les messages si une conversation est ouverte
+   212→            if (isOpen && selectedConversation) {
+   213→              const relevantMsgs = otherMsgs.filter(
+   214→                (m) => m.conversationId === selectedConversation.id
+   215→              )
+   216→              if (relevantMsgs.length > 0) {
+   217→                setMessages((prev) => {
+   218→                  const existingIds = new Set(prev.map((m) => m.id))
+   219→                  const filtered = relevantMsgs.filter((m) => !existingIds.has(m.id))
+   220→                  return [...prev, ...filtered]
+   221→                })
+   222→              }
+   223→            }
+   224→
+   225→            // Notification pour les messages dans d'autres conversations ou si le chat est fermé
+   226→            if (notificationsEnabled) {
+   227→              // Grouper les messages par conversation
+   228→              const msgsByConv = new Map<string, ChatMessage[]>()
+   229→              otherMsgs.forEach((msg) => {
+   230→                const existing = msgsByConv.get(msg.conversationId) || []
+   231→                existing.push(msg)
+   232→                msgsByConv.set(msg.conversationId, existing)
+   233→              })
+   234→
+   235→              for (const [convId, convMsgs] of msgsByConv) {
+   236→                // Ne pas notifier si on a la conversation ouverte et sélectionnée
+   237→                const isCurrentConv = isOpen && selectedConversation?.id === convId
+   238→                if (isCurrentConv) continue
+   239→
+   240→                // Trouver le nom de la conversation
+   241→                const conv = conversations.find((c) => c.id === convId)
+   242→                const convName = conv
+   243→                  ? getConvNameHelper(conv)
+   244→                  : 'Nouvelle conversation'
+   245→
+   246→                const lastMsg = convMsgs[convMsgs.length - 1]
+   247→                const senderName = lastMsg.expediteur?.nom || 'Quelqu\'un'
+   248→                const preview = lastMsg.contenu.length > 50
+   249→                  ? lastMsg.contenu.slice(0, 50) + '...'
+   250→                  : lastMsg.contenu
+   251→
+   252→                // Toast notification
+   253→                toast.info(`${senderName} - ${convName}`, {
+   254→                  description: preview,
+   255→                  duration: 4000,
+   256→                  action: {
+   257→                    label: 'Voir',
+   258→                    onClick: () => {
+   259→                      setIsOpen(true)
+   260→                      if (conv) {
+   261→                        selectConversation(conv)
+   262→                      }
+   263→                    },
+   264→                  },
+   265→                })
+   266→
+   267→                // Son de notification
+   268→                playNotificationSound()
+   269→              }
+   270→            }
+   271→          }
+   272→
+   273→          lastPollTimeRef.current = new Date().toISOString()
+   274→          // Rafraîchir les conversations pour mettre à jour les unreadCount
+   275→          fetchConversations()
+   276→        }
+   277→      }
+   278→    } catch {
+   279→      // silent fail for polling
+   280→    }
+   281→  }, [isOpen, selectedConversation, employeId, conversations, getConvNameHelper, fetchConversations, notificationsEnabled])
+   282→
+   283→  // Détecter les changements de unreadCount pour les notifications (quand le chat est fermé)
+   284→  useEffect(() => {
+   285→    const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
+   286→
+   287→    if (hasInitializedRef.current && totalUnread > lastSeenUnread && !isOpen) {
+   288→      // Il y a de nouveaux messages non lus et le chat est fermé
+   289→      const increasedConv = conversations.find((conv) => {
+   290→        const prev = previousConversationsRef.current.get(conv.id)
+   291→        return prev && conv.unreadCount > prev.unreadCount
+   292→      })
+   293→
+   294→      if (increasedConv && notificationsEnabled) {
+   295→        const convName = getConvNameHelper(increasedConv)
+   296→        const lastMsg = increasedConv.messages?.[0]
+   297→        const senderName = lastMsg?.expediteur?.nom || 'Quelqu\'un'
+   298→        const preview = lastMsg?.contenu
+   299→          ? lastMsg.contenu.length > 50
+   300→            ? lastMsg.contenu.slice(0, 50) + '...'
+   301→            : lastMsg.contenu
+   302→          : 'Nouveau message'
+   303→
+   304→        playNotificationSound()
+   305→
+   306→        toast.info(`💬 ${senderName} - ${convName}`, {
+   307→          description: preview,
+   308→          duration: 4000,
+   309→          action: {
+   310→            label: 'Ouvrir',
+   311→            onClick: () => {
+   312→              setIsOpen(true)
+   313→            },
+   314→          },
+   315→        })
+   316→      }
+   317→    }
+   318→
+   319→    // Mettre à jour la référence précédente
+   320→    const newMap = new Map<string, { unreadCount: number; lastMessageId: string }>()
+   321→    conversations.forEach((conv) => {
+   322→      newMap.set(conv.id, {
+   323→        unreadCount: conv.unreadCount,
+   324→        lastMessageId: conv.messages?.[0]?.id || '',
+   325→      })
+   326→    })
+   327→    previousConversationsRef.current = newMap
+   328→    setLastSeenUnread(totalUnread)
+   329→    hasInitializedRef.current = true
+   330→  }, [conversations, isOpen, lastSeenUnread, getConvNameHelper, notificationsEnabled])
+   331→
+   332→  // Marquer comme lu quand on sélectionne une conversation
+   333→  useEffect(() => {
+   334→    if (selectedConversation && isOpen) {
+   335→      // Appeler l'API pour marquer comme lu
+   336→      fetch(`/api/chat/conversations/${selectedConversation.id}/read`, {
+   337→        method: 'POST',
+   338→        credentials: 'same-origin',
+   339→      }).catch(() => {})
+   340→    }
+   341→  }, [selectedConversation, isOpen])
+   342→
+   343→  // Start/stop polling - always poll even when chat is closed
+   344→  useEffect(() => {
+   345→    // Premier fetch
+   346→    fetchConversations()
+   347→
+   348→    // Polling toutes les 5s (même quand le chat est fermé)
+   349→    pollingRef.current = setInterval(() => {
+   350→      pollNewMessages()
+   351→      // Rafraîchir les conversations moins souvent quand le chat est fermé
+   352→      if (isOpen) {
+   353→        fetchConversations()
+   354→      }
+   355→    }, 5000)
+   356→
+   357→    // Rafraîchir les conversations toutes les 15s quand le chat est fermé
+   358→    const convPollRef = setInterval(() => {
+   359→      if (!isOpen) fetchConversations()
+   360→    }, 15000)
+   361→
+   362→    return () => {
+   363→      if (pollingRef.current) clearInterval(pollingRef.current)
+   364→      clearInterval(convPollRef)
+   365→    }
+   366→  }, [isOpen, fetchConversations, pollNewMessages])
+   367→
+   368→  // Scroll to bottom when messages change
+   369→  useEffect(() => {
+   370→    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+   371→  }, [messages])
+   372→
+   373→  // Focus input when conversation selected
+   374→  useEffect(() => {
+   375→    if (selectedConversation && !showNewChat) {
+   376→      setTimeout(() => inputRef.current?.focus(), 100)
+   377→    }
+   378→  }, [selectedConversation, showNewChat])
+   379→
+   380→  // Send message
+   381→  const sendMessage = async () => {
+   382→    if (!newMessage.trim() || !selectedConversation || isSending) return
+   383→    setIsSending(true)
+   384→    try {
+   385→      const res = await fetch('/api/chat/messages', {
+   386→        method: 'POST',
+   387→        headers: { 'Content-Type': 'application/json' },
+   388→        credentials: 'same-origin',
+   389→        body: JSON.stringify({
+   390→          conversationId: selectedConversation.id,
+   391→          contenu: newMessage.trim(),
+   392→        }),
+   393→      })
+   394→      if (res.ok) {
+   395→        const msg = await res.json()
+   396→        setMessages((prev) => [...prev, msg])
+   397→        setNewMessage('')
+   398→        fetchConversations()
+   399→      } else {
+   400→        const err = await res.json().catch(() => ({}))
+   401→        console.error('[CHAT] Erreur envoi message:', err)
+   402→      }
+   403→    } catch (err) {
+   404→      console.error('[CHAT] Erreur réseau envoi:', err)
+   405→    } finally {
+   406→      setIsSending(false)
+   407→    }
+   408→  }
+   409→
+   410→  // Start new direct conversation
+   411→  const startConversation = async (targetEmployeId: string) => {
+   412→    setIsLoading(true)
+   413→    setChatError(null)
+   414→    try {
+   415→      const res = await fetch('/api/chat/conversations', {
+   416→        method: 'POST',
+   417→        headers: { 'Content-Type': 'application/json' },
+   418→        credentials: 'same-origin',
+   419→        body: JSON.stringify({
+   420→          type: 'direct',
+   421→          participantIds: [targetEmployeId],
+   422→        }),
+   423→      })
+   424→      
+   425→      if (res.ok) {
+   426→        const conv = await res.json()
+   427→        setSelectedConversation(conv)
+   428→        setMessages(conv.messages || [])
+   429→        setShowNewChat(false)
+   430→        setSearchQuery('')
+   431→        fetchConversations()
+   432→      } else if (res.status === 401) {
+   433→        const err = await res.json().catch(() => ({}))
+   434→        if (err.action === 'relogin') {
+   435→          setChatError('Session obsolète. Reconnexion en cours...')
+   436→          setTimeout(() => signOut({ callbackUrl: '/login' }), 2000)
+   437→        } else {
+   438→          setChatError('Session expirée. Rechargez la page et reconnectez-vous.')
+   439→        }
+   440→      } else {
+   441→        const err = await res.json().catch(() => ({ error: 'Erreur inconnue' }))
+   442→        setChatError(err.details || err.error || 'Erreur lors de la création de la conversation')
+   443→      }
+   444→    } catch (error) {
+   445→      setChatError('Erreur réseau. Vérifiez votre connexion.')
+   446→    } finally {
+   447→      setIsLoading(false)
+   448→    }
+   449→  }
+   450→
+   451→  // Start new group conversation
+   452→  const startGroupConversation = async () => {
+   453→    if (!groupName.trim() || selectedGroupMembers.size === 0) return
+   454→    setIsLoading(true)
+   455→    setChatError(null)
+   456→    try {
+   457→      const res = await fetch('/api/chat/conversations', {
+   458→        method: 'POST',
+   459→        headers: { 'Content-Type': 'application/json' },
+   460→        credentials: 'same-origin',
+   461→        body: JSON.stringify({
+   462→          type: 'group',
+   463→          nom: groupName.trim(),
+   464→          participantIds: Array.from(selectedGroupMembers),
+   465→        }),
+   466→      })
+   467→      if (res.ok) {
+   468→        const conv = await res.json()
+   469→        setSelectedConversation(conv)
+   470→        setMessages(conv.messages || [])
+   471→        setShowNewChat(false)
+   472→        setSearchQuery('')
+   473→        setGroupName('')
+   474→        setSelectedGroupMembers(new Set())
+   475→        setNewChatMode('direct')
+   476→        fetchConversations()
+   477→      } else if (res.status === 401) {
+   478→        const err = await res.json().catch(() => ({}))
+   479→        if (err.action === 'relogin') {
+   480→          setChatError('Session obsolète. Reconnexion en cours...')
+   481→          setTimeout(() => signOut({ callbackUrl: '/login' }), 2000)
+   482→        } else {
+   483→          setChatError('Session expirée. Rechargez la page et reconnectez-vous.')
+   484→        }
+   485→      } else {
+   486→        const err = await res.json().catch(() => ({ error: 'Erreur inconnue' }))
+   487→        setChatError(err.details || err.error || 'Erreur lors de la création du groupe')
+   488→      }
+   489→    } catch (error) {
+   490→      setChatError('Erreur réseau. Vérifiez votre connexion.')
+   491→    } finally {
+   492→      setIsLoading(false)
+   493→    }
+   494→  }
+   495→
+   496→  // Toggle a group member selection
+   497→  const toggleGroupMember = (empId: string) => {
+   498→    setSelectedGroupMembers(prev => {
+   499→      const next = new Set(prev)
+   500→      if (next.has(empId)) next.delete(empId)
+   501→      else next.add(empId)
+   502→      return next
+   503→    })
+   504→  }
+   505→
+   506→  // Select conversation
+   507→  const selectConversation = async (conv: Conversation) => {
+   508→    setSelectedConversation(conv)
+   509→    await fetchMessages(conv.id)
+   510→  }
+   511→
+   512→  // Fetch employees for new chat
+   513→  useEffect(() => {
+   514→    if (showNewChat) {
+   515→      setEmployeesLoading(true)
+   516→      setChatError(null)
+   517→      fetch('/api/employees/list', { credentials: 'same-origin' })
+   518→        .then((res) => {
+   519→          if (res.ok) return res.json()
+   520→          if (res.status === 401) {
+   521→            setChatError('Session expirée. Veuillez vous reconnecter.')
+   522→            return []
+   523→          }
+   524→          return []
+   525→        })
+   526→        .then((data) => {
+   527→          if (Array.isArray(data)) {
+   528→            setEmployees(data)
+   529→          } else {
+   530→            setEmployees([])
+   531→          }
+   532→        })
+   533→        .catch(() => setEmployees([]))
+   534→        .finally(() => setEmployeesLoading(false))
+   535→    }
+   536→  }, [showNewChat])
+   537→
+   538→  // Get conversation display name
+   539→  const getConvName = (conv: Conversation) => {
+   540→    if (conv.type === 'group' && conv.nom) return conv.nom
+   541→    const other = conv.participants.find((p) => p.employeId !== employeId)
+   542→    return other?.employe?.nom || 'Conversation'
+   543→  }
+   544→
+   545→  // Get conversation avatar
+   546→  const getConvAvatar = (conv: Conversation) => {
+   547→    if (conv.type === 'group') return 'GR'
+   548→    const other = conv.participants.find((p) => p.employeId !== employeId)
+   549→    return other?.employe?.nom ? getInitials(other.employe.nom) : '??'
+   550→  }
+   551→
+   552→  // Get other participant's role
+   553→  const getConvRole = (conv: Conversation) => {
+   554→    const other = conv.participants.find((p) => p.employeId !== employeId)
+   555→    return other?.employe?.role || ''
+   556→  }
+   557→
+   558→  // Total unread count
+   559→  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
+   560→
+   561→  // Trier les conversations : Général en premier, puis par date
+   562→  const sortedConversations = [...conversations].sort((a, b) => {
+   563→    if (a.type === 'group' && a.nom === 'Général') return -1
+   564→    if (b.type === 'group' && b.nom === 'Général') return 1
+   565→    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+   566→  })
+   567→
+   568→  // Filter conversations by search
+   569→  const filteredConversations = sortedConversations.filter((conv) => {
+   570→    if (!searchQuery) return true
+   571→    const name = getConvName(conv).toLowerCase()
+   572→    return name.includes(searchQuery.toLowerCase())
+   573→  })
+   574→
+   575→  // Filter employees by search
+   576→  const filteredEmployees = employees.filter((emp) => {
+   577→    if (!searchQuery) return true
+   578→    return emp.nom.toLowerCase().includes(searchQuery.toLowerCase())
+   579→  })
+   580→
+   581→  return (
+   582→    <>
+   583→      {/* Floating Chat Button with notification badge */}
+   584→      <AnimatePresence>
+   585→        {!isOpen && (
+   586→          <motion.button
+   587→            initial={{ scale: 0, opacity: 0 }}
+   588→            animate={{ scale: 1, opacity: 1 }}
+   589→            exit={{ scale: 0, opacity: 0 }}
+   590→            whileHover={{ scale: 1.1 }}
+   591→            whileTap={{ scale: 0.9 }}
+   592→            onClick={() => setIsOpen(true)}
+   593→            className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-xl shadow-[#134885]/30 hover:shadow-2xl hover:shadow-[#134885]/40 transition-shadow"
+   594→          >
+   595→            <MessageCircle className="h-6 w-6" />
+   596→            {totalUnread > 0 && (
+   597→              <motion.span
+   598→                initial={{ scale: 0 }}
+   599→                animate={{ scale: 1 }}
+   600→                className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F6852A] px-1 text-[10px] font-bold text-white"
+   601→              >
+   602→                {totalUnread > 99 ? '99+' : totalUnread}
+   603→              </motion.span>
+   604→            )}
+   605→            {/* Pulse animation when there are unread messages */}
+   606→            {totalUnread > 0 && (
+   607→              <span className="absolute inset-0 rounded-full animate-ping bg-[#F6852A]/30" />
+   608→            )}
+   609→          </motion.button>
+   610→        )}
+   611→      </AnimatePresence>
+   612→
+   613→      {/* Chat Panel */}
+   614→      <AnimatePresence>
+   615→        {isOpen && (
+   616→          <motion.div
+   617→            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+   618→            animate={{ opacity: 1, y: 0, scale: 1 }}
+   619→            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+   620→            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+   621→            className="fixed bottom-6 right-6 z-50 flex h-[520px] w-[380px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+   622→          >
+   623→            {/* Header */}
+   624→            <div className="flex items-center justify-between border-b bg-gradient-to-r from-[#134885] to-[#1A5A9E] px-4 py-3">
+   625→              {selectedConversation && !showNewChat ? (
+   626→                <div className="flex items-center gap-3 flex-1 min-w-0">
+   627→                  <button
+   628→                    onClick={() => setSelectedConversation(null)}
+   629→                    className="shrink-0 rounded-full p-1 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+   630→                  >
+   631→                    <ArrowLeft className="h-4 w-4" />
+   632→                  </button>
+   633→                  <Avatar className="h-8 w-8 shrink-0">
+   634→                    <AvatarFallback className={
+   635→                      selectedConversation.type === 'group'
+   636→                        ? 'bg-[#F6852A]/20 text-xs text-[#F6852A]'
+   637→                        : 'bg-white/20 text-xs text-white'
+   638→                    }>
+   639→                      {selectedConversation.type === 'group' && selectedConversation.nom === 'Général' ? (
+   640→                        <Users className="h-4 w-4" />
+   641→                      ) : selectedConversation.type === 'group' ? (
+   642→                        <Users className="h-4 w-4" />
+   643→                      ) : (
+   644→                        getConvAvatar(selectedConversation)
+   645→                      )}
+   646→                    </AvatarFallback>
+   647→                  </Avatar>
+   648→                  <div className="min-w-0 flex-1">
+   649→                    <p className="truncate text-sm font-semibold text-white">
+   650→                      {selectedConversation.type === 'group' && selectedConversation.nom === 'Général'
+   651→                        ? '📢 Général'
+   652→                        : getConvName(selectedConversation)
+   653→                      }
+   654→                    </p>
+   655→                    {selectedConversation.type === 'group' && (
+   656→                      <p className="text-[10px] text-white/60">
+   657→                        {selectedConversation.participants.length} membres
+   658→                        {selectedConversation.nom !== 'Général' && (
+   659→                          <> · {selectedConversation.participants.map(p => p.employe?.nom).filter(Boolean).join(', ')}</>
+   660→                        )}
+   661→                      </p>
+   662→                    )}
+   663→                  </div>
+   664→                </div>
+   665→              ) : showNewChat ? (
+   666→                <div className="flex items-center gap-3 flex-1">
+   667→                  <button
+   668→                    onClick={() => { setShowNewChat(false); setSearchQuery(''); setChatError(null); setNewChatMode('direct'); setGroupName(''); setSelectedGroupMembers(new Set()) }}
+   669→                    className="shrink-0 rounded-full p-1 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+   670→                  >
+   671→                    <ArrowLeft className="h-4 w-4" />
+   672→                  </button>
+   673→                  <p className="text-sm font-semibold text-white">
+   674→                    {newChatMode === 'group' ? 'Nouveau groupe' : 'Nouvelle conversation'}
+   675→                  </p>
+   676→                </div>
+   677→              ) : (
+   678→                <div className="flex items-center gap-2 flex-1">
+   679→                  <MessageCircle className="h-5 w-5 text-white" />
+   680→                  <p className="text-sm font-semibold text-white">Messages</p>
+   681→                  {totalUnread > 0 && (
+   682→                    <span className="rounded-full bg-[#F6852A] px-2 py-0.5 text-[10px] font-bold text-white">
+   683→                      {totalUnread}
+   684→                    </span>
+   685→                  )}
+   686→                </div>
+   687→              )}
+   688→              <div className="flex items-center gap-1">
+   689→                {/* Toggle notifications */}
+   690→                <button
+   691→                  onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+   692→                  className="shrink-0 rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+   693→                  title={notificationsEnabled ? 'Désactiver les notifications' : 'Activer les notifications'}
+   694→                >
+   695→                  {notificationsEnabled ? (
+   696→                    <Bell className="h-3.5 w-3.5" />
+   697→                  ) : (
+   698→                    <BellOff className="h-3.5 w-3.5" />
+   699→                  )}
+   700→                </button>
+   701→                <button
+   702→                  onClick={() => {
+   703→                    setIsOpen(false)
+   704→                    setSelectedConversation(null)
+   705→                    setShowNewChat(false)
+   706→                    setChatError(null)
+   707→                    setSearchQuery('')
+   708→                  }}
+   709→                  className="shrink-0 rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+   710→                >
+   711→                  <X className="h-4 w-4" />
+   712→                </button>
+   713→              </div>
+   714→            </div>
+   715→
+   716→            {/* Error Banner */}
+   717→            {chatError && (
+   718→              <div className="flex items-center gap-2 bg-red-50 border-b border-red-100 px-4 py-2 text-xs text-red-700">
+   719→                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+   720→                <span className="flex-1">{chatError}</span>
+   721→                <button onClick={() => setChatError(null)} className="shrink-0 text-red-400 hover:text-red-600">
+   722→                  <X className="h-3 w-3" />
+   723→                </button>
+   724→              </div>
+   725→            )}
+   726→
+   727→            {/* Content */}
+   728→            {selectedConversation && !showNewChat ? (
+   729→              /* Messages View */
+   730→              <div className="flex flex-1 flex-col min-h-0">
+   731→                <ScrollArea className="flex-1 px-4 py-3">
+   732→                  <div className="space-y-3">
+   733→                    {messages.length === 0 && (
+   734→                      <div className="flex flex-col items-center gap-2 py-8">
+   735→                        <MessageCircle className="h-8 w-8 text-slate-300" />
+   736→                        <p className="text-sm text-slate-400">Commencez la conversation</p>
+   737→                      </div>
+   738→                    )}
+   739→                    {messages.map((msg) => {
+   740→                      const isOwn = msg.expediteurId === employeId
+   741→                      return (
+   742→                        <div
+   743→                          key={msg.id}
+   744→                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+   745→                        >
+   746→                          <div
+   747→                            className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${
+   748→                              isOwn
+   749→                                ? 'bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white rounded-br-md'
+   750→                                : 'bg-slate-100 text-slate-800 rounded-bl-md'
+   751→                            }`}
+   752→                          >
+   753→                            {!isOwn && selectedConversation.type === 'group' && (
+   754→                              <p className="mb-0.5 text-[10px] font-semibold text-[#134885]">
+   755→                                {msg.expediteur?.nom || 'Inconnu'}
+   756→                              </p>
+   757→                            )}
+   758→                            <p className="text-sm leading-relaxed">{msg.contenu}</p>
+   759→                            <div
+   760→                              className={`mt-1 flex items-center gap-1 ${
+   761→                                isOwn ? 'justify-end' : 'justify-start'
+   762→                              }`}
+   763→                            >
+   764→                              <p
+   765→                                className={`text-[10px] ${
+   766→                                  isOwn ? 'text-white/60' : 'text-slate-400'
+   767→                                }`}
+   768→                              >
+   769→                                {formatTime(msg.createdAt)}
+   770→                              </p>
+   771→                              {isOwn && <CheckCheck className="h-3 w-3 text-white/60" />}
+   772→                            </div>
+   773→                          </div>
+   774→                        </div>
+   775→                      )
+   776→                    })}
+   777→                    <div ref={messagesEndRef} />
+   778→                  </div>
+   779→                </ScrollArea>
+   780→
+   781→                {/* Message Input */}
+   782→                <div className="border-t px-4 py-3">
+   783→                  <form
+   784→                    onSubmit={(e) => {
+   785→                      e.preventDefault()
+   786→                      sendMessage()
+   787→                    }}
+   788→                    className="flex items-center gap-2"
+   789→                  >
+   790→                    <Input
+   791→                      ref={inputRef}
+   792→                      value={newMessage}
+   793→                      onChange={(e) => setNewMessage(e.target.value)}
+   794→                      placeholder="Écrire un message..."
+   795→                      className="h-9 flex-1 rounded-full border-slate-200 bg-slate-50 text-sm focus:border-[#134885] focus:ring-[#134885]/20"
+   796→                      disabled={isSending}
+   797→                    />
+   798→                    <Button
+   799→                      type="submit"
+   800→                      size="icon"
+   801→                      disabled={!newMessage.trim() || isSending}
+   802→                      className="h-9 w-9 shrink-0 rounded-full bg-[#134885] hover:bg-[#0D3A6E]"
+   803→                    >
+   804→                      {isSending ? (
+   805→                        <Loader2 className="h-4 w-4 animate-spin" />
+   806→                      ) : (
+   807→                        <Send className="h-4 w-4" />
+   808→                      )}
+   809→                    </Button>
+   810→                  </form>
+   811→                </div>
+   812→              </div>
+   813→            ) : showNewChat ? (
+   814→              /* New Chat View */
+   815→              <div className="flex flex-1 flex-col min-h-0">
+   816→                {/* Mode Tabs */}
+   817→                <div className="flex gap-1 px-4 pt-3 pb-2">
+   818→                  <button
+   819→                    onClick={() => { setNewChatMode('direct'); setSearchQuery('') }}
+   820→                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+   821→                      newChatMode === 'direct'
+   822→                        ? 'bg-[#134885] text-white'
+   823→                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+   824→                    }`}
+   825→                  >
+   826→                    <MessageCircle className="h-3.5 w-3.5" />
+   827→                    Message direct
+   828→                  </button>
+   829→                  <button
+   830→                    onClick={() => { setNewChatMode('group'); setSearchQuery('') }}
+   831→                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+   832→                      newChatMode === 'group'
+   833→                        ? 'bg-[#F6852A] text-white'
+   834→                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+   835→                    }`}
+   836→                  >
+   837→                    <Users className="h-3.5 w-3.5" />
+   838→                    Groupe
+   839→                  </button>
+   840→                </div>
+   841→
+   842→                {/* Group name input (group mode only) */}
+   843→                {newChatMode === 'group' && (
+   844→                  <div className="px-4 pb-2">
+   845→                    <div className="relative">
+   846→                      <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+   847→                      <Input
+   848→                        value={groupName}
+   849→                        onChange={(e) => setGroupName(e.target.value)}
+   850→                        placeholder="Nom du groupe..."
+   851→                        className="h-9 pl-9 rounded-full border-slate-200 bg-slate-50 text-sm focus:border-[#F6852A] focus:ring-[#F6852A]/20"
+   852→                      />
+   853→                    </div>
+   854→                    {selectedGroupMembers.size > 0 && (
+   855→                      <div className="mt-2 flex flex-wrap gap-1">
+   856→                        {Array.from(selectedGroupMembers).map((empId) => {
+   857→                          const emp = employees.find(e => e.id === empId)
+   858→                          if (!emp) return null
+   859→                          return (
+   860→                            <span
+   861→                              key={empId}
+   862→                              className="inline-flex items-center gap-1 rounded-full bg-[#F6852A]/10 px-2 py-0.5 text-[10px] font-medium text-[#F6852A]"
+   863→                            >
+   864→                              {emp.nom}
+   865→                              <button
+   866→                                onClick={(e) => { e.stopPropagation(); toggleGroupMember(empId) }}
+   867→                                className="ml-0.5 rounded-full hover:bg-[#F6852A]/20 p-0.5"
+   868→                              >
+   869→                                <X className="h-2.5 w-2.5" />
+   870→                              </button>
+   871→                            </span>
+   872→                          )
+   873→                        })}
+   874→                      </div>
+   875→                    )}
+   876→                  </div>
+   877→                )}
+   878→
+   879→                {/* Search */}
+   880→                <div className="px-4 pb-2">
+   881→                  <div className="relative">
+   882→                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+   883→                    <Input
+   884→                      value={searchQuery}
+   885→                      onChange={(e) => setSearchQuery(e.target.value)}
+   886→                      placeholder={newChatMode === 'group' ? 'Ajouter des membres...' : 'Rechercher un employé...'}
+   887→                      className="h-9 pl-9 rounded-full border-slate-200 bg-slate-50 text-sm"
+   888→                    />
+   889→                  </div>
+   890→                </div>
+   891→
+   892→                <ScrollArea className="flex-1">
+   893→                  <div className="py-1">
+   894→                    {employeesLoading ? (
+   895→                      <div className="flex items-center justify-center py-8">
+   896→                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+   897→                      </div>
+   898→                    ) : filteredEmployees.length === 0 ? (
+   899→                      <p className="py-8 text-center text-sm text-slate-400">
+   900→                        Aucun employé trouvé
+   901→                      </p>
+   902→                    ) : newChatMode === 'direct' ? (
+   903→                      /* Direct mode: click to start conversation */
+   904→                      filteredEmployees.map((emp) => (
+   905→                        <button
+   906→                          key={emp.id}
+   907→                          onClick={() => startConversation(emp.id)}
+   908→                          disabled={isLoading}
+   909→                          className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+   910→                        >
+   911→                          <Avatar className="h-9 w-9">
+   912→                            <AvatarFallback className="bg-[#134885]/10 text-xs text-[#134885]">
+   913→                              {getInitials(emp.nom)}
+   914→                            </AvatarFallback>
+   915→                          </Avatar>
+   916→                          <div className="text-left flex-1">
+   917→                            <p className="text-sm font-medium text-slate-800">{emp.nom}</p>
+   918→                            <span
+   919→                              className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+   920→                                roleColors[emp.role] || 'bg-slate-100 text-slate-600'
+   921→                              }`}
+   922→                            >
+   923→                              {roleLabels[emp.role] || emp.role}
+   924→                            </span>
+   925→                          </div>
+   926→                          {isLoading && (
+   927→                            <Loader2 className="h-4 w-4 animate-spin text-[#134885]" />
+   928→                          )}
+   929→                        </button>
+   930→                      ))
+   931→                    ) : (
+   932→                      /* Group mode: multi-select with checkboxes */
+   933→                      filteredEmployees.map((emp) => {
+   934→                        const isSelected = selectedGroupMembers.has(emp.id)
+   935→                        return (
+   936→                          <button
+   937→                            key={emp.id}
+   938→                            onClick={() => toggleGroupMember(emp.id)}
+   939→                            className={`flex w-full items-center gap-3 px-4 py-2.5 transition-colors ${
+   940→                              isSelected ? 'bg-[#F6852A]/5' : 'hover:bg-slate-50'
+   941→                            }`}
+   942→                          >
+   943→                            <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+   944→                              isSelected
+   945→                                ? 'border-[#F6852A] bg-[#F6852A]'
+   946→                                : 'border-slate-300'
+   947→                            }`}>
+   948→                              {isSelected && <Check className="h-3 w-3 text-white" />}
+   949→                            </div>
+   950→                            <Avatar className="h-8 w-8">
+   951→                              <AvatarFallback className={`text-xs ${
+   952→                                isSelected ? 'bg-[#F6852A]/10 text-[#F6852A]' : 'bg-[#134885]/10 text-[#134885]'
+   953→                              }`}>
+   954→                                {getInitials(emp.nom)}
+   955→                              </AvatarFallback>
+   956→                            </Avatar>
+   957→                            <div className="text-left flex-1">
+   958→                              <p className={`text-sm ${isSelected ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'}`}>{emp.nom}</p>
+   959→                              <span
+   960→                                className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+   961→                                  roleColors[emp.role] || 'bg-slate-100 text-slate-600'
+   962→                                }`}
+   963→                              >
+   964→                                {roleLabels[emp.role] || emp.role}
+   965→                              </span>
+   966→                            </div>
+   967→                          </button>
+   968→                        )
+   969→                      })
+   970→                    )}
+   971→                  </div>
+   972→                </ScrollArea>
+   973→
+   974→                {/* Create Group Button (group mode only) */}
+   975→                {newChatMode === 'group' && (
+   976→                  <div className="border-t px-4 py-3">
+   977→                    <Button
+   978→                      onClick={startGroupConversation}
+   979→                      disabled={!groupName.trim() || selectedGroupMembers.size === 0 || isLoading}
+   980→                      className="w-full rounded-full bg-[#F6852A] hover:bg-[#E0752A] text-white disabled:opacity-50"
+   981→                    >
+   982→                      {isLoading ? (
+   983→                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   984→                      ) : (
+   985→                        <Users className="mr-2 h-4 w-4" />
+   986→                      )}
+   987→                      Créer le groupe{selectedGroupMembers.size > 0 ? ` (${selectedGroupMembers.size})` : ''}
+   988→                    </Button>
+   989→                  </div>
+   990→                )}
+   991→              </div>
+   992→            ) : (
+   993→              /* Conversations List */
+   994→              <div className="flex flex-1 flex-col min-h-0">
+   995→                <div className="px-4 py-3 border-b space-y-2">
+   996→                  <div className="relative">
+   997→                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+   998→                    <Input
+   999→                      value={searchQuery}
+  1000→                      onChange={(e) => setSearchQuery(e.target.value)}
+  1001→                      placeholder="Rechercher une conversation..."
+  1002→                      className="h-9 pl-9 rounded-full border-slate-200 bg-slate-50 text-sm"
+  1003→                    />
+  1004→                  </div>
+  1005→                </div>
+  1006→
+  1007→                <ScrollArea className="flex-1">
+  1008→                  <div className="py-2">
+  1009→                    {filteredConversations.length === 0 ? (
+  1010→                      <div className="flex flex-col items-center gap-3 py-8 px-4">
+  1011→                        <div className="rounded-full bg-slate-100 p-3">
+  1012→                          <MessageCircle className="h-6 w-6 text-slate-400" />
+  1013→                        </div>
+  1014→                        <p className="text-center text-sm text-slate-500">
+  1015→                          Aucune conversation
+  1016→                        </p>
+  1017→                        <Button
+  1018→                          onClick={() => setShowNewChat(true)}
+  1019→                          size="sm"
+  1020→                          className="rounded-full bg-[#134885] hover:bg-[#0D3A6E]"
+  1021→                        >
+  1022→                          <Plus className="mr-1.5 h-3.5 w-3.5" />
+  1023→                          Nouveau message
+  1024→                        </Button>
+  1025→                      </div>
+  1026→                    ) : (
+  1027→                      filteredConversations.map((conv) => (
+  1028→                        <button
+  1029→                          key={conv.id}
+  1030→                          onClick={() => selectConversation(conv)}
+  1031→                          className="flex w-full items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+  1032→                        >
+  1033→                          <div className="relative">
+  1034→                            <Avatar className="h-10 w-10">
+  1035→                              <AvatarFallback
+  1036→                                className={
+  1037→                                  conv.type === 'group' && conv.nom === 'G\u00e9n\u00e9ral'
+  1038→                                    ? 'bg-gradient-to-br from-[#134885] to-[#1A5A9E] text-xs text-white'
+  1039→                                    : conv.type === 'group'
+  1040→                                      ? 'bg-[#F6852A]/10 text-xs text-[#F6852A]'
+  1041→                                      : 'bg-[#134885]/10 text-xs text-[#134885]'
+  1042→                                }
+  1043→                              >
+  1044→                                {conv.type === 'group' && conv.nom === 'G\u00e9n\u00e9ral' ? (
+  1045→                                  <Users className="h-5 w-5" />
+  1046→                                ) : conv.type === 'group' ? (
+  1047→                                  <Users className="h-4 w-4" />
+  1048→                                ) : (
+  1049→                                  getConvAvatar(conv)
+  1050→                                )}
+  1051→                              </AvatarFallback>
+  1052→                            </Avatar>
+  1053→                            {conv.unreadCount > 0 && (
+  1054→                              <span className="absolute -right-0.5 -bottom-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#F6852A] px-1 text-[9px] font-bold text-white">
+  1055→                                {conv.unreadCount}
+  1056→                              </span>
+  1057→                            )}
+  1058→                          </div>
+  1059→                          <div className="min-w-0 flex-1 text-left">
+  1060→                            <div className="flex items-center justify-between gap-2">
+  1061→                              <p
+  1062→                                className={`truncate text-sm ${
+  1063→                                  conv.type === 'group' && conv.nom === 'G\u00e9n\u00e9ral'
+  1064→                                    ? 'font-bold text-[#134885]'
+  1065→                                    : conv.unreadCount > 0
+  1066→                                      ? 'font-semibold text-slate-900'
+  1067→                                      : 'font-medium text-slate-700'
+  1068→                                }`}
+  1069→                              >
+  1070→                                {conv.type === 'group' && conv.nom === 'G\u00e9n\u00e9ral'
+  1071→                                  ? '📢 G\u00e9n\u00e9ral'
+  1072→                                  : getConvName(conv)
+  1073→                                }
+  1074→                              </p>
+  1075→                              <span className="shrink-0 text-[10px] text-slate-400">
+  1076→                                {conv.messages?.[0]
+  1077→                                  ? formatTime(conv.messages[0].createdAt)
+  1078→                                  : ''}
+  1079→                              </span>
+  1080→                            </div>
+  1081→                            <div className="flex items-center justify-between gap-2">
+  1082→                              <p className="truncate text-xs text-slate-500">
+  1083→                                {conv.messages?.[0]
+  1084→                                  ? conv.messages[0].expediteurId === employeId
+  1085→                                    ? `Vous: ${conv.messages[0].contenu}`
+  1086→                                    : conv.messages[0].contenu
+  1087→                                  : conv.type === 'group'
+  1088→                                    ? `${conv.participants.length} membres`
+  1089→                                    : roleLabels[getConvRole(conv)] || ''}
+  1090→                              </p>
+  1091→                              {conv.unreadCount > 0 && (
+  1092→                                <span className="h-2 w-2 shrink-0 rounded-full bg-[#F6852A]" />
+  1093→                              )}
+  1094→                            </div>
+  1095→                          </div>
+  1096→                        </button>
+  1097→                      ))
+  1098→                    )}
+  1099→                  </div>
+  1100→                </ScrollArea>
+  1101→
+  1102→                {/* New Chat Button */}
+  1103→                {conversations.length > 0 && (
+  1104→                  <div className="border-t px-4 py-3 space-y-2">
+  1105→                    <Button
+  1106→                      onClick={() => {
+  1107→                        setShowNewChat(true)
+  1108→                        setSearchQuery('')
+  1109→                        setNewChatMode('direct')
+  1110→                      }}
+  1111→                      variant="outline"
+  1112→                      className="w-full rounded-full border-dashed border-[#134885]/30 text-[#134885] hover:bg-[#134885]/5 hover:border-[#134885]/50"
+  1113→                    >
+  1114→                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+  1115→                      Nouveau message
+  1116→                    </Button>
+  1117→                    <Button
+  1118→                      onClick={() => {
+  1119→                        setShowNewChat(true)
+  1120→                        setSearchQuery('')
+  1121→                        setNewChatMode('group')
+  1122→                      }}
+  1123→                      variant="outline"
+  1124→                      className="w-full rounded-full border-dashed border-[#F6852A]/30 text-[#F6852A] hover:bg-[#F6852A]/5 hover:border-[#F6852A]/50"
+  1125→                    >
+  1126→                      <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+  1127→                      Créer un groupe
+  1128→                    </Button>
+  1129→                  </div>
+  1130→                )}
+  1131→              </div>
+  1132→            )}
+  1133→          </motion.div>
+  1134→        )}
+  1135→      </AnimatePresence>
+  1136→    </>
+  1137→  )
+  1138→}
+  1139→
