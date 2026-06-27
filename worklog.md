@@ -241,3 +241,26 @@ Stage Summary:
 - Format utilisé : `https://www.google.com/maps?q=LAT,LNG` — fonctionne sur desktop (ouvre maps.google.com) ET sur mobile (propose d'ouvrir l'app Google Maps native), ce qui facilite la navigation turn-by-turn pour les employés sur le terrain.
 - Changement déployé en production sur https://dalia.fret.direct.
 - L'utilisateur doit faire Ctrl+Shift+R (vider le cache) pour voir les nouveaux liens.
+
+---
+Task ID: dalia-events-itineraire
+Agent: Super Z
+Task: Ajouter un bouton "Itinéraire" à côté du lien GPS dans le module Événements et Calendrier.
+
+Work Log:
+- Ajouté un lien "Itinéraire" (format `https://www.google.com/maps/dir/?api=1&destination=LAT,LNG`) à 3 endroits :
+  • events.tsx : badge GPS sur chaque carte d'événement → maintenant 2 liens côte à côte ("GPS" pour voir + "Itinéraire" vert pour naviguer)
+  • events.tsx : aperçu vert dans le formulaire → "Voir sur Google Maps" + "Itinéraire"
+  • calendar.tsx : détail d'un événement du calendrier → "Voir" + "Itinéraire"
+- Changé l'icône du lien GPS de Navigation → MapPin (pour distinguer visuellement les 2 actions)
+- Icône Navigation utilisée pour le bouton Itinéraire (flèche de direction)
+- TypeScript : zéro erreur sur les fichiers modifiés
+- Commit 35cd1bb poussé sur origin/main (avec nouveau token GitHub ghp_Si9O9...)
+- Déploiement Coolify déclenché : deployment_uuid f4h40o9h1p8v8hexg73t2403
+- Site vérifié : https://dalia.fret.direct répond correctement
+
+Stage Summary:
+- Chaque position GPS dans les événements propose maintenant 2 actions :
+  1. 📍 "GPS" → ouvre Google Maps à la position (pour voir le lieu)
+  2. 🧭 "Itinéraire" → lance la navigation GPS vers le lieu (turn-by-turn sur mobile)
+- Déployé en production sur https://dalia.fret.direct
