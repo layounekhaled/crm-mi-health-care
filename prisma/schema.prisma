@@ -490,9 +490,11 @@ model DocumentSend {
   id            String   @id @default(cuid())
   documentIds   String   // JSON array of document IDs
   sentBy        String?  // employeId
+  sendMethod    String   @default("email") // email / whatsapp
   recipientType String   // prospect / client / manual
   recipientId   String?  // prospect/client ID
-  recipientEmail String
+  recipientEmail String  @default("")
+  recipientPhone String  @default("") // Numéro WhatsApp ou téléphone
   message       String?
   sentAt        DateTime @default(now())
   status        String   @default("sent") // sent / failed

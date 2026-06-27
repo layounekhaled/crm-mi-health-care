@@ -7,8 +7,8 @@ import { formatFileSize } from '@/lib/storage-utils'
 import { toast } from 'sonner'
 import {
   FileText, Upload, Search, Filter, Send, Eye, Copy, Download,
-  Trash2, Archive, Restore, Plus, X, Check, Loader2, FileUp,
-  FolderOpen, Mail, History, ChevronDown, Lock, BookOpen
+  Trash2, Archive, RotateCcw, Plus, X, Check, Loader2, FileUp,
+  FolderOpen, Mail, History, ChevronDown, Lock, BookOpen, MessageCircle, Phone
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,9 +51,11 @@ interface DocumentSendRecord {
   id: string
   documentIds: string
   sentBy: string | null
+  sendMethod: string
   recipientType: string
   recipientId: string | null
   recipientEmail: string
+  recipientPhone: string
   message: string | null
   sentAt: string
   status: string
@@ -67,6 +69,7 @@ interface ProspectOption {
   nom: string
   email?: string | null
   telephone?: string | null
+  whatsapp?: string | null
 }
 
 const BRANDS = ['MIR', 'BOSO BOSCH', 'Löwenstein', 'Yuwell', 'Gelenke', 'DRIVE DEVILBISS', 'INOGEN', 'Autres']
@@ -135,7 +138,8 @@ export default function DocumentsModule() {
   // Send dialog
   const [showSend, setShowSend] = useState(false)
   const [sendForm, setSendForm] = useState({
-    recipientType: 'manual', recipientId: '', recipientEmail: '', message: ''
+    sendMethod: 'email' as 'email' | 'whatsapp',
+    recipientType: 'manual', recipientId: '', recipientEmail: '', recipientPhone: '', message: ''
   })
   const [sending, setSending] = useState(false)
 
@@ -182,7 +186,7 @@ export default function DocumentsModule() {
       const data = await res.json()
       if (data.prospects) {
         setProspects(data.prospects.map((p: any) => ({
-          id: p.id, nom: p.nom, email: p.email, telephone: p.telephone
+          id: p.id, nom: p.nom, email: p.email, telephone: p.telephone, whatsapp: p.whatsapp
         })))
       }
     } catch {}
@@ -311,13 +315,59 @@ export default function DocumentsModule() {
 
   // Send documents handler
   const handleSend = async () => {
-    if (!sendForm.recipientEmail && sendForm.recipientType === 'manual') {
-      toast.error('Email du destinataire requis')
+    if (selectedIds.size === 0) {
+      toast.error('Sélectionnez au moins un document')
       return
     }
 
-    if (selectedIds.size === 0) {
-      toast.error('Sélectionnez au moins un document')
+    if (sendForm.sendMethod === 'whatsapp') {
+      // WhatsApp: open wa.me link with document links
+      const phone = sendForm.recipientPhone.replace(/[^0-9+]/g, '')
+      if (!phone) {
+        toast.error('Numéro de téléphone requis pour WhatsApp')
+        return
+      }
+
+      const selectedDocs = documents.filter(d => selectedIds.has(d.id))
+      const docLinks = selectedDocs.map((doc, i) =>
+        `${i + 1}. ${doc.title}${doc.brand ? ` (${doc.brand})` : ''} — ${doc.fileUrl}`
+      ).join('\n')
+
+      const message = sendForm.message
+        ? `${sendForm.message}\n\nDocuments partagés :\n${docLinks}`
+        : `Documents partagés — MI HEALTH CARE :\n${docLinks}`
+
+      const whatsappUrl = `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(message)}`
+      window.open(whatsappUrl, '_blank')
+
+      // Record the WhatsApp send
+      try {
+        await fetch('/api/documents/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentIds: Array.from(selectedIds),
+            sendMethod: 'whatsapp',
+            recipientType: sendForm.recipientType,
+            recipientId: sendForm.recipientId || null,
+            recipientEmail: '',
+            recipientPhone: phone,
+            message: sendForm.message || null,
+          }),
+        })
+      } catch {}
+
+      toast.success(`${selectedIds.size} document(s) — WhatsApp ouvert`)
+      setShowSend(false)
+      setSendForm({ sendMethod: 'whatsapp', recipientType: 'manual', recipientId: '', recipientEmail: '', recipientPhone: '', message: '' })
+      setSelectedIds(new Set())
+      fetchSends()
+      return
+    }
+
+    // Email sending
+    if (!sendForm.recipientEmail && sendForm.recipientType === 'manual') {
+      toast.error('Email du destinataire requis')
       return
     }
 
@@ -328,9 +378,11 @@ export default function DocumentsModule() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentIds: Array.from(selectedIds),
+          sendMethod: 'email',
           recipientType: sendForm.recipientType,
           recipientId: sendForm.recipientId || null,
           recipientEmail: sendForm.recipientEmail,
+          recipientPhone: '',
           message: sendForm.message || null,
         }),
       })
@@ -344,7 +396,7 @@ export default function DocumentsModule() {
 
       toast.success(`${selectedIds.size} document(s) envoyé(s) avec succès`)
       setShowSend(false)
-      setSendForm({ recipientType: 'manual', recipientId: '', recipientEmail: '', message: '' })
+      setSendForm({ sendMethod: 'email', recipientType: 'manual', recipientId: '', recipientEmail: '', recipientPhone: '', message: '' })
       setSelectedIds(new Set())
       fetchSends()
     } catch {
@@ -409,7 +461,8 @@ export default function DocumentsModule() {
     setSendForm(prev => ({
       ...prev,
       recipientId: prospectId,
-      recipientEmail: prospect?.email || prospect?.telephone || '',
+      recipientEmail: prospect?.email || '',
+      recipientPhone: prospect?.whatsapp || prospect?.telephone || '',
     }))
   }
 
@@ -453,14 +506,31 @@ export default function DocumentsModule() {
               </Button>
             )}
             {selectedIds.size > 0 && (
-              <Button
-                onClick={() => openSend()}
-                className="bg-[#134885] hover:bg-[#0D3A6E] text-white"
-                size="sm"
-              >
-                <Send className="mr-1.5 h-4 w-4" />
-                Envoyer ({selectedIds.size})
-              </Button>
+              <>
+                <Button
+                  onClick={() => openSend()}
+                  className="bg-[#134885] hover:bg-[#0D3A6E] text-white"
+                  size="sm"
+                >
+                  <Send className="mr-1.5 h-4 w-4" />
+                  Email ({selectedIds.size})
+                </Button>
+                <Button
+                  onClick={() => {
+                    const selectedDocs = documents.filter(d => selectedIds.has(d.id))
+                    const docLinks = selectedDocs.map((doc, i) =>
+                      `${i + 1}. ${doc.title}${doc.brand ? ` (${doc.brand})` : ''} — ${doc.fileUrl}`
+                    ).join('\n')
+                    const message = `Documents partagés — MI HEALTH CARE :\n${docLinks}`
+                    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  size="sm"
+                >
+                  <MessageCircle className="mr-1.5 h-4 w-4" />
+                  WhatsApp ({selectedIds.size})
+                </Button>
+              </>
             )}
           </div>
         }
@@ -674,9 +744,21 @@ export default function DocumentsModule() {
                           size="sm"
                           className="h-7 w-7 p-0 text-[#134885]"
                           onClick={() => openSend([doc.id])}
-                          title="Envoyer"
+                          title="Envoyer par email"
                         >
                           <Send className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-green-600"
+                          onClick={() => {
+                            const message = `Document partagé — MI HEALTH CARE :\n${doc.title}${doc.brand ? ` (${doc.brand})` : ''} — ${doc.fileUrl}`
+                            window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+                          }}
+                          title="Envoyer via WhatsApp"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
                         </Button>
                         {(canEdit || canDelete) && (
                           <DropdownMenu>
@@ -730,13 +812,17 @@ export default function DocumentsModule() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <Send className="h-4 w-4 text-[#134885] shrink-0" />
+                          {send.sendMethod === 'whatsapp' ? (
+                            <MessageCircle className="h-4 w-4 text-green-600 shrink-0" />
+                          ) : (
+                            <Send className="h-4 w-4 text-[#134885] shrink-0" />
+                          )}
                           <span className="text-sm font-medium text-slate-800 truncate">
                             {send.sender?.nom || 'Inconnu'}
                           </span>
                           <span className="text-slate-400">→</span>
                           <span className="text-sm text-slate-600 truncate">
-                            {send.prospect?.nom || send.recipientEmail}
+                            {send.prospect?.nom || (send.sendMethod === 'whatsapp' ? send.recipientPhone : send.recipientEmail)}
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-1 mb-1">
@@ -758,9 +844,9 @@ export default function DocumentsModule() {
                         </p>
                         <Badge
                           variant={send.status === 'sent' ? 'default' : 'destructive'}
-                          className="text-[10px] mt-1"
+                          className={`text-[10px] mt-1 ${send.sendMethod === 'whatsapp' && send.status === 'sent' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}`}
                         >
-                          {send.status === 'sent' ? 'Envoyé' : 'Échoué'}
+                          {send.sendMethod === 'whatsapp' ? 'WhatsApp' : ''} {send.status === 'sent' ? 'Envoyé' : 'Échoué'}
                         </Badge>
                       </div>
                     </div>
@@ -969,15 +1055,46 @@ export default function DocumentsModule() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-[#134885]" />
+              {sendForm.sendMethod === 'whatsapp' ? (
+                <MessageCircle className="h-5 w-5 text-green-600" />
+              ) : (
+                <Send className="h-5 w-5 text-[#134885]" />
+              )}
               Envoyer des documents
             </DialogTitle>
             <DialogDescription>
-              {selectedIds.size} document(s) sélectionné(s) — les liens seront envoyés par email
+              {selectedIds.size} document(s) sélectionné(s)
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Send method toggle */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Méthode d'envoi</label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={sendForm.sendMethod === 'email' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSendForm(prev => ({ ...prev, sendMethod: 'email' }))}
+                  className={sendForm.sendMethod === 'email' ? 'bg-[#134885] hover:bg-[#0D3A6E]' : ''}
+                >
+                  <Mail className="mr-1.5 h-4 w-4" />
+                  Email
+                </Button>
+                <Button
+                  type="button"
+                  variant={sendForm.sendMethod === 'whatsapp' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSendForm(prev => ({ ...prev, sendMethod: 'whatsapp' }))}
+                  className={sendForm.sendMethod === 'whatsapp' ? 'bg-green-600 hover:bg-green-700' : ''}
+                >
+                  <MessageCircle className="mr-1.5 h-4 w-4" />
+                  WhatsApp
+                </Button>
+              </div>
+            </div>
+
             {/* Selected docs preview */}
             <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
               <p className="text-xs font-medium text-slate-500 mb-2">Documents sélectionnés :</p>
@@ -997,11 +1114,11 @@ export default function DocumentsModule() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Destinataire</label>
               <Select
                 value={sendForm.recipientType}
-                onValueChange={(v) => setSendForm(prev => ({ ...prev, recipientType: v, recipientId: '', recipientEmail: '' }))}
+                onValueChange={(v) => setSendForm(prev => ({ ...prev, recipientType: v, recipientId: '', recipientEmail: '', recipientPhone: '' }))}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="manual">Email manuel</SelectItem>
+                  <SelectItem value="manual">{sendForm.sendMethod === 'whatsapp' ? 'Numéro manuel' : 'Email manuel'}</SelectItem>
                   <SelectItem value="prospect">Prospect existant</SelectItem>
                   <SelectItem value="client">Client existant</SelectItem>
                 </SelectContent>
@@ -1021,7 +1138,11 @@ export default function DocumentsModule() {
                       .filter(p => sendForm.recipientType === 'client' ? true : true)
                       .map(p => (
                         <SelectItem key={p.id} value={p.id}>
-                          {p.nom}{p.email ? ` (${p.email})` : ''}
+                          {p.nom}
+                          {sendForm.sendMethod === 'whatsapp'
+                            ? (p.whatsapp || p.telephone ? ` (${p.whatsapp || p.telephone})` : '')
+                            : (p.email ? ` (${p.email})` : '')
+                          }
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -1029,17 +1150,38 @@ export default function DocumentsModule() {
               </div>
             )}
 
-            {/* Email field */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email du destinataire *</label>
-              <Input
-                type="email"
-                value={sendForm.recipientEmail}
-                onChange={(e) => setSendForm(prev => ({ ...prev, recipientEmail: e.target.value }))}
-                placeholder="email@exemple.com"
-                readOnly={sendForm.recipientType !== 'manual'}
-              />
-            </div>
+            {/* Email field - only for email method */}
+            {sendForm.sendMethod === 'email' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email du destinataire *</label>
+                <Input
+                  type="email"
+                  value={sendForm.recipientEmail}
+                  onChange={(e) => setSendForm(prev => ({ ...prev, recipientEmail: e.target.value }))}
+                  placeholder="email@exemple.com"
+                  readOnly={sendForm.recipientType !== 'manual'}
+                />
+              </div>
+            )}
+
+            {/* Phone field - only for WhatsApp method */}
+            {sendForm.sendMethod === 'whatsapp' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Numéro WhatsApp *</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-green-500" />
+                  <Input
+                    type="tel"
+                    value={sendForm.recipientPhone}
+                    onChange={(e) => setSendForm(prev => ({ ...prev, recipientPhone: e.target.value }))}
+                    placeholder="06XXXXXXXX ou +213XXXXXXXXX"
+                    className="pl-9"
+                    readOnly={sendForm.recipientType !== 'manual'}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Format : 06XXXXXXXX ou +213XXXXXXXXX</p>
+              </div>
+            )}
 
             {/* Message */}
             <div>
@@ -1047,26 +1189,39 @@ export default function DocumentsModule() {
               <Textarea
                 value={sendForm.message}
                 onChange={(e) => setSendForm(prev => ({ ...prev, message: e.target.value }))}
-                placeholder="Ajoutez un message personnel..."
+                placeholder={sendForm.sendMethod === 'whatsapp' ? "Ajoutez un message avant les liens..." : "Ajoutez un message personnel..."}
                 rows={3}
               />
             </div>
 
-            <p className="text-[11px] text-amber-600 flex items-start gap-1.5">
-              <Lock className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              Les documents seront envoyés sous forme de liens publics (pas en pièce jointe). L'email reste léger et rapide.
-            </p>
+            {sendForm.sendMethod === 'email' ? (
+              <p className="text-[11px] text-amber-600 flex items-start gap-1.5">
+                <Lock className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                Les documents seront envoyés sous forme de liens publics (pas en pièce jointe). L'email reste léger et rapide.
+              </p>
+            ) : (
+              <p className="text-[11px] text-green-700 flex items-start gap-1.5">
+                <MessageCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                WhatsApp s'ouvrira avec un message pré-rempli contenant les liens des documents. Vous pourrez choisir le destinataire dans WhatsApp.
+              </p>
+            )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSend(false)}>Annuler</Button>
             <Button
               onClick={handleSend}
-              disabled={sending || !sendForm.recipientEmail}
-              className="bg-[#134885] hover:bg-[#0D3A6E] text-white"
+              disabled={sending || (sendForm.sendMethod === 'email' ? !sendForm.recipientEmail : !sendForm.recipientPhone)}
+              className={sendForm.sendMethod === 'whatsapp' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-[#134885] hover:bg-[#0D3A6E] text-white'}
             >
-              {sending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}
-              {sending ? 'Envoi en cours...' : 'Envoyer'}
+              {sending ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : sendForm.sendMethod === 'whatsapp' ? (
+                <MessageCircle className="mr-1.5 h-4 w-4" />
+              ) : (
+                <Send className="mr-1.5 h-4 w-4" />
+              )}
+              {sending ? 'Envoi en cours...' : sendForm.sendMethod === 'whatsapp' ? 'Ouvrir WhatsApp' : 'Envoyer'}
             </Button>
           </DialogFooter>
         </DialogContent>

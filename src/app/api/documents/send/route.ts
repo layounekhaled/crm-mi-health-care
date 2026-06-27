@@ -3,7 +3,7 @@ import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 import nodemailer from 'nodemailer'
 
-// POST /api/documents/send - Envoyer des documents par email
+// POST /api/documents/send - Envoyer des documents par email ou WhatsApp
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request)
@@ -12,15 +12,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { documentIds, recipientType, recipientId, recipientEmail, message } = body
+    const { documentIds, sendMethod, recipientType, recipientId, recipientEmail, recipientPhone, message } = body
 
     if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
       return NextResponse.json({ error: 'Au moins un document est requis' }, { status: 400 })
     }
 
-    if (!recipientEmail) {
-      return NextResponse.json({ error: 'Email du destinataire requis' }, { status: 400 })
-    }
+    const method = sendMethod || 'email'
 
     // Fetch documents
     const documents = await db.document.findMany({
@@ -32,6 +30,48 @@ export async function POST(request: NextRequest) {
 
     if (documents.length === 0) {
       return NextResponse.json({ error: 'Aucun document actif trouvé' }, { status: 404 })
+    }
+
+    // WhatsApp send: just record it (the actual WhatsApp opening happens client-side via wa.me link)
+    if (method === 'whatsapp') {
+      const phone = (recipientPhone || '').replace(/[^0-9+]/g, '')
+      if (!phone) {
+        return NextResponse.json({ error: 'Numéro de téléphone requis pour WhatsApp' }, { status: 400 })
+      }
+
+      const documentSend = await db.documentSend.create({
+        data: {
+          documentIds: JSON.stringify(documentIds),
+          sentBy: authUser.employeId,
+          sendMethod: 'whatsapp',
+          recipientType: recipientType || 'manual',
+          recipientId: recipientId || null,
+          recipientEmail: '',
+          recipientPhone: phone,
+          message: message || null,
+          status: 'sent',
+        },
+      })
+
+      // Add interaction to prospect/client if applicable
+      if (recipientId && (recipientType === 'prospect' || recipientType === 'client')) {
+        const docNames = documents.map(d => d.title).join(', ')
+        await db.interaction.create({
+          data: {
+            type: 'whatsapp',
+            prospectId: recipientId,
+            notes: `Documents envoyés via WhatsApp : ${docNames}`,
+            employeId: authUser.employeId,
+          },
+        })
+      }
+
+      return NextResponse.json({ data: documentSend })
+    }
+
+    // Email send (default)
+    if (!recipientEmail) {
+      return NextResponse.json({ error: 'Email du destinataire requis' }, { status: 400 })
     }
 
     // Get email config for sender
@@ -105,9 +145,11 @@ export async function POST(request: NextRequest) {
       data: {
         documentIds: JSON.stringify(documentIds),
         sentBy: authUser.employeId,
+        sendMethod: 'email',
         recipientType: recipientType || 'manual',
         recipientId: recipientId || null,
         recipientEmail,
+        recipientPhone: '',
         message: message || null,
         status: 'sent',
       },
@@ -147,9 +189,11 @@ export async function POST(request: NextRequest) {
           data: {
             documentIds: JSON.stringify(body2.documentIds || []),
             sentBy: authUser.employeId,
+            sendMethod: body2.sendMethod || 'email',
             recipientType: body2.recipientType || 'manual',
             recipientId: body2.recipientId || null,
             recipientEmail: body2.recipientEmail || '',
+            recipientPhone: body2.recipientPhone || '',
             message: body2.message || null,
             status: 'failed',
           },
