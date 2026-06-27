@@ -254,6 +254,12 @@ export default function EventsModule() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
+  // ── Location search state ─────────────────────────────────────────────
+  const [locQuery, setLocQuery] = useState('')
+  const [locResults, setLocResults] = useState<{ display_name: string; lat: string; lon: string }[]>([])
+  const [locSearching, setLocSearching] = useState(false)
+  const [locShow, setLocShow] = useState(false)
+
   // ── Delete dialog state ─────────────────────────────────────────────────
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -422,7 +428,51 @@ export default function EventsModule() {
     return Object.keys(errors).length === 0
   }
 
+  // ── Location search handler ────────────────────────────────────────────
+  const searchLocation = useCallback((query: string) => {
+    setLocQuery(query)
+    if (query.length < 3) {
+      setLocResults([])
+      setLocShow(false)
+      return
+    }
+    setLocSearching(true)
+    setLocShow(true)
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=fr`
+    fetch(url, { headers: { 'User-Agent': 'DaliaCRM/1.0' } })
+      .then(r => r.json())
+      .then((data: { display_name: string; lat: string; lon: string }[]) => {
+        setLocResults(data)
+        setLocSearching(false)
+      })
+      .catch(() => {
+        setLocResults([])
+        setLocSearching(false)
+      })
+  }, [])
 
+  const selectLocation = (result: { display_name: string; lat: string; lon: string }) => {
+    const mapsUrl = `https://www.google.com/maps?q=${result.lat},${result.lon}`
+    setFormData(prev => ({ ...prev, lienMaps: mapsUrl }))
+    setLocQuery('')
+    setLocResults([])
+    setLocShow(false)
+    setFormErrors(prev => {
+      const next = { ...prev }
+      delete next.lienMaps
+      return next
+    })
+    toast.success('Localisation sélectionnée')
+  }
+
+  // Debounce location search
+  useEffect(() => {
+    if (!locQuery) return
+    const timer = setTimeout(() => {
+      searchLocation(locQuery)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [locQuery, searchLocation])
 
   const handleSubmit = async () => {
     if (!validateForm()) return
@@ -1019,13 +1069,71 @@ export default function EventsModule() {
               </div>
             </div>
 
-            {/* Section: Localisation GPS */}
+            {/* Section: Localisation */}
             <Separator />
             <div className="flex items-center gap-2 pt-2">
               <div className="h-5 w-1 rounded-full bg-[#134885]" />
               <h3 className="text-sm font-semibold text-slate-700">Localisation</h3>
             </div>
 
+            {/* Search location */}
+            <div className="grid gap-2">
+              <Label className="flex items-center gap-1">
+                <Search className="size-3.5" />
+                Chercher un lieu
+              </Label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Ex: Palais des congrès Alger, Hôtel Hilton Oran..."
+                  value={locQuery}
+                  onChange={e => setLocQuery(e.target.value)}
+                  onFocus={() => locResults.length > 0 && setLocShow(true)}
+                  onBlur={() => setTimeout(() => setLocShow(false), 200)}
+                  className="bg-white pr-8"
+                />
+                {locQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setLocQuery(''); setLocResults([]); setLocShow(false) }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+                {/* Search results dropdown */}
+                {locShow && (locSearching || locResults.length > 0) && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 rounded-md border bg-white shadow-lg max-h-60 overflow-y-auto">
+                    {locSearching && locResults.length === 0 && (
+                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Recherche en cours...
+                      </div>
+                    )}
+                    {locResults.map((r, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => selectLocation(r)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b last:border-b-0 transition-colors"
+                      >
+                        <div className="flex items-start gap-2">
+                          <MapPin className="size-3.5 mt-0.5 shrink-0 text-[#134885]" />
+                          <span className="line-clamp-2">{r.display_name}</span>
+                        </div>
+                      </button>
+                    ))}
+                    {!locSearching && locResults.length === 0 && locQuery.length >= 3 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Aucun résultat trouvé
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Lien Google Maps (auto-rempli par la recherche ou saisi manuellement) */}
             <div className="grid gap-2">
               <Label htmlFor="event-lienMaps" className="flex items-center gap-1">
                 <MapPin className="size-3.5" />
@@ -1034,7 +1142,7 @@ export default function EventsModule() {
               <Input
                 id="event-lienMaps"
                 type="url"
-                placeholder="https://maps.google.com/..."
+                placeholder="https://maps.google.com/... ou cherchez ci-dessus"
                 value={formData.lienMaps}
                 onChange={e => setFormData({ ...formData, lienMaps: e.target.value })}
                 className={formErrors.lienMaps ? 'border-destructive bg-white' : 'bg-white'}
@@ -1054,7 +1162,7 @@ export default function EventsModule() {
                 </a>
               )}
               <p className="text-xs text-muted-foreground">
-                Collez ici le lien Google Maps du lieu de l&apos;événement. Ouvrez Google Maps, cherchez le lieu, puis partagez le lien.
+                Cherchez un lieu ci-dessus ou collez un lien Google Maps manuellement.
               </p>
             </div>
 
