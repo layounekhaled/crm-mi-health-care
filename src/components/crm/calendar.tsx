@@ -23,7 +23,6 @@ import {
   List,
   Columns3,
   Building2,
-  Navigation,
   ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -64,8 +63,7 @@ interface CRMEvent {
   id: string
   nom: string
   ville: string | null
-  latitude: number | null
-  longitude: number | null
+  lienMaps: string | null
   date: string
   dateFin: string | null
   type: string
@@ -630,34 +628,20 @@ function EventDetailDialog({
                   </div>
                 </div>
               )}
-              {item.data.latitude != null && item.data.longitude != null && (
+              {item.data.lienMaps && (
                 <div className="flex items-start gap-3">
-                  <Navigation className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="text-xs text-muted-foreground">Position GPS</p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium font-mono">
-                        {item.data.latitude.toFixed(6)}, {item.data.longitude.toFixed(6)}
-                      </p>
-                      <a
-                        href={`https://www.google.com/maps?q=${item.data.latitude},${item.data.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-[#134885] hover:underline"
-                      >
-                        Voir
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${item.data.latitude},${item.data.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline"
-                      >
-                        <Navigation className="h-3 w-3" />
-                        Itinéraire
-                      </a>
-                    </div>
+                    <p className="text-xs text-muted-foreground">Localisation</p>
+                    <a
+                      href={item.data.lienMaps}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-[#134885] hover:underline"
+                    >
+                      Ouvrir dans Google Maps
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                   </div>
                 </div>
               )}

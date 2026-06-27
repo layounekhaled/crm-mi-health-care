@@ -58,7 +58,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { nom, ville, latitude, longitude, date, dateFin, type, marques, equipe, notes, employeeIds } = body;
+    const { nom, ville, lienMaps, date, dateFin, type, marques, equipe, notes, employeeIds } = body;
 
     const existing = await db.event.findUnique({
       where: { id },
@@ -68,33 +68,12 @@ export async function PUT(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    // Validate and normalize GPS coordinates if provided
-    let latVal: number | null | undefined = undefined;
-    let lngVal: number | null | undefined = undefined;
-    if (latitude !== undefined || longitude !== undefined) {
-      // One of them was sent — handle parsing
-      const rawLat = latitude === undefined ? existing.latitude : latitude;
-      const rawLng = longitude === undefined ? existing.longitude : longitude;
-
-      if (rawLat === null || rawLat === '' || rawLat === undefined) {
-        latVal = null;
-      } else {
-        latVal = typeof rawLat === 'number' ? rawLat : parseFloat(String(rawLat));
-        if (Number.isNaN(latVal) || latVal < -90 || latVal > 90) {
-          return NextResponse.json({ error: 'Latitude invalide (doit être entre -90 et 90)' }, { status: 400 });
-        }
-      }
-      if (rawLng === null || rawLng === '' || rawLng === undefined) {
-        lngVal = null;
-      } else {
-        lngVal = typeof rawLng === 'number' ? rawLng : parseFloat(String(rawLng));
-        if (Number.isNaN(lngVal) || lngVal < -180 || lngVal > 180) {
-          return NextResponse.json({ error: 'Longitude invalide (doit être entre -180 et 180)' }, { status: 400 });
-        }
-      }
-      // Both must be set together (or both empty)
-      if ((latVal === null) !== (lngVal === null)) {
-        return NextResponse.json({ error: 'Latitude et longitude doivent être renseignées ensemble' }, { status: 400 });
+    // Validate lienMaps if provided
+    let mapsLink: string | null | undefined = undefined;
+    if (lienMaps !== undefined) {
+      mapsLink = lienMaps && String(lienMaps).trim() ? String(lienMaps).trim() : null;
+      if (mapsLink && !mapsLink.startsWith('http')) {
+        return NextResponse.json({ error: 'Le lien Google Maps doit commencer par http(s)' }, { status: 400 });
       }
     }
 
@@ -104,8 +83,7 @@ export async function PUT(
       data: {
         ...(nom !== undefined && { nom }),
         ...(ville !== undefined && { ville }),
-        ...(latVal !== undefined && { latitude: latVal }),
-        ...(lngVal !== undefined && { longitude: lngVal }),
+        ...(mapsLink !== undefined && { lienMaps: mapsLink }),
         ...(date !== undefined && { date: new Date(date) }),
         ...(dateFin !== undefined && { dateFin: dateFin ? new Date(dateFin) : null }),
         ...(type !== undefined && { type }),

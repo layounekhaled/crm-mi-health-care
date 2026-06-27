@@ -43,8 +43,7 @@ model Event {
   id           String   @id @default(cuid())
   nom          String
   ville        String?
-  latitude     Float?            // GPS latitude (e.g. 36.7538 for Alger)
-  longitude    Float?            // GPS longitude (e.g. 3.0588 for Alger)
+  lienMaps     String?           // Lien Google Maps du lieu de l'événement
   date         DateTime          // Date de début
   dateFin      DateTime?         // Date de fin
   type         String    @default("congres")
