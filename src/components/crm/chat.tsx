@@ -40,6 +40,10 @@ import {
   Phone,
   Video,
   ArrowDown,
+  Settings,
+  Pencil,
+  UserMinus,
+  LogOut,
 } from 'lucide-react'
 
 interface Conversation {
@@ -230,6 +234,14 @@ export default function ChatWidget() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [contextMenuMsg, setContextMenuMsg] = useState<string | null>(null)
   const [showScrollDown, setShowScrollDown] = useState(false)
+  const [showGroupSettings, setShowGroupSettings] = useState(false)
+  const [editGroupName, setEditGroupName] = useState('')
+  const [groupSettingsEmployees, setGroupSettingsEmployees] = useState<Employee[]>([])
+  const [groupSettingsLoading, setGroupSettingsLoading] = useState(false)
+  const [addMembersSearch, setAddMembersSearch] = useState('')
+  const [showAddMembers, setShowAddMembers] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [convContextMenu, setConvContextMenu] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -445,6 +457,16 @@ export default function ChatWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Close context menus on outside click
+  useEffect(() => {
+    const handleClick = () => {
+      setConvContextMenu(null)
+      setContextMenuMsg(null)
+    }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [])
+
   // Focus input when conversation selected
   useEffect(() => {
     if (selectedConversation && !showNewChat) {
@@ -599,7 +621,149 @@ export default function ChatWidget() {
 
   const selectConversation = async (conv: Conversation) => {
     setSelectedConversation(conv)
+    setShowGroupSettings(false)
+    setDeleteConfirm(false)
+    setShowAddMembers(false)
     await fetchMessages(conv.id)
+  }
+
+  // Open group settings
+  const openGroupSettings = () => {
+    if (!selectedConversation || selectedConversation.type !== 'group') return
+    setEditGroupName(selectedConversation.nom || '')
+    setShowGroupSettings(true)
+    setDeleteConfirm(false)
+    setShowAddMembers(false)
+    setAddMembersSearch('')
+    // Fetch employees for adding members
+    setGroupSettingsLoading(true)
+    fetch('/api/employees/list', { credentials: 'same-origin' })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data)) setGroupSettingsEmployees(data)
+        else setGroupSettingsEmployees([])
+      })
+      .catch(() => setGroupSettingsEmployees([]))
+      .finally(() => setGroupSettingsLoading(false))
+  }
+
+  // Update group name
+  const updateGroupName = async () => {
+    if (!selectedConversation || !editGroupName.trim()) return
+    try {
+      const res = await fetch(`/api/chat/conversations/${selectedConversation.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ nom: editGroupName.trim() }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setSelectedConversation({ ...selectedConversation, nom: updated.nom, participants: updated.participants })
+        fetchConversations()
+        toast.success('Nom du groupe modifié')
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error || 'Erreur lors de la modification')
+      }
+    } catch {
+      toast.error('Erreur réseau')
+    }
+  }
+
+  // Add members to group
+  const addMembersToGroup = async (memberIds: string[]) => {
+    if (!selectedConversation || memberIds.length === 0) return
+    try {
+      const res = await fetch(`/api/chat/conversations/${selectedConversation.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ addMemberIds: memberIds }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setSelectedConversation({ ...selectedConversation, nom: updated.nom, participants: updated.participants })
+        fetchConversations()
+        toast.success(`${memberIds.length} membre(s) ajouté(s)`)
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error || 'Erreur')
+      }
+    } catch {
+      toast.error('Erreur réseau')
+    }
+  }
+
+  // Remove member from group
+  const removeMemberFromGroup = async (memberId: string) => {
+    if (!selectedConversation) return
+    try {
+      const res = await fetch(`/api/chat/conversations/${selectedConversation.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ removeMemberIds: [memberId] }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setSelectedConversation({ ...selectedConversation, nom: updated.nom, participants: updated.participants })
+        fetchConversations()
+        toast.success('Membre retiré du groupe')
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error || 'Erreur')
+      }
+    } catch {
+      toast.error('Erreur réseau')
+    }
+  }
+
+  // Leave group (remove self)
+  const leaveGroup = async () => {
+    if (!selectedConversation || !employeId) return
+    try {
+      const res = await fetch(`/api/chat/conversations/${selectedConversation.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ removeMemberIds: [employeId] }),
+      })
+      if (res.ok) {
+        setSelectedConversation(null)
+        setShowGroupSettings(false)
+        fetchConversations()
+        toast.success('Vous avez quitté le groupe')
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error || 'Erreur')
+      }
+    } catch {
+      toast.error('Erreur réseau')
+    }
+  }
+
+  // Delete group
+  const deleteGroup = async () => {
+    if (!selectedConversation) return
+    try {
+      const res = await fetch(`/api/chat/conversations/${selectedConversation.id}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      })
+      if (res.ok) {
+        setSelectedConversation(null)
+        setShowGroupSettings(false)
+        setDeleteConfirm(false)
+        fetchConversations()
+        toast.success('Groupe supprimé')
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error || 'Erreur lors de la suppression')
+      }
+    } catch {
+      toast.error('Erreur réseau')
+    }
   }
 
   // Fetch employees for new chat
@@ -806,6 +970,19 @@ export default function ChatWidget() {
                 </div>
               )}
               <div className="flex items-center gap-1">
+                {selectedConversation && selectedConversation.type === 'group' && selectedConversation.nom !== 'Général' && !showNewChat && (
+                  <button
+                    onClick={() => showGroupSettings ? setShowGroupSettings(false) : openGroupSettings()}
+                    className={`shrink-0 rounded-full p-1.5 transition-colors ${
+                      showGroupSettings
+                        ? 'bg-white/20 text-white'
+                        : 'text-white/60 hover:bg-white/10 hover:text-white'
+                    }`}
+                    title="Paramètres du groupe"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <button
                   onClick={() => setNotificationsEnabled(!notificationsEnabled)}
                   className="shrink-0 rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
@@ -820,6 +997,7 @@ export default function ChatWidget() {
                     setShowNewChat(false)
                     setChatError(null)
                     setSearchQuery('')
+                    setShowGroupSettings(false)
                   }}
                   className="shrink-0 rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
                 >
@@ -840,7 +1018,201 @@ export default function ChatWidget() {
             )}
 
             {/* Content */}
-            {selectedConversation && !showNewChat ? (
+            {selectedConversation && !showNewChat && showGroupSettings && selectedConversation.type === 'group' && selectedConversation.nom !== 'Général' ? (
+              /* ===== Group Settings View ===== */
+              <div className="flex flex-1 flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+                  {/* Group Avatar & Name */}
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#F6852A]/10">
+                      <Users className="h-8 w-8 text-[#F6852A]" />
+                    </div>
+                    <div className="flex items-center gap-2 w-full max-w-[280px]">
+                      <Input
+                        value={editGroupName}
+                        onChange={(e) => setEditGroupName(e.target.value)}
+                        className="h-9 text-center text-sm font-semibold rounded-full border-slate-200 bg-slate-50 focus:border-[#F6852A] focus:ring-[#F6852A]/20"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') updateGroupName()
+                        }}
+                      />
+                      <Button
+                        size="icon"
+                        className="h-9 w-9 shrink-0 rounded-full bg-[#F6852A] hover:bg-[#E0752A]"
+                        disabled={!editGroupName.trim() || editGroupName.trim() === selectedConversation.nom}
+                        onClick={updateGroupName}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Groupe créé le {new Date(selectedConversation.updatedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
+
+                  {/* Members List */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        Membres ({selectedConversation.participants.length})
+                      </p>
+                      {!showAddMembers ? (
+                        <button
+                          onClick={() => setShowAddMembers(true)}
+                          className="flex items-center gap-1 text-[11px] font-medium text-[#F6852A] hover:text-[#E0752A] transition-colors"
+                        >
+                          <UserPlus className="h-3 w-3" />
+                          Ajouter
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => { setShowAddMembers(false); setAddMembersSearch('') }}
+                          className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          Fermer
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Add Members Panel */}
+                    {showAddMembers && (
+                      <div className="mb-3 rounded-xl border border-dashed border-[#F6852A]/30 bg-[#F6852A]/5 p-3 space-y-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                          <Input
+                            value={addMembersSearch}
+                            onChange={(e) => setAddMembersSearch(e.target.value)}
+                            placeholder="Rechercher un employé..."
+                            className="h-8 pl-8 text-xs rounded-full border-slate-200 bg-white"
+                          />
+                        </div>
+                        {groupSettingsLoading ? (
+                          <div className="flex justify-center py-3">
+                            <Loader2 className="h-4 w-4 animate-spin text-[#F6852A]" />
+                          </div>
+                        ) : (
+                          <div className="max-h-[140px] overflow-y-auto space-y-0.5">
+                            {groupSettingsEmployees
+                              .filter(emp => {
+                                // Only show employees not already in the group
+                                const isAlreadyMember = selectedConversation.participants.some(p => p.employeId === emp.id)
+                                if (isAlreadyMember) return false
+                                if (!addMembersSearch) return true
+                                return emp.nom.toLowerCase().includes(addMembersSearch.toLowerCase())
+                              })
+                              .map(emp => (
+                                <button
+                                  key={emp.id}
+                                  onClick={() => addMembersToGroup([emp.id])}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-white transition-colors"
+                                >
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarFallback className={`bg-gradient-to-br ${getAvatarColor(emp.nom)} text-[8px] text-white`}>
+                                      {getInitials(emp.nom)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="font-medium text-slate-700">{emp.nom}</span>
+                                  <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-medium ${roleColors[emp.role] || 'bg-slate-100 text-slate-600'}`}>
+                                    {roleLabels[emp.role] || emp.role}
+                                  </span>
+                                  <Plus className="h-3 w-3 text-[#F6852A]" />
+                                </button>
+                              ))
+                            }
+                            {groupSettingsEmployees.filter(emp => !selectedConversation.participants.some(p => p.employeId === emp.id)).length === 0 && (
+                              <p className="text-center text-[11px] text-slate-400 py-2">Tous les employés sont déjà dans le groupe</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Current Members */}
+                    <div className="space-y-0.5">
+                      {selectedConversation.participants.map((p) => {
+                        const isSelf = p.employeId === employeId
+                        return (
+                          <div
+                            key={p.id}
+                            className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-slate-50 transition-colors"
+                          >
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className={`bg-gradient-to-br ${getAvatarColor(p.employe?.nom || '?')} text-[9px] text-white`}>
+                                {getInitials(p.employe?.nom || '??')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-slate-800 truncate">
+                                {p.employe?.nom || 'Inconnu'}
+                                {isSelf && <span className="text-slate-400 font-normal"> (vous)</span>}
+                              </p>
+                              <span className={`inline-block rounded-full px-1.5 py-0.5 text-[9px] font-medium ${roleColors[p.employe?.role || ''] || 'bg-slate-100 text-slate-600'}`}>
+                                {roleLabels[p.employe?.role || ''] || p.employe?.role}
+                              </span>
+                            </div>
+                            {!isSelf && (
+                              <button
+                                onClick={() => removeMemberFromGroup(p.employeId)}
+                                className="shrink-0 rounded-full p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                title="Retirer du groupe"
+                              >
+                                <UserMinus className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Danger Zone */}
+                  <div className="pt-3 border-t border-slate-100 space-y-2">
+                    {!deleteConfirm ? (
+                      <>
+                        <button
+                          onClick={leaveGroup}
+                          className="flex items-center gap-2 w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-700 hover:bg-amber-100 transition-colors"
+                        >
+                          <LogOut className="h-3.5 w-3.5" />
+                          Quitter le groupe
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(true)}
+                          className="flex items-center gap-2 w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Supprimer le groupe
+                        </button>
+                      </>
+                    ) : (
+                      <div className="rounded-xl border border-red-300 bg-red-50 p-3 space-y-2">
+                        <p className="text-xs font-medium text-red-700">
+                          Êtes-vous sûr de vouloir supprimer ce groupe ? Cette action est irréversible et tous les messages seront perdus.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => setDeleteConfirm(false)}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 rounded-full border-slate-200 text-xs h-8"
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            onClick={deleteGroup}
+                            size="sm"
+                            className="flex-1 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs h-8"
+                          >
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Supprimer
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : selectedConversation && !showNewChat ? (
               /* ===== Messages View ===== */
               <div className="flex flex-1 flex-col min-h-0">
                 <div
@@ -1277,13 +1649,13 @@ export default function ChatWidget() {
                           : null
 
                         return (
-                          <button
-                            key={conv.id}
-                            onClick={() => selectConversation(conv)}
-                            className={`flex w-full items-center gap-3 px-4 py-3 transition-colors ${
-                              conv.unreadCount > 0 ? 'bg-slate-50/80 hover:bg-slate-100' : 'hover:bg-slate-50'
-                            }`}
-                          >
+                          <div key={conv.id} className="relative group">
+                            <button
+                              onClick={() => { selectConversation(conv); setConvContextMenu(null) }}
+                              className={`flex w-full items-center gap-3 px-4 py-3 transition-colors ${
+                                conv.unreadCount > 0 ? 'bg-slate-50/80 hover:bg-slate-100' : 'hover:bg-slate-50'
+                              }`}
+                            >
                             <div className="relative">
                               <Avatar className="h-11 w-11 ring-1 ring-slate-100">
                                 <AvatarFallback
@@ -1345,7 +1717,61 @@ export default function ChatWidget() {
                                 )}
                               </div>
                             </div>
-                          </button>
+                            {/* 3-dot menu for groups */}
+                            {conv.type === 'group' && conv.nom !== 'Général' && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setConvContextMenu(convContextMenu === conv.id ? null : conv.id) }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-slate-200 transition-opacity"
+                              >
+                                <MoreVertical className="h-3.5 w-3.5 text-slate-400" />
+                              </button>
+                            )}
+                            </button>
+                            {/* Context menu for groups */}
+                            {convContextMenu === conv.id && conv.type === 'group' && conv.nom !== 'Général' && (
+                              <div className="absolute right-2 top-full mt-1 z-20 bg-white rounded-lg shadow-lg border border-slate-200 py-1 min-w-[160px]">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setConvContextMenu(null)
+                                    selectConversation(conv)
+                                    setTimeout(() => openGroupSettings(), 100)
+                                  }}
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+                                >
+                                  <Settings className="h-3.5 w-3.5" />
+                                  Paramètres du groupe
+                                </button>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation()
+                                    setConvContextMenu(null)
+                                    if (confirm('Voulez-vous vraiment supprimer ce groupe ?')) {
+                                      try {
+                                        const res = await fetch(`/api/chat/conversations/${conv.id}`, {
+                                          method: 'DELETE',
+                                          credentials: 'same-origin',
+                                        })
+                                        if (res.ok) {
+                                          fetchConversations()
+                                          toast.success('Groupe supprimé')
+                                        } else {
+                                          const err = await res.json().catch(() => ({}))
+                                          toast.error(err.error || 'Erreur')
+                                        }
+                                      } catch {
+                                        toast.error('Erreur réseau')
+                                      }
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Supprimer le groupe
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         )
                       })
                     )}
