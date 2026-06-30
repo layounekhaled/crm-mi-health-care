@@ -945,7 +945,7 @@ export default function EventsModule() {
 
       {/* ── Add/Edit Event Dialog ───────────────────────────────────────── */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[640px] max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10">
@@ -1343,7 +1343,7 @@ export default function EventsModule() {
 
       {/* ── Manage Prospects Dialog ─────────────────────────────────────── */}
       <Dialog open={prospectsOpen} onOpenChange={setProspectsOpen}>
-        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[640px] max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-violet-100">

@@ -1,0 +1,1692 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import {
+     5→  CheckSquare,
+     6→  Plus,
+     7→  Phone,
+     8→  Wrench,
+     9→  Calendar,
+    10→  Settings,
+    11→  Loader2,
+    12→  Edit3,
+    13→  Trash2,
+    14→  AlertTriangle,
+    15→  Clock,
+    16→  CheckCircle2,
+    17→  ListChecks,
+    18→  User,
+    19→  Search,
+    20→  X,
+    21→  MessageSquare,
+    22→  Image,
+    23→  ChevronDown,
+    24→  ChevronUp,
+    25→} from 'lucide-react'
+    26→import { motion, AnimatePresence } from 'framer-motion'
+    27→
+    28→import { Card, CardContent } from '@/components/ui/card'
+    29→import { Button } from '@/components/ui/button'
+    30→import { Input } from '@/components/ui/input'
+    31→import { Label } from '@/components/ui/label'
+    32→import {
+    33→  Select,
+    34→  SelectContent,
+    35→  SelectItem,
+    36→  SelectTrigger,
+    37→  SelectValue,
+    38→} from '@/components/ui/select'
+    39→import {
+    40→  Dialog,
+    41→  DialogContent,
+    42→  DialogDescription,
+    43→  DialogFooter,
+    44→  DialogHeader,
+    45→  DialogTitle,
+    46→} from '@/components/ui/dialog'
+    47→import { Badge } from '@/components/ui/badge'
+    48→import { Checkbox } from '@/components/ui/checkbox'
+    49→import { Textarea } from '@/components/ui/textarea'
+    50→import { Separator } from '@/components/ui/separator'
+    51→import { ScrollArea } from '@/components/ui/scroll-area'
+    52→import { useToast } from '@/hooks/use-toast'
+    53→import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
+    54→
+    55→// ─── Types ───────────────────────────────────────────────────────
+    56→
+    57→interface Employee {
+    58→  id: string
+    59→  nom: string
+    60→  email?: string | null
+    61→  role: string
+    62→  actif: boolean
+    63→}
+    64→
+    65→interface Prospect {
+    66→  id: string
+    67→  nom: string
+    68→  wilaya?: string | null
+    69→}
+    70→
+    71→interface Opportunity {
+    72→  id: string
+    73→  nomProjet: string
+    74→  statut: string
+    75→}
+    76→
+    77→interface Operation {
+    78→  id: string
+    79→  produit: string
+    80→  marque: string
+    81→}
+    82→
+    83→interface CRMEvent {
+    84→  id: string
+    85→  nom: string
+    86→  date: string
+    87→}
+    88→
+    89→interface InteractionPhoto {
+    90→  id: string
+    91→  url: string
+    92→  fileName: string
+    93→  fileSize: number
+    94→}
+    95→
+    96→interface Interaction {
+    97→  id: string
+    98→  type: string
+    99→  notes?: string | null
+   100→  date: string
+   101→  employeId?: string | null
+   102→  taskId?: string | null
+   103→  photos: InteractionPhoto[]
+   104→  employe?: { id: string; nom: string; role?: string } | null
+   105→}
+   106→
+   107→interface TaskAssignee {
+   108→  id: string
+   109→  employeeId: string
+   110→  employee: { id: string; nom: string; role?: string }
+   111→}
+   112→
+   113→interface Task {
+   114→  id: string
+   115→  titre: string
+   116→  type: string
+   117→  assigneAId?: string | null
+   118→  prospectId?: string | null
+   119→  opportunityId?: string | null
+   120→  operationId?: string | null
+   121→  eventId?: string | null
+   122→  description?: string | null
+   123→  dateEcheance?: string | null
+   124→  priorite: string
+   125→  statut: string
+   126→  creeParId?: string | null
+   127→  createdAt: string
+   128→  updatedAt: string
+   129→  assigneA?: { id: string; nom: string; role?: string } | null
+   130→  assignees?: TaskAssignee[]
+   131→  prospect?: { id: string; nom: string } | null
+   132→  opportunity?: { id: string; nomProjet: string } | null
+   133→  operation?: { id: string; produit: string; marque: string } | null
+   134→  event?: { id: string; nom: string; date?: string } | null
+   135→  interactions?: Interaction[]
+   136→  creePar?: { id: string; nom: string } | null
+   137→  modifiePar?: { id: string; nom: string } | null
+   138→}
+   139→
+   140→// ─── Constants ───────────────────────────────────────────────────
+   141→
+   142→const TASK_TYPES = [
+   143→  { value: 'commerciale', label: 'Commerciale', icon: Phone, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300', dotColor: 'bg-blue-500' },
+   144→  { value: 'technique', label: 'Technique', icon: Wrench, color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300', dotColor: 'bg-purple-500' },
+   145→  { value: 'evenement', label: 'Événement', icon: Calendar, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300', dotColor: 'bg-amber-500' },
+   146→  { value: 'interne', label: 'Interne', icon: Settings, color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', dotColor: 'bg-slate-500' },
+   147→] as const
+   148→
+   149→const PRIORITIES = [
+   150→  { value: 'basse', label: 'Basse', dotColor: 'bg-slate-400' },
+   151→  { value: 'moyenne', label: 'Moyenne', dotColor: 'bg-amber-500' },
+   152→  { value: 'haute', label: 'Haute', dotColor: 'bg-red-500' },
+   153→] as const
+   154→
+   155→const STATUSES = [
+   156→  { value: 'en_attente', label: 'En attente', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' },
+   157→  { value: 'en_cours', label: 'En cours', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' },
+   158→  { value: 'terminee', label: 'Terminée', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' },
+   159→] as const
+   160→
+   161→const INTERACTION_TYPE_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
+   162→  appel: { label: 'Appel', color: 'text-blue-600', dotColor: 'bg-blue-500' },
+   163→  whatsapp: { label: 'WhatsApp', color: 'text-green-600', dotColor: 'bg-green-500' },
+   164→  email: { label: 'Email', color: 'text-purple-600', dotColor: 'bg-purple-500' },
+   165→  visite: { label: 'Visite', color: 'text-amber-600', dotColor: 'bg-amber-500' },
+   166→  autre: { label: 'Autre', color: 'text-slate-600', dotColor: 'bg-slate-500' },
+   167→}
+   168→
+   169→// ─── Helpers ─────────────────────────────────────────────────────
+   170→
+   171→function formatDate(dateStr: string | null | undefined): string {
+   172→  if (!dateStr) return '—'
+   173→  return new Date(dateStr).toLocaleDateString('fr-FR', {
+   174→    day: '2-digit',
+   175→    month: 'short',
+   176→    year: 'numeric',
+   177→  })
+   178→}
+   179→
+   180→function formatDateTime(dateStr: string | null | undefined): string {
+   181→  if (!dateStr) return '—'
+   182→  return new Date(dateStr).toLocaleDateString('fr-FR', {
+   183→    day: '2-digit',
+   184→    month: 'short',
+   185→    year: 'numeric',
+   186→    hour: '2-digit',
+   187→    minute: '2-digit',
+   188→  })
+   189→}
+   190→
+   191→function isOverdue(dateEcheance: string | null | undefined, statut: string): boolean {
+   192→  if (!dateEcheance || statut === 'terminee') return false
+   193→  const today = new Date()
+   194→  today.setHours(0, 0, 0, 0)
+   195→  const dueDate = new Date(dateEcheance)
+   196→  dueDate.setHours(0, 0, 0, 0)
+   197→  return dueDate < today
+   198→}
+   199→
+   200→function getTypeConfig(type: string) {
+   201→  return TASK_TYPES.find(t => t.value === type) || TASK_TYPES[0]
+   202→}
+   203→
+   204→function getPriorityConfig(priorite: string) {
+   205→  return PRIORITIES.find(p => p.value === priorite) || PRIORITIES[1]
+   206→}
+   207→
+   208→function getStatusConfig(statut: string) {
+   209→  return STATUSES.find(s => s.value === statut) || STATUSES[0]
+   210→}
+   211→
+   212→function getInitials(nom: string): string {
+   213→  return nom
+   214→    .split(' ')
+   215→    .map(w => w[0])
+   216→    .join('')
+   217→    .toUpperCase()
+   218→    .slice(0, 2)
+   219→}
+   220→
+   221→// ─── Main Component ──────────────────────────────────────────────
+   222→
+   223→export default function TasksModule() {
+   224→  const { toast } = useToast()
+   225→
+   226→  // Data
+   227→  const [tasks, setTasks] = useState<Task[]>([])
+   228→  const [employees, setEmployees] = useState<Employee[]>([])
+   229→  const [prospects, setProspects] = useState<Prospect[]>([])
+   230→  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+   231→  const [operations, setOperations] = useState<Operation[]>([])
+   232→  const [events, setEvents] = useState<CRMEvent[]>([])
+   233→
+   234→  // Loading
+   235→  const [loading, setLoading] = useState(true)
+   236→  const [saving, setSaving] = useState(false)
+   237→
+   238→  // Filters
+   239→  const [filterType, setFilterType] = useState<string>('all')
+   240→  const [filterStatut, setFilterStatut] = useState<string>('all')
+   241→  const [filterPriorite, setFilterPriorite] = useState<string>('all')
+   242→  const [filterAssignee, setFilterAssignee] = useState<string>('all')
+   243→  const [showMyTasks, setShowMyTasks] = useState(false)
+   244→
+   245→  // Dialogs
+   246→  const [showFormDialog, setShowFormDialog] = useState(false)
+   247→  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+   248→  const [deletingId, setDeletingId] = useState<string | null>(null)
+   249→  const [showAddInteractionDialog, setShowAddInteractionDialog] = useState(false)
+   250→  const [interactionTaskId, setInteractionTaskId] = useState<string | null>(null)
+   251→  const [interactionTaskName, setInteractionTaskName] = useState('')
+   252→  const [interactionProspectId, setInteractionProspectId] = useState<string | null>(null)
+   253→  const [interactionOpportunityId, setInteractionOpportunityId] = useState<string | null>(null)
+   254→
+   255→  // Task detail dialog
+   256→  const [showDetailDialog, setShowDetailDialog] = useState(false)
+   257→  const [detailTask, setDetailTask] = useState<Task | null>(null)
+   258→  const [expandedPhotos, setExpandedPhotos] = useState<string | null>(null)
+   259→
+   260→  // Form
+   261→  const [editingId, setEditingId] = useState<string | null>(null)
+   262→  const [formData, setFormData] = useState({
+   263→    titre: '',
+   264→    type: 'commerciale',
+   265→    prospectId: 'none',
+   266→    opportunityId: 'none',
+   267→    operationId: 'none',
+   268→    eventId: 'none',
+   269→    description: '',
+   270→    dateEcheance: '',
+   271→    priorite: 'moyenne',
+   272→    statut: 'en_attente',
+   273→  })
+   274→  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([])
+   275→
+   276→  // Search
+   277→  const [searchTerm, setSearchTerm] = useState('')
+   278→  const [prospectSearch, setProspectSearch] = useState('')
+   279→  const [opportunitySearch, setOpportunitySearch] = useState('')
+   280→  const [assigneeSearch, setAssigneeSearch] = useState('')
+   281→
+   282→  // ─── Data Fetching ─────────────────────────────────────────────
+   283→
+   284→  const fetchTasks = useCallback(async () => {
+   285→    try {
+   286→      const params = new URLSearchParams()
+   287→      if (filterType !== 'all') params.set('type', filterType)
+   288→      if (filterStatut !== 'all') params.set('statut', filterStatut)
+   289→      if (filterPriorite !== 'all') params.set('priorite', filterPriorite)
+   290→      if (filterAssignee !== 'all') params.set('assigneAId', filterAssignee)
+   291→
+   292→      const res = await fetch(`/api/tasks?${params.toString()}`)
+   293→      if (res.ok) {
+   294→        const data = await res.json()
+   295→        setTasks(data)
+   296→      }
+   297→    } catch (err) {
+   298→      console.error('Failed to fetch tasks:', err)
+   299→    }
+   300→  }, [filterType, filterStatut, filterPriorite, filterAssignee])
+   301→
+   302→  const fetchEmployees = useCallback(async () => {
+   303→    try {
+   304→      const res = await fetch('/api/employees?actif=true')
+   305→      if (res.ok) {
+   306→        const data = await res.json()
+   307→        setEmployees(data)
+   308→      }
+   309→    } catch (err) {
+   310→      console.error('Failed to fetch employees:', err)
+   311→    }
+   312→  }, [])
+   313→
+   314→  const fetchProspects = useCallback(async () => {
+   315→    try {
+   316→      const res = await fetch('/api/prospects?limit=200')
+   317→      if (res.ok) {
+   318→        const data = await res.json()
+   319→        setProspects(data.data || data)
+   320→      }
+   321→    } catch (err) {
+   322→      console.error('Failed to fetch prospects:', err)
+   323→    }
+   324→  }, [])
+   325→
+   326→  const fetchOpportunities = useCallback(async () => {
+   327→    try {
+   328→      const res = await fetch('/api/opportunities')
+   329→      if (res.ok) {
+   330→        const data = await res.json()
+   331→        setOpportunities(data)
+   332→      }
+   333→    } catch (err) {
+   334→      console.error('Failed to fetch opportunities:', err)
+   335→    }
+   336→  }, [])
+   337→
+   338→  const fetchOperations = useCallback(async () => {
+   339→    try {
+   340→      const res = await fetch('/api/operations')
+   341→      if (res.ok) {
+   342→        const data = await res.json()
+   343→        setOperations(data)
+   344→      }
+   345→    } catch (err) {
+   346→      console.error('Failed to fetch operations:', err)
+   347→    }
+   348→  }, [])
+   349→
+   350→  const fetchEvents = useCallback(async () => {
+   351→    try {
+   352→      const res = await fetch('/api/events')
+   353→      if (res.ok) {
+   354→        const data = await res.json()
+   355→        setEvents(data)
+   356→      }
+   357→    } catch (err) {
+   358→      console.error('Failed to fetch events:', err)
+   359→    }
+   360→  }, [])
+   361→
+   362→  // Initial load - fetch all reference data once
+   363→  const [initialLoadDone, setInitialLoadDone] = useState(false)
+   364→  useEffect(() => {
+   365→    const load = async () => {
+   366→      setLoading(true)
+   367→      await Promise.all([
+   368→        fetchTasks(),
+   369→        fetchEmployees(),
+   370→        fetchProspects(),
+   371→        fetchOpportunities(),
+   372→        fetchOperations(),
+   373→        fetchEvents(),
+   374→      ])
+   375→      setLoading(false)
+   376→      setInitialLoadDone(true)
+   377→    }
+   378→    load()
+   379→  }, [])
+   380→
+   381→  // Re-fetch tasks when filters change (after initial load)
+   382→  useEffect(() => {
+   383→    if (initialLoadDone) {
+   384→      fetchTasks()
+   385→    }
+   386→  }, [filterType, filterStatut, filterPriorite, filterAssignee, fetchTasks, initialLoadDone])
+   387→
+   388→  // ─── Computed Data ─────────────────────────────────────────────
+   389→
+   390→  const filteredTasks = tasks.filter(task => {
+   391→    if (searchTerm) {
+   392→      const search = searchTerm.toLowerCase()
+   393→      const matchTitle = task.titre.toLowerCase().includes(search)
+   394→      const matchAssignee = task.assignees?.some(a => a.employee.nom.toLowerCase().includes(search))
+   395→        || task.assigneA?.nom?.toLowerCase().includes(search)
+   396→      const matchDescription = task.description?.toLowerCase().includes(search)
+   397→      if (!matchTitle && !matchAssignee && !matchDescription) return false
+   398→    }
+   399→    return true
+   400→  })
+   401→
+   402→  // Sort: overdue first, then by priority (haute > moyenne > basse), then by date
+   403→  const priorityOrder: Record<string, number> = { haute: 0, moyenne: 1, basse: 2 }
+   404→  const sortedTasks = [...filteredTasks].sort((a, b) => {
+   405→    const aOverdue = isOverdue(a.dateEcheance, a.statut)
+   406→    const bOverdue = isOverdue(b.dateEcheance, b.statut)
+   407→    if (aOverdue && !bOverdue) return -1
+   408→    if (!aOverdue && bOverdue) return 1
+   409→
+   410→    const statusOrder: Record<string, number> = { en_attente: 0, en_cours: 1, terminee: 2 }
+   411→    const statusDiff = (statusOrder[a.statut] ?? 1) - (statusOrder[b.statut] ?? 1)
+   412→    if (statusDiff !== 0) return statusDiff
+   413→
+   414→    const prioDiff = (priorityOrder[a.priorite] ?? 1) - (priorityOrder[b.priorite] ?? 1)
+   415→    if (prioDiff !== 0) return prioDiff
+   416→
+   417→    if (a.dateEcheance && b.dateEcheance) {
+   418→      return new Date(a.dateEcheance).getTime() - new Date(b.dateEcheance).getTime()
+   419→    }
+   420→    if (a.dateEcheance) return -1
+   421→    if (b.dateEcheance) return 1
+   422→
+   423→    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+   424→  })
+   425→
+   426→  const totalTasks = filteredTasks.length
+   427→  const enAttente = filteredTasks.filter(t => t.statut === 'en_attente').length
+   428→  const enCours = filteredTasks.filter(t => t.statut === 'en_cours').length
+   429→  const terminees = filteredTasks.filter(t => t.statut === 'terminee').length
+   430→  const enRetard = filteredTasks.filter(t => isOverdue(t.dateEcheance, t.statut)).length
+   431→
+   432→  // Search-filtered selects
+   433→  const filteredProspects = prospects.filter(p => {
+   434→    if (!prospectSearch) return true
+   435→    return p.nom.toLowerCase().includes(prospectSearch.toLowerCase())
+   436→  })
+   437→
+   438→  const filteredOpportunities = opportunities.filter(o => {
+   439→    if (!opportunitySearch) return true
+   440→    return o.nomProjet.toLowerCase().includes(opportunitySearch.toLowerCase())
+   441→  })
+   442→
+   443→  const filteredEmployees = employees.filter(emp => {
+   444→    if (!assigneeSearch) return true
+   445→    return emp.nom.toLowerCase().includes(assigneeSearch.toLowerCase())
+   446→  })
+   447→
+   448→  // ─── Form Handlers ─────────────────────────────────────────────
+   449→
+   450→  const openCreateDialog = () => {
+   451→    setEditingId(null)
+   452→    setFormData({
+   453→      titre: '',
+   454→      type: 'commerciale',
+   455→      prospectId: 'none',
+   456→      opportunityId: 'none',
+   457→      operationId: 'none',
+   458→      eventId: 'none',
+   459→      description: '',
+   460→      dateEcheance: '',
+   461→      priorite: 'moyenne',
+   462→      statut: 'en_attente',
+   463→    })
+   464→    setSelectedAssigneeIds([])
+   465→    setProspectSearch('')
+   466→    setOpportunitySearch('')
+   467→    setAssigneeSearch('')
+   468→    setShowFormDialog(true)
+   469→  }
+   470→
+   471→  const openEditDialog = (task: Task) => {
+   472→    setEditingId(task.id)
+   473→    setFormData({
+   474→      titre: task.titre,
+   475→      type: task.type,
+   476→      prospectId: task.prospectId || 'none',
+   477→      opportunityId: task.opportunityId || 'none',
+   478→      operationId: task.operationId || 'none',
+   479→      eventId: task.eventId || 'none',
+   480→      description: task.description || '',
+   481→      dateEcheance: task.dateEcheance ? new Date(task.dateEcheance).toISOString().split('T')[0] : '',
+   482→      priorite: task.priorite,
+   483→      statut: task.statut,
+   484→    })
+   485→    // Set assignees from junction table
+   486→    setSelectedAssigneeIds(task.assignees?.map(a => a.employeeId) || (task.assigneAId ? [task.assigneAId] : []))
+   487→    setProspectSearch(task.prospect?.nom || '')
+   488→    setOpportunitySearch(task.opportunity?.nomProjet || '')
+   489→    setAssigneeSearch('')
+   490→    setShowFormDialog(true)
+   491→  }
+   492→
+   493→  const handleSave = async () => {
+   494→    if (!formData.titre.trim()) return
+   495→    setSaving(true)
+   496→    try {
+   497→      const cleanId = (val: string) => (val && val !== 'none' ? val : null)
+   498→
+   499→      const payload: Record<string, unknown> = {
+   500→        titre: formData.titre.trim(),
+   501→        type: formData.type,
+   502→        prospectId: cleanId(formData.prospectId),
+   503→        opportunityId: cleanId(formData.opportunityId),
+   504→        operationId: cleanId(formData.operationId),
+   505→        eventId: cleanId(formData.eventId),
+   506→        description: formData.description || null,
+   507→        dateEcheance: formData.dateEcheance || null,
+   508→        priorite: formData.priorite,
+   509→        statut: formData.statut,
+   510→        assigneAIds: selectedAssigneeIds,
+   511→      }
+   512→
+   513→      if (editingId) {
+   514→        const res = await fetch(`/api/tasks/${editingId}`, {
+   515→          method: 'PUT',
+   516→          headers: { 'Content-Type': 'application/json' },
+   517→          body: JSON.stringify(payload),
+   518→        })
+   519→        if (!res.ok) throw new Error('Update failed')
+   520→        toast({ title: 'Tâche modifiée', description: 'La tâche a été mise à jour avec succès.' })
+   521→      } else {
+   522→        const res = await fetch('/api/tasks', {
+   523→          method: 'POST',
+   524→          headers: { 'Content-Type': 'application/json' },
+   525→          body: JSON.stringify(payload),
+   526→        })
+   527→        if (!res.ok) throw new Error('Create failed')
+   528→        toast({ title: 'Tâche créée', description: 'La nouvelle tâche a été créée avec succès.' })
+   529→      }
+   530→
+   531→      setShowFormDialog(false)
+   532→      await fetchTasks()
+   533→    } catch (err) {
+   534→      console.error('Save failed:', err)
+   535→      toast({ title: 'Erreur', description: 'Impossible de sauvegarder la tâche.', variant: 'destructive' })
+   536→    } finally {
+   537→      setSaving(false)
+   538→    }
+   539→  }
+   540→
+   541→  const handleQuickComplete = async (taskId: string) => {
+   542→    try {
+   543→      const res = await fetch(`/api/tasks/${taskId}`, {
+   544→        method: 'PUT',
+   545→        headers: { 'Content-Type': 'application/json' },
+   546→        body: JSON.stringify({ statut: 'terminee' }),
+   547→      })
+   548→      if (res.ok) {
+   549→        toast({ title: 'Tâche terminée !', description: 'La tâche a été marquée comme terminée.' })
+   550→        await fetchTasks()
+   551→      }
+   552→    } catch (err) {
+   553→      console.error('Quick complete failed:', err)
+   554→      toast({ title: 'Erreur', description: 'Impossible de terminer la tâche.', variant: 'destructive' })
+   555→    }
+   556→  }
+   557→
+   558→  const handleDelete = async () => {
+   559→    if (!deletingId) return
+   560→    try {
+   561→      const res = await fetch(`/api/tasks/${deletingId}`, { method: 'DELETE' })
+   562→      if (res.ok) {
+   563→        setShowDeleteDialog(false)
+   564→        setDeletingId(null)
+   565→        toast({ title: 'Tâche supprimée', description: 'La tâche a été supprimée avec succès.' })
+   566→        await fetchTasks()
+   567→      }
+   568→    } catch (err) {
+   569→      console.error('Delete failed:', err)
+   570→      toast({ title: 'Erreur', description: 'Impossible de supprimer la tâche.', variant: 'destructive' })
+   571→    }
+   572→  }
+   573→
+   574→  const confirmDelete = (taskId: string) => {
+   575→    setDeletingId(taskId)
+   576→    setShowDeleteDialog(true)
+   577→  }
+   578→
+   579→  const openInteractionDialog = (task: Task) => {
+   580→    setInteractionTaskId(task.id)
+   581→    setInteractionTaskName(task.titre)
+   582→    setInteractionProspectId(task.prospectId || null)
+   583→    setInteractionOpportunityId(task.opportunityId || null)
+   584→    setShowAddInteractionDialog(true)
+   585→  }
+   586→
+   587→  const openTaskDetail = (task: Task) => {
+   588→    setDetailTask(task)
+   589→    setShowDetailDialog(true)
+   590→  }
+   591→
+   592→  // ─── Linked entity label ───────────────────────────────────────
+   593→
+   594→  function getLinkedEntity(task: Task): { label: string; type: string } | null {
+   595→    if (task.prospect) return { label: task.prospect.nom, type: 'Prospect' }
+   596→    if (task.opportunity) return { label: task.opportunity.nomProjet, type: 'Opportunité' }
+   597→    if (task.operation) return { label: `${task.operation.produit} - ${task.operation.marque}`, type: 'Opération' }
+   598→    if (task.event) return { label: task.event.nom, type: 'Événement' }
+   599→    return null
+   600→  }
+   601→
+   602→  // Get all assignees for display
+   603→  function getAssignees(task: Task): { id: string; nom: string }[] {
+   604→    if (task.assignees && task.assignees.length > 0) {
+   605→      return task.assignees.map(a => ({ id: a.employee.id, nom: a.employee.nom }))
+   606→    }
+   607→    if (task.assigneA) {
+   608→      return [{ id: task.assigneA.id, nom: task.assigneA.nom }]
+   609→    }
+   610→    return []
+   611→  }
+   612→
+   613→  // Toggle assignee in form
+   614→  const toggleAssignee = (empId: string) => {
+   615→    setSelectedAssigneeIds(prev =>
+   616→      prev.includes(empId)
+   617→        ? prev.filter(id => id !== empId)
+   618→        : [...prev, empId]
+   619→    )
+   620→  }
+   621→
+   622→  // ─── Render ────────────────────────────────────────────────────
+   623→
+   624→  return (
+   625→    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950/20">
+   626→      {/* Header */}
+   627→      <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/80 backdrop-blur-md dark:border-blue-900/50 dark:bg-slate-950/80">
+   628→        <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
+   629→          <div className="flex flex-col gap-3">
+   630→            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   631→              <div className="flex items-center gap-3">
+   632→                <img src="/logo.png" alt="MI HEALTH CARE" className="h-9 w-auto shrink-0 object-contain" />
+   633→                <div>
+   634→                  <h1 className="text-xl font-bold tracking-tight text-[#134885] dark:text-white">
+   635→                    Tâches
+   636→                  </h1>
+   637→                  <p className="text-xs text-muted-foreground">
+   638→                    Gestion des tâches
+   639→                  </p>
+   640→                </div>
+   641→              </div>
+   642→              <div className="flex items-center gap-2">
+   643→                <div className="relative">
+   644→                  <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+   645→                  <Input
+   646→                    placeholder="Rechercher..."
+   647→                    value={searchTerm}
+   648→                    onChange={e => setSearchTerm(e.target.value)}
+   649→                    className="h-9 w-full pl-8 sm:w-48"
+   650→                  />
+   651→                </div>
+   652→                <div className="flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 dark:bg-slate-900">
+   653→                  <Label htmlFor="my-tasks-toggle" className="cursor-pointer text-xs font-medium whitespace-nowrap">
+   654→                    {showMyTasks ? 'Mes tâches' : 'Toutes'}
+   655→                  </Label>
+   656→                  <Checkbox
+   657→                    id="my-tasks-toggle"
+   658→                    checked={showMyTasks}
+   659→                    onCheckedChange={(checked) => {
+   660→                      setShowMyTasks(!!checked)
+   661→                      if (checked && employees.length > 0) {
+   662→                        setFilterAssignee(employees[0].id)
+   663→                      } else {
+   664→                        setFilterAssignee('all')
+   665→                      }
+   666→                    }}
+   667→                    className="border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
+   668→                  />
+   669→                </div>
+   670→                <Button
+   671→                  onClick={openCreateDialog}
+   672→                  className="gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885]"
+   673→                >
+   674→                  <Plus className="size-4" />
+   675→                  <span className="hidden sm:inline">Nouvelle Tâche</span>
+   676→                  <span className="sm:hidden">Nouvelle</span>
+   677→                </Button>
+   678→              </div>
+   679→            </div>
+   680→
+   681→            {/* Filters row */}
+   682→            <div className="flex flex-wrap items-center gap-2">
+   683→              <Select value={filterType} onValueChange={setFilterType}>
+   684→                <SelectTrigger className="h-8 w-36 text-xs">
+   685→                  <SelectValue placeholder="Type" />
+   686→                </SelectTrigger>
+   687→                <SelectContent>
+   688→                  <SelectItem value="all">Tous les types</SelectItem>
+   689→                  {TASK_TYPES.map(t => (
+   690→                    <SelectItem key={t.value} value={t.value}>
+   691→                      <span className="flex items-center gap-2">
+   692→                        <t.icon className="size-3.5" />
+   693→                        {t.label}
+   694→                      </span>
+   695→                    </SelectItem>
+   696→                  ))}
+   697→                </SelectContent>
+   698→              </Select>
+   699→
+   700→              <Select value={filterStatut} onValueChange={setFilterStatut}>
+   701→                <SelectTrigger className="h-8 w-36 text-xs">
+   702→                  <SelectValue placeholder="Statut" />
+   703→                </SelectTrigger>
+   704→                <SelectContent>
+   705→                  <SelectItem value="all">Tous les statuts</SelectItem>
+   706→                  {STATUSES.map(s => (
+   707→                    <SelectItem key={s.value} value={s.value}>
+   708→                      {s.label}
+   709→                    </SelectItem>
+   710→                  ))}
+   711→                </SelectContent>
+   712→              </Select>
+   713→
+   714→              <Select value={filterPriorite} onValueChange={setFilterPriorite}>
+   715→                <SelectTrigger className="h-8 w-36 text-xs">
+   716→                  <SelectValue placeholder="Priorité" />
+   717→                </SelectTrigger>
+   718→                <SelectContent>
+   719→                  <SelectItem value="all">Toutes priorités</SelectItem>
+   720→                  {PRIORITIES.map(p => (
+   721→                    <SelectItem key={p.value} value={p.value}>
+   722→                      <span className="flex items-center gap-2">
+   723→                        <span className={`inline-block size-2 rounded-full ${p.dotColor}`} />
+   724→                        {p.label}
+   725→                      </span>
+   726→                    </SelectItem>
+   727→                  ))}
+   728→                </SelectContent>
+   729→              </Select>
+   730→
+   731→              <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+   732→                <SelectTrigger className="h-8 w-40 text-xs">
+   733→                  <SelectValue placeholder="Assigné à" />
+   734→                </SelectTrigger>
+   735→                <SelectContent>
+   736→                  <SelectItem value="all">Tous les assignés</SelectItem>
+   737→                  {employees.map(emp => (
+   738→                    <SelectItem key={emp.id} value={emp.id}>
+   739→                      {emp.nom}
+   740→                    </SelectItem>
+   741→                  ))}
+   742→                </SelectContent>
+   743→              </Select>
+   744→
+   745→              {(filterType !== 'all' || filterStatut !== 'all' || filterPriorite !== 'all' || filterAssignee !== 'all') && (
+   746→                <Button
+   747→                  variant="ghost"
+   748→                  size="sm"
+   749→                  className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
+   750→                  onClick={() => {
+   751→                    setFilterType('all')
+   752→                    setFilterStatut('all')
+   753→                    setFilterPriorite('all')
+   754→                    setFilterAssignee('all')
+   755→                    setShowMyTasks(false)
+   756→                  }}
+   757→                >
+   758→                  <X className="size-3" />
+   759→                  Réinitialiser
+   760→                </Button>
+   761→              )}
+   762→            </div>
+   763→          </div>
+   764→        </div>
+   765→      </header>
+   766→
+   767→      <main className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
+   768→        {/* Summary Cards */}
+   769→        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+   770→          <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
+   771→            <CardContent className="p-4">
+   772→              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   773→                <ListChecks className="size-3.5 text-[#134885]" />
+   774→                Total tâches
+   775→              </div>
+   776→              <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">{totalTasks}</p>
+   777→            </CardContent>
+   778→          </Card>
+   779→          <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
+   780→            <CardContent className="p-4">
+   781→              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   782→                <Clock className="size-3.5 text-amber-500" />
+   783→                En attente
+   784→              </div>
+   785→              <p className="mt-1 text-xl font-bold text-amber-600 dark:text-amber-400">{enAttente}</p>
+   786→            </CardContent>
+   787→          </Card>
+   788→          <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
+   789→            <CardContent className="p-4">
+   790→              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   791→                <Loader2 className="size-3.5 text-blue-500" />
+   792→                En cours
+   793→              </div>
+   794→              <p className="mt-1 text-xl font-bold text-blue-600 dark:text-blue-400">{enCours}</p>
+   795→            </CardContent>
+   796→          </Card>
+   797→          <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
+   798→            <CardContent className="p-4">
+   799→              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   800→                <CheckCircle2 className="size-3.5 text-emerald-500" />
+   801→                Terminées
+   802→              </div>
+   803→              <p className="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">{terminees}</p>
+   804→            </CardContent>
+   805→          </Card>
+   806→          <Card className="border-0 bg-white/70 shadow-sm dark:bg-slate-900/70 col-span-2 sm:col-span-1">
+   807→            <CardContent className="p-4">
+   808→              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   809→                <AlertTriangle className="size-3.5 text-red-500" />
+   810→                En retard
+   811→              </div>
+   812→              <p className="mt-1 text-xl font-bold text-red-600 dark:text-red-400">{enRetard}</p>
+   813→            </CardContent>
+   814→          </Card>
+   815→        </div>
+   816→
+   817→        {/* Task List */}
+   818→        {loading ? (
+   819→          <div className="flex flex-col items-center justify-center py-20">
+   820→            <Loader2 className="size-8 animate-spin text-[#134885]" />
+   821→            <span className="mt-3 text-sm text-muted-foreground">Chargement des tâches...</span>
+   822→          </div>
+   823→        ) : sortedTasks.length === 0 ? (
+   824→          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-20 dark:border-slate-800">
+   825→            <CheckSquare className="mb-3 size-12 text-slate-300 dark:text-slate-700" />
+   826→            <p className="text-sm font-medium text-slate-500">Aucune tâche trouvée</p>
+   827→            <p className="mt-1 text-xs text-slate-400">Créez une nouvelle tâche ou modifiez vos filtres</p>
+   828→            <Button
+   829→              onClick={openCreateDialog}
+   830→              className="mt-4 gap-1.5 bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-lg shadow-[#134885]/25 hover:from-[#0D3A6E] hover:to-[#134885]"
+   831→            >
+   832→              <Plus className="size-4" />
+   833→              Nouvelle Tâche
+   834→            </Button>
+   835→          </div>
+   836→        ) : (
+   837→          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   838→            <AnimatePresence mode="popLayout">
+   839→              {sortedTasks.map(task => {
+   840→                const typeConfig = getTypeConfig(task.type)
+   841→                const priorityConfig = getPriorityConfig(task.priorite)
+   842→                const statusConfig = getStatusConfig(task.statut)
+   843→                const overdue = isOverdue(task.dateEcheance, task.statut)
+   844→                const linkedEntity = getLinkedEntity(task)
+   845→                const isDone = task.statut === 'terminee'
+   846→                const TypeIcon = typeConfig.icon
+   847→                const assignees = getAssignees(task)
+   848→                const interactionCount = task.interactions?.length || 0
+   849→
+   850→                return (
+   851→                  <motion.div
+   852→                    key={task.id}
+   853→                    layout
+   854→                    initial={{ opacity: 0, y: 10 }}
+   855→                    animate={{ opacity: 1, y: 0 }}
+   856→                    exit={{ opacity: 0, scale: 0.95 }}
+   857→                    transition={{ duration: 0.2 }}
+   858→                  >
+   859→                    <Card
+   860→                      className={`group relative overflow-hidden border-0 bg-white/90 shadow-sm transition-all duration-200 hover:shadow-md dark:bg-slate-900/90 cursor-pointer ${
+   861→                        overdue ? 'border-l-4 border-l-red-500' : ''
+   862→                      } ${isDone ? 'opacity-70' : ''}`}
+   863→                      onClick={() => openTaskDetail(task)}
+   864→                    >
+   865→                      {overdue && (
+   866→                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />
+   867→                      )}
+   868→
+   869→                      <CardContent className="p-4">
+   870→                        {/* Top: Checkbox + Title + Actions */}
+   871→                        <div className="flex items-start gap-3">
+   872→                          <Checkbox
+   873→                            checked={isDone}
+   874→                            onCheckedChange={(e) => {
+   875→                              e.stopPropagation()
+   876→                              if (!isDone) handleQuickComplete(task.id)
+   877→                            }}
+   878→                            className="mt-0.5 shrink-0 border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
+   879→                            disabled={isDone}
+   880→                          />
+   881→                          <div className="flex-1 min-w-0">
+   882→                            <div className="flex items-start justify-between gap-2">
+   883→                              <h3
+   884→                                className={`text-sm font-semibold leading-snug ${
+   885→                                  isDone
+   886→                                    ? 'text-slate-400 line-through dark:text-slate-600'
+   887→                                    : 'text-slate-900 dark:text-white'
+   888→                                }`}
+   889→                              >
+   890→                                {task.titre}
+   891→                              </h3>
+   892→                              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+   893→                                <Button
+   894→                                  variant="ghost"
+   895→                                  size="sm"
+   896→                                  className="size-7 p-0 text-slate-400 hover:text-[#134885]"
+   897→                                  onClick={(e) => { e.stopPropagation(); openEditDialog(task) }}
+   898→                                >
+   899→                                  <Edit3 className="size-3.5" />
+   900→                                </Button>
+   901→                                <Button
+   902→                                  variant="ghost"
+   903→                                  size="sm"
+   904→                                  className="h-7 w-7 p-0 text-[#134885]"
+   905→                                  onClick={(e) => { e.stopPropagation(); openInteractionDialog(task) }}
+   906→                                  title="Ajouter une interaction"
+   907→                                >
+   908→                                  <MessageSquare className="h-3.5 w-3.5" />
+   909→                                </Button>
+   910→                                <Button
+   911→                                  variant="ghost"
+   912→                                  size="sm"
+   913→                                  className="size-7 p-0 text-slate-400 hover:text-red-600"
+   914→                                  onClick={(e) => { e.stopPropagation(); confirmDelete(task.id) }}
+   915→                                >
+   916→                                  <Trash2 className="size-3.5" />
+   917→                                </Button>
+   918→                              </div>
+   919→                            </div>
+   920→
+   921→                            {task.description && (
+   922→                              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+   923→                                {task.description}
+   924→                              </p>
+   925→                            )}
+   926→                          </div>
+   927→                        </div>
+   928→
+   929→                        {/* Badges row */}
+   930→                        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+   931→                          <Badge variant="outline" className={`gap-1 text-[10px] font-medium ${typeConfig.color}`}>
+   932→                            <TypeIcon className="size-3" />
+   933→                            {typeConfig.label}
+   934→                          </Badge>
+   935→
+   936→                          <Badge variant="outline" className={`text-[10px] font-medium ${statusConfig.color}`}>
+   937→                            {statusConfig.label}
+   938→                          </Badge>
+   939→
+   940→                          {overdue && (
+   941→                            <Badge variant="destructive" className="gap-1 text-[10px] font-bold">
+   942→                              <AlertTriangle className="size-3" />
+   943→                              EN RETARD
+   944→                            </Badge>
+   945→                          )}
+   946→
+   947→                          <div className="flex items-center gap-1">
+   948→                            <span className={`inline-block size-2 rounded-full ${priorityConfig.dotColor}`} />
+   949→                            <span className="text-[10px] text-muted-foreground capitalize">{priorityConfig.label}</span>
+   950→                          </div>
+   951→
+   952→                          {interactionCount > 0 && (
+   953→                            <div className="flex items-center gap-1 text-[10px] text-[#134885]">
+   954→                              <MessageSquare className="size-3" />
+   955→                              {interactionCount}
+   956→                            </div>
+   957→                          )}
+   958→                        </div>
+   959→
+   960→                        {/* Linked entity */}
+   961→                        {linkedEntity && (
+   962→                          <div className="mt-2">
+   963→                            <Badge variant="secondary" className="text-[10px] font-normal">
+   964→                              <span className="mr-1 text-muted-foreground">{linkedEntity.type}:</span>
+   965→                              {linkedEntity.label}
+   966→                            </Badge>
+   967→                          </div>
+   968→                        )}
+   969→
+   970→                        <Separator className="my-3 bg-slate-100 dark:bg-slate-800" />
+   971→
+   972→                        {/* Bottom: Assignees + Due date */}
+   973→                        <div className="flex items-center justify-between">
+   974→                          <div className="flex items-center gap-2">
+   975→                            {assignees.length > 0 ? (
+   976→                              <div className="flex items-center">
+   977→                                {assignees.slice(0, 3).map((a, i) => (
+   978→                                  <div
+   979→                                    key={a.id}
+   980→                                    className="flex size-6 items-center justify-center rounded-full bg-[#134885]/10 text-[10px] font-bold text-[#134885] dark:bg-[#134885]/20 dark:text-[#F6852A] border-2 border-white dark:border-slate-900"
+   981→                                    style={{ marginLeft: i > 0 ? -6 : 0, zIndex: 3 - i }}
+   982→                                    title={a.nom}
+   983→                                  >
+   984→                                    {getInitials(a.nom)}
+   985→                                  </div>
+   986→                                ))}
+   987→                                {assignees.length > 3 && (
+   988→                                  <span className="ml-1 text-[10px] text-muted-foreground">
+   989→                                    +{assignees.length - 3}
+   990→                                  </span>
+   991→                                )}
+   992→                                <span className="ml-1.5 text-xs text-muted-foreground truncate max-w-[100px]">
+   993→                                  {assignees.length === 1 ? assignees[0].nom : `${assignees.length} assignés`}
+   994→                                </span>
+   995→                              </div>
+   996→                            ) : (
+   997→                              <div className="flex items-center gap-1 text-xs text-slate-400">
+   998→                                <User className="size-3.5" />
+   999→                                Non assigné
+  1000→                              </div>
+  1001→                            )}
+  1002→                          </div>
+  1003→                          {task.dateEcheance && (
+  1004→                            <div
+  1005→                              className={`flex items-center gap-1 text-xs ${
+  1006→                                overdue
+  1007→                                  ? 'font-semibold text-red-600 dark:text-red-400'
+  1008→                                  : isDone
+  1009→                                    ? 'text-slate-400'
+  1010→                                    : 'text-muted-foreground'
+  1011→                              }`}
+  1012→                            >
+  1013→                              <Calendar className="size-3" />
+  1014→                              {formatDate(task.dateEcheance)}
+  1015→                            </div>
+  1016→                          )}
+  1017→                        </div>
+  1018→                      </CardContent>
+  1019→                    </Card>
+  1020→                  </motion.div>
+  1021→                )
+  1022→              })}
+  1023→            </AnimatePresence>
+  1024→          </div>
+  1025→        )}
+  1026→      </main>
+  1027→
+  1028→      {/* ─── Task Detail Dialog ─────────────────────────────────── */}
+  1029→      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+  1030→        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[700px]">
+  1031→          {detailTask && (
+  1032→            <>
+  1033→              <DialogHeader>
+  1034→                <DialogTitle className="flex items-center gap-2">
+  1035→                  <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
+  1036→                    <CheckSquare className="size-4 text-[#134885] dark:text-[#F6852A]" />
+  1037→                  </div>
+  1038→                  {detailTask.titre}
+  1039→                </DialogTitle>
+  1040→                <DialogDescription>
+  1041→                  Détails de la tâche et historique des interactions
+  1042→                </DialogDescription>
+  1043→              </DialogHeader>
+  1044→
+  1045→              <div className="space-y-4">
+  1046→                {/* Task info */}
+  1047→                <div className="grid grid-cols-2 gap-3">
+  1048→                  <div className="rounded-lg border p-3">
+  1049→                    <p className="text-[10px] font-medium text-muted-foreground uppercase">Type</p>
+  1050→                    <p className="text-sm font-semibold">{getTypeConfig(detailTask.type).label}</p>
+  1051→                  </div>
+  1052→                  <div className="rounded-lg border p-3">
+  1053→                    <p className="text-[10px] font-medium text-muted-foreground uppercase">Statut</p>
+  1054→                    <Badge variant="outline" className={`text-xs ${getStatusConfig(detailTask.statut).color}`}>
+  1055→                      {getStatusConfig(detailTask.statut).label}
+  1056→                    </Badge>
+  1057→                  </div>
+  1058→                  <div className="rounded-lg border p-3">
+  1059→                    <p className="text-[10px] font-medium text-muted-foreground uppercase">Priorité</p>
+  1060→                    <div className="flex items-center gap-1.5">
+  1061→                      <span className={`inline-block size-2 rounded-full ${getPriorityConfig(detailTask.priorite).dotColor}`} />
+  1062→                      <span className="text-sm">{getPriorityConfig(detailTask.priorite).label}</span>
+  1063→                    </div>
+  1064→                  </div>
+  1065→                  <div className="rounded-lg border p-3">
+  1066→                    <p className="text-[10px] font-medium text-muted-foreground uppercase">Échéance</p>
+  1067→                    <p className={`text-sm ${isOverdue(detailTask.dateEcheance, detailTask.statut) ? 'font-semibold text-red-600' : ''}`}>
+  1068→                      {formatDate(detailTask.dateEcheance)}
+  1069→                    </p>
+  1070→                  </div>
+  1071→                </div>
+  1072→
+  1073→                {/* Assignees */}
+  1074→                <div className="rounded-lg border p-3">
+  1075→                  <p className="text-[10px] font-medium text-muted-foreground uppercase mb-2">Assigné(s)</p>
+  1076→                  {getAssignees(detailTask).length > 0 ? (
+  1077→                    <div className="flex flex-wrap gap-2">
+  1078→                      {getAssignees(detailTask).map(a => (
+  1079→                        <div key={a.id} className="flex items-center gap-1.5 rounded-full bg-[#134885]/10 px-2.5 py-1">
+  1080→                          <div className="flex size-5 items-center justify-center rounded-full bg-[#134885] text-[8px] font-bold text-white">
+  1081→                            {getInitials(a.nom)}
+  1082→                          </div>
+  1083→                          <span className="text-xs font-medium text-[#134885]">{a.nom}</span>
+  1084→                        </div>
+  1085→                      ))}
+  1086→                    </div>
+  1087→                  ) : (
+  1088→                    <p className="text-sm text-slate-400">Non assigné</p>
+  1089→                  )}
+  1090→                </div>
+  1091→
+  1092→                {/* Description */}
+  1093→                {detailTask.description && (
+  1094→                  <div className="rounded-lg border p-3">
+  1095→                    <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">Description</p>
+  1096→                    <p className="text-sm whitespace-pre-wrap">{detailTask.description}</p>
+  1097→                  </div>
+  1098→                )}
+  1099→
+  1100→                {/* Linked entity */}
+  1101→                {getLinkedEntity(detailTask) && (
+  1102→                  <div className="rounded-lg border p-3">
+  1103→                    <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">Lié à</p>
+  1104→                    <Badge variant="secondary" className="text-xs">
+  1105→                      <span className="mr-1 text-muted-foreground">{getLinkedEntity(detailTask)!.type}:</span>
+  1106→                      {getLinkedEntity(detailTask)!.label}
+  1107→                    </Badge>
+  1108→                  </div>
+  1109→                )}
+  1110→
+  1111→                {/* Créé par / Modifié par */}
+  1112→                {(detailTask.creePar || detailTask.modifiePar) && (
+  1113→                  <div className="grid grid-cols-2 gap-3">
+  1114→                    {detailTask.creePar && (
+  1115→                      <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+  1116→                        <p className="text-xs text-muted-foreground">Créé par</p>
+  1117→                        <p className="text-sm font-medium">{detailTask.creePar.nom}</p>
+  1118→                      </div>
+  1119→                    )}
+  1120→                    {detailTask.modifiePar && (
+  1121→                      <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+  1122→                        <p className="text-xs text-muted-foreground">Modifié par</p>
+  1123→                        <p className="text-sm font-medium">{detailTask.modifiePar.nom}</p>
+  1124→                      </div>
+  1125→                    )}
+  1126→                  </div>
+  1127→                )}
+  1128→
+  1129→                <Separator />
+  1130→
+  1131→                {/* Interactions timeline */}
+  1132→                <div>
+  1133→                  <div className="flex items-center justify-between mb-3">
+  1134→                    <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+  1135→                      <MessageSquare className="size-4 text-[#134885]" />
+  1136→                      Interactions
+  1137→                      {detailTask.interactions && detailTask.interactions.length > 0 && (
+  1138→                        <Badge variant="secondary" className="text-[10px]">{detailTask.interactions.length}</Badge>
+  1139→                      )}
+  1140→                    </h3>
+  1141→                    <Button
+  1142→                      size="sm"
+  1143→                      className="gap-1 text-xs bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white hover:from-[#0D3A6E] hover:to-[#134885]"
+  1144→                      onClick={() => {
+  1145→                        setShowDetailDialog(false)
+  1146→                        openInteractionDialog(detailTask)
+  1147→                      }}
+  1148→                    >
+  1149→                      <Plus className="size-3" />
+  1150→                      Interaction
+  1151→                    </Button>
+  1152→                  </div>
+  1153→
+  1154→                  {!detailTask.interactions || detailTask.interactions.length === 0 ? (
+  1155→                    <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center">
+  1156→                      <MessageSquare className="mx-auto mb-2 size-8 text-slate-300" />
+  1157→                      <p className="text-sm text-slate-500">Aucune interaction enregistrée</p>
+  1158→                      <p className="text-xs text-slate-400">Ajoutez une interaction pour suivre l&apos;avancement</p>
+  1159→                    </div>
+  1160→                  ) : (
+  1161→                    <div className="space-y-3">
+  1162→                      {detailTask.interactions.map((interaction, idx) => {
+  1163→                        const intConfig = INTERACTION_TYPE_CONFIG[interaction.type] || INTERACTION_TYPE_CONFIG.autre
+  1164→                        return (
+  1165→                          <div key={interaction.id} className="relative rounded-lg border bg-white p-3">
+  1166→                            {/* Timeline connector */}
+  1167→                            {idx < (detailTask.interactions?.length || 0) - 1 && (
+  1168→                              <div className="absolute left-6 bottom-0 w-0.5 h-3 translate-y-full bg-slate-200" />
+  1169→                            )}
+  1170→
+  1171→                            <div className="flex items-start gap-3">
+  1172→                              {/* Type indicator */}
+  1173→                              <div className={`flex size-8 shrink-0 items-center justify-center rounded-full ${intConfig.dotColor} bg-opacity-10`}>
+  1174→                                <div className={`size-2.5 rounded-full ${intConfig.dotColor}`} />
+  1175→                              </div>
+  1176→
+  1177→                              <div className="flex-1 min-w-0">
+  1178→                                {/* Header */}
+  1179→                                <div className="flex items-center justify-between gap-2">
+  1180→                                  <div className="flex items-center gap-2">
+  1181→                                    <span className={`text-xs font-semibold ${intConfig.color}`}>
+  1182→                                      {intConfig.label}
+  1183→                                    </span>
+  1184→                                    {interaction.employe && (
+  1185→                                      <span className="text-[10px] text-muted-foreground">
+  1186→                                        par {interaction.employe.nom}
+  1187→                                      </span>
+  1188→                                    )}
+  1189→                                  </div>
+  1190→                                  <span className="text-[10px] text-muted-foreground">
+  1191→                                    {formatDateTime(interaction.date)}
+  1192→                                  </span>
+  1193→                                </div>
+  1194→
+  1195→                                {/* Notes */}
+  1196→                                {interaction.notes && (
+  1197→                                  <p className="mt-1 text-xs text-slate-600 whitespace-pre-wrap">
+  1198→                                    {interaction.notes}
+  1199→                                  </p>
+  1200→                                )}
+  1201→
+  1202→                                {/* Photos */}
+  1203→                                {interaction.photos && interaction.photos.length > 0 && (
+  1204→                                  <div className="mt-2 flex flex-wrap gap-2">
+  1205→                                    {interaction.photos.map(photo => (
+  1206→                                      <div key={photo.id} className="relative group">
+  1207→                                        <img
+  1208→                                          src={photo.url}
+  1209→                                          alt={photo.fileName}
+  1210→                                          className="h-16 w-16 rounded-lg border border-slate-200 object-cover cursor-pointer transition-shadow hover:shadow-md"
+  1211→                                          onClick={(e) => {
+  1212→                                            e.stopPropagation()
+  1213→                                            setExpandedPhotos(expandedPhotos === photo.url ? null : photo.url)
+  1214→                                          }}
+  1215→                                        />
+  1216→                                      </div>
+  1217→                                    ))}
+  1218→                                  </div>
+  1219→                                )}
+  1220→                              </div>
+  1221→                            </div>
+  1222→                          </div>
+  1223→                        )
+  1224→                      })}
+  1225→                    </div>
+  1226→                  )}
+  1227→                </div>
+  1228→              </div>
+  1229→
+  1230→              <DialogFooter className="gap-2">
+  1231→                <Button
+  1232→                  variant="outline"
+  1233→                  size="sm"
+  1234→                  onClick={() => {
+  1235→                    setShowDetailDialog(false)
+  1236→                    openEditDialog(detailTask)
+  1237→                  }}
+  1238→                  className="gap-1"
+  1239→                >
+  1240→                  <Edit3 className="size-3.5" />
+  1241→                  Modifier
+  1242→                </Button>
+  1243→                {detailTask.statut !== 'terminee' && (
+  1244→                  <Button
+  1245→                    size="sm"
+  1246→                    className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
+  1247→                    onClick={() => {
+  1248→                      setShowDetailDialog(false)
+  1249→                      handleQuickComplete(detailTask.id)
+  1250→                    }}
+  1251→                  >
+  1252→                    <CheckCircle2 className="size-3.5" />
+  1253→                    Terminer
+  1254→                  </Button>
+  1255→                )}
+  1256→              </DialogFooter>
+  1257→            </>
+  1258→          )}
+  1259→        </DialogContent>
+  1260→      </Dialog>
+  1261→
+  1262→      {/* ─── Photo Expanded Dialog ──────────────────────────────── */}
+  1263→      <Dialog open={!!expandedPhotos} onOpenChange={() => setExpandedPhotos(null)}>
+  1264→        <DialogContent className="sm:max-w-[800px] p-2">
+  1265→          {expandedPhotos && (
+  1266→            <img
+  1267→              src={expandedPhotos}
+  1268→              alt="Photo agrandie"
+  1269→              className="w-full rounded-lg object-contain max-h-[80vh]"
+  1270→            />
+  1271→          )}
+  1272→        </DialogContent>
+  1273→      </Dialog>
+  1274→
+  1275→      {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
+  1276→      <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
+  1277→        <DialogContent className="sm:max-w-[780px] p-0 gap-0">
+  1278→          <DialogHeader className="px-6 pt-5 pb-3">
+  1279→            <DialogTitle className="flex items-center gap-2.5">
+  1280→              <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#134885] to-[#1A5A9E] shadow-sm">
+  1281→                <CheckSquare className="size-4 text-white" />
+  1282→              </div>
+  1283→              {editingId ? 'Modifier la tâche' : 'Nouvelle tâche'}
+  1284→            </DialogTitle>
+  1285→            <DialogDescription className="text-xs">
+  1286→              {editingId ? 'Modifiez les informations de la tâche.' : 'Créez et assignez une nouvelle tâche.'}
+  1287→            </DialogDescription>
+  1288→          </DialogHeader>
+  1289→
+  1290→          <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-0">
+  1291→            {/* Left column: Informations + Liens */}
+  1292→            <div className="space-y-4 px-6 pb-4 border-r border-slate-100 dark:border-slate-800">
+  1293→              {/* Section: Informations */}
+  1294→              <div>
+  1295→                <div className="flex items-center gap-2 mb-2.5">
+  1296→                  <div className="flex size-5 items-center justify-center rounded-md bg-[#134885]/10">
+  1297→                    <CheckSquare className="size-3 text-[#134885]" />
+  1298→                  </div>
+  1299→                  <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Informations</h3>
+  1300→                </div>
+  1301→
+  1302→                <div className="space-y-2.5">
+  1303→                  {/* Titre */}
+  1304→                  <div className="space-y-1">
+  1305→                    <Label className="text-xs font-medium text-slate-600">
+  1306→                      Titre <span className="text-red-500">*</span>
+  1307→                    </Label>
+  1308→                    <Input
+  1309→                      placeholder="Ex: Relancer le client pour devis"
+  1310→                      value={formData.titre}
+  1311→                      onChange={e => setFormData(f => ({ ...f, titre: e.target.value }))}
+  1312→                      className="h-8 bg-white text-sm"
+  1313→                    />
+  1314→                  </div>
+  1315→
+  1316→                  {/* Type + Priorité */}
+  1317→                  <div className="grid grid-cols-2 gap-2.5">
+  1318→                    <div className="space-y-1">
+  1319→                      <Label className="text-xs font-medium text-slate-600">Type</Label>
+  1320→                      <Select
+  1321→                        value={formData.type}
+  1322→                        onValueChange={v => setFormData(f => ({ ...f, type: v }))}
+  1323→                      >
+  1324→                        <SelectTrigger className="h-8 bg-white text-sm">
+  1325→                          <SelectValue />
+  1326→                        </SelectTrigger>
+  1327→                        <SelectContent>
+  1328→                          {TASK_TYPES.map(t => (
+  1329→                            <SelectItem key={t.value} value={t.value}>
+  1330→                              <span className="flex items-center gap-2">
+  1331→                                <t.icon className="size-3.5" />
+  1332→                                {t.label}
+  1333→                              </span>
+  1334→                            </SelectItem>
+  1335→                          ))}
+  1336→                        </SelectContent>
+  1337→                      </Select>
+  1338→                    </div>
+  1339→
+  1340→                    <div className="space-y-1">
+  1341→                      <Label className="text-xs font-medium text-slate-600">Priorité</Label>
+  1342→                      <Select
+  1343→                        value={formData.priorite}
+  1344→                        onValueChange={v => setFormData(f => ({ ...f, priorite: v }))}
+  1345→                      >
+  1346→                        <SelectTrigger className="h-8 bg-white text-sm">
+  1347→                          <SelectValue />
+  1348→                        </SelectTrigger>
+  1349→                        <SelectContent>
+  1350→                          {PRIORITIES.map(p => (
+  1351→                            <SelectItem key={p.value} value={p.value}>
+  1352→                              <span className="flex items-center gap-2">
+  1353→                                <span className={`inline-block size-2 rounded-full ${p.dotColor}`} />
+  1354→                                {p.label}
+  1355→                              </span>
+  1356→                            </SelectItem>
+  1357→                          ))}
+  1358→                        </SelectContent>
+  1359→                      </Select>
+  1360→                    </div>
+  1361→                  </div>
+  1362→
+  1363→                  {/* Échéance + Statut */}
+  1364→                  <div className="grid grid-cols-2 gap-2.5">
+  1365→                    <div className="space-y-1">
+  1366→                      <Label className="text-xs font-medium text-slate-600">Échéance</Label>
+  1367→                      <Input
+  1368→                        type="date"
+  1369→                        value={formData.dateEcheance}
+  1370→                        onChange={e => setFormData(f => ({ ...f, dateEcheance: e.target.value }))}
+  1371→                        className="h-8 bg-white text-sm"
+  1372→                      />
+  1373→                    </div>
+  1374→                    <div className="space-y-1">
+  1375→                      <Label className="text-xs font-medium text-slate-600">Statut</Label>
+  1376→                      <Select
+  1377→                        value={formData.statut}
+  1378→                        onValueChange={v => setFormData(f => ({ ...f, statut: v }))}
+  1379→                      >
+  1380→                        <SelectTrigger className="h-8 bg-white text-sm">
+  1381→                          <SelectValue />
+  1382→                        </SelectTrigger>
+  1383→                        <SelectContent>
+  1384→                          {STATUSES.map(s => (
+  1385→                            <SelectItem key={s.value} value={s.value}>
+  1386→                              <span className="flex items-center gap-2">
+  1387→                                <span className={`inline-block size-2 rounded-full ${s.value === 'en_attente' ? 'bg-amber-500' : s.value === 'en_cours' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+  1388→                                {s.label}
+  1389→                              </span>
+  1390→                            </SelectItem>
+  1391→                          ))}
+  1392→                        </SelectContent>
+  1393→                      </Select>
+  1394→                    </div>
+  1395→                  </div>
+  1396→
+  1397→                  {/* Description */}
+  1398→                  <div className="space-y-1">
+  1399→                    <Label className="text-xs font-medium text-slate-600">Description</Label>
+  1400→                    <Textarea
+  1401→                      placeholder="Détails de la tâche..."
+  1402→                      value={formData.description}
+  1403→                      onChange={e => setFormData(f => ({ ...f, description: e.target.value }))}
+  1404→                      rows={3}
+  1405→                      className="bg-white text-sm resize-none"
+  1406→                    />
+  1407→                  </div>
+  1408→                </div>
+  1409→              </div>
+  1410→
+  1411→              {/* Section: Liens */}
+  1412→              <div>
+  1413→                <div className="flex items-center gap-2 mb-2.5">
+  1414→                  <div className="flex size-5 items-center justify-center rounded-md bg-[#134885]/10">
+  1415→                    <Phone className="size-3 text-[#134885]" />
+  1416→                  </div>
+  1417→                  <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Liens</h3>
+  1418→                </div>
+  1419→
+  1420→                <div className="space-y-2.5">
+  1421→                  {/* Prospect + Opportunité */}
+  1422→                  <div className="grid grid-cols-2 gap-2.5">
+  1423→                    <div className="space-y-1">
+  1424→                      <Label className="text-xs font-medium text-slate-600">Prospect</Label>
+  1425→                      <Select
+  1426→                        value={formData.prospectId}
+  1427→                        onValueChange={v => {
+  1428→                          setFormData(f => ({ ...f, prospectId: v }))
+  1429→                          const p = prospects.find(pr => pr.id === v)
+  1430→                          if (p) setProspectSearch(p.nom)
+  1431→                        }}
+  1432→                      >
+  1433→                        <SelectTrigger className="h-8 text-xs bg-white">
+  1434→                          <SelectValue placeholder="Sélectionner" />
+  1435→                        </SelectTrigger>
+  1436→                        <SelectContent>
+  1437→                          <div className="px-2 py-1.5">
+  1438→                            <input
+  1439→                              placeholder="Rechercher..."
+  1440→                              value={prospectSearch}
+  1441→                              onChange={e => setProspectSearch(e.target.value)}
+  1442→                              className="w-full rounded border px-2 py-1 text-xs"
+  1443→                              onClick={e => e.stopPropagation()}
+  1444→                            />
+  1445→                          </div>
+  1446→                          <SelectItem value="none">Aucun</SelectItem>
+  1447→                          {filteredProspects.map(p => (
+  1448→                            <SelectItem key={p.id} value={p.id}>
+  1449→                              {p.nom} {p.wilaya ? `(${p.wilaya})` : ''}
+  1450→                            </SelectItem>
+  1451→                          ))}
+  1452→                        </SelectContent>
+  1453→                      </Select>
+  1454→                    </div>
+  1455→
+  1456→                    <div className="space-y-1">
+  1457→                      <Label className="text-xs font-medium text-slate-600">Opportunité</Label>
+  1458→                      <Select
+  1459→                        value={formData.opportunityId}
+  1460→                        onValueChange={v => {
+  1461→                          setFormData(f => ({ ...f, opportunityId: v }))
+  1462→                          const o = opportunities.find(op => op.id === v)
+  1463→                          if (o) setOpportunitySearch(o.nomProjet)
+  1464→                        }}
+  1465→                      >
+  1466→                        <SelectTrigger className="h-8 text-xs bg-white">
+  1467→                          <SelectValue placeholder="Sélectionner" />
+  1468→                        </SelectTrigger>
+  1469→                        <SelectContent>
+  1470→                          <div className="px-2 py-1.5">
+  1471→                            <input
+  1472→                              placeholder="Rechercher..."
+  1473→                              value={opportunitySearch}
+  1474→                              onChange={e => setOpportunitySearch(e.target.value)}
+  1475→                              className="w-full rounded border px-2 py-1 text-xs"
+  1476→                              onClick={e => e.stopPropagation()}
+  1477→                            />
+  1478→                          </div>
+  1479→                          <SelectItem value="none">Aucune</SelectItem>
+  1480→                          {filteredOpportunities.map(o => (
+  1481→                            <SelectItem key={o.id} value={o.id}>
+  1482→                              {o.nomProjet}
+  1483→                            </SelectItem>
+  1484→                          ))}
+  1485→                        </SelectContent>
+  1486→                      </Select>
+  1487→                    </div>
+  1488→                  </div>
+  1489→
+  1490→                  {/* Opération + Événement */}
+  1491→                  <div className="grid grid-cols-2 gap-2.5">
+  1492→                    <div className="space-y-1">
+  1493→                      <Label className="text-xs font-medium text-slate-600">Opération</Label>
+  1494→                      <Select
+  1495→                        value={formData.operationId}
+  1496→                        onValueChange={v => setFormData(f => ({ ...f, operationId: v }))}
+  1497→                      >
+  1498→                        <SelectTrigger className="h-8 text-xs bg-white">
+  1499→                          <SelectValue placeholder="Sélectionner" />
+  1500→                        </SelectTrigger>
+  1501→                        <SelectContent>
+  1502→                          <SelectItem value="none">Aucune</SelectItem>
+  1503→                          {operations.map(o => (
+  1504→                            <SelectItem key={o.id} value={o.id}>
+  1505→                              {o.produit} — {o.marque}
+  1506→                            </SelectItem>
+  1507→                          ))}
+  1508→                        </SelectContent>
+  1509→                      </Select>
+  1510→                    </div>
+  1511→
+  1512→                    <div className="space-y-1">
+  1513→                      <Label className="text-xs font-medium text-slate-600">Événement</Label>
+  1514→                      <Select
+  1515→                        value={formData.eventId}
+  1516→                        onValueChange={v => setFormData(f => ({ ...f, eventId: v }))}
+  1517→                      >
+  1518→                        <SelectTrigger className="h-8 text-xs bg-white">
+  1519→                          <SelectValue placeholder="Sélectionner" />
+  1520→                        </SelectTrigger>
+  1521→                        <SelectContent>
+  1522→                          <SelectItem value="none">Aucun</SelectItem>
+  1523→                          {events.map(e => (
+  1524→                            <SelectItem key={e.id} value={e.id}>
+  1525→                              {e.nom} — {formatDate(e.date)}
+  1526→                            </SelectItem>
+  1527→                          ))}
+  1528→                        </SelectContent>
+  1529→                      </Select>
+  1530→                    </div>
+  1531→                  </div>
+  1532→                </div>
+  1533→              </div>
+  1534→            </div>
+  1535→
+  1536→            {/* Right column: Assignation */}
+  1537→            <div className="px-4 py-4">
+  1538→              <div className="flex items-center gap-2 mb-2.5">
+  1539→                <div className="flex size-5 items-center justify-center rounded-md bg-[#134885]/10">
+  1540→                  <User className="size-3 text-[#134885]" />
+  1541→                </div>
+  1542→                <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Assignation</h3>
+  1543→                {selectedAssigneeIds.length > 0 && (
+  1544→                  <Badge className="ml-auto h-5 bg-[#134885]/10 text-[#134885] text-[10px] font-medium border-0">
+  1545→                    {selectedAssigneeIds.length}
+  1546→                  </Badge>
+  1547→                )}
+  1548→              </div>
+  1549→
+  1550→              {/* Search */}
+  1551→              <div className="relative mb-2">
+  1552→                <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+  1553→                <Input
+  1554→                  placeholder="Rechercher..."
+  1555→                  value={assigneeSearch}
+  1556→                  onChange={e => setAssigneeSearch(e.target.value)}
+  1557→                  className="h-8 pl-7 text-xs bg-white"
+  1558→                />
+  1559→              </div>
+  1560→
+  1561→              {/* Employee list - simple scrollable div */}
+  1562→              <div className="max-h-[260px] overflow-y-auto rounded-md border bg-white">
+  1563→                {filteredEmployees.map(emp => (
+  1564→                  <label
+  1565→                    key={emp.id}
+  1566→                    className={`flex items-center gap-2 px-2.5 py-1.5 cursor-pointer transition-colors border-b border-slate-50 last:border-0 ${
+  1567→                      selectedAssigneeIds.includes(emp.id)
+  1568→                        ? 'bg-[#134885]/5'
+  1569→                        : 'hover:bg-slate-50'
+  1570→                    }`}
+  1571→                  >
+  1572→                    <Checkbox
+  1573→                      checked={selectedAssigneeIds.includes(emp.id)}
+  1574→                      onCheckedChange={() => toggleAssignee(emp.id)}
+  1575→                      className="shrink-0 border-[#F6852A] data-[state=checked]:bg-[#134885] data-[state=checked]:border-[#134885]"
+  1576→                    />
+  1577→                    <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#134885]/10 text-[9px] font-bold text-[#134885]">
+  1578→                      {getInitials(emp.nom)}
+  1579→                    </div>
+  1580→                    <div className="flex-1 min-w-0">
+  1581→                      <p className="text-xs font-medium text-slate-700 truncate">{emp.nom}</p>
+  1582→                      <p className="text-[10px] text-muted-foreground">{emp.role}</p>
+  1583→                    </div>
+  1584→                    {selectedAssigneeIds.includes(emp.id) && (
+  1585→                      <CheckCircle2 className="size-3.5 text-[#134885] shrink-0" />
+  1586→                    )}
+  1587→                  </label>
+  1588→                ))}
+  1589→                {filteredEmployees.length === 0 && (
+  1590→                  <div className="py-6 text-center text-xs text-muted-foreground">
+  1591→                    Aucun employé trouvé
+  1592→                  </div>
+  1593→                )}
+  1594→              </div>
+  1595→
+  1596→              {/* Selected badges */}
+  1597→              {selectedAssigneeIds.length > 0 && (
+  1598→                <div className="flex flex-wrap gap-1 mt-2.5">
+  1599→                  {selectedAssigneeIds.map(id => {
+  1600→                    const emp = employees.find(e => e.id === id)
+  1601→                    if (!emp) return null
+  1602→                    return (
+  1603→                      <Badge key={id} variant="secondary" className="gap-1 text-[11px] bg-[#134885]/5 text-[#134885] border-[#134885]/10 hover:bg-[#134885]/10 px-1.5 py-0">
+  1604→                        {emp.nom}
+  1605→                        <button
+  1606→                          type="button"
+  1607→                          onClick={() => toggleAssignee(id)}
+  1608→                          className="ml-0.5 text-[#134885]/40 hover:text-red-500"
+  1609→                        >
+  1610→                          <X className="size-3" />
+  1611→                        </button>
+  1612→                      </Badge>
+  1613→                    )
+  1614→                  })}
+  1615→                </div>
+  1616→              )}
+  1617→            </div>
+  1618→          </div>
+  1619→
+  1620→          <DialogFooter className="px-6 py-3 border-t border-slate-100 dark:border-slate-800">
+  1621→            <Button
+  1622→              variant="outline"
+  1623→              onClick={() => setShowFormDialog(false)}
+  1624→              disabled={saving}
+  1625→              className="h-8 text-xs"
+  1626→            >
+  1627→              Annuler
+  1628→            </Button>
+  1629→            <Button
+  1630→              onClick={handleSave}
+  1631→              disabled={saving || !formData.titre.trim()}
+  1632→              className="gap-1.5 h-8 text-xs bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white shadow-md shadow-[#134885]/20 hover:from-[#0D3A6E] hover:to-[#134885]"
+  1633→            >
+  1634→              {saving && <Loader2 className="size-3.5 animate-spin" />}
+  1635→              {editingId ? 'Enregistrer' : 'Créer la tâche'}
+  1636→            </Button>
+  1637→          </DialogFooter>
+  1638→        </DialogContent>
+  1639→      </Dialog>
+  1640→
+  1641→      {/* ─── Delete Confirmation Dialog ─────────────────────────── */}
+  1642→      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+  1643→        <DialogContent className="sm:max-w-md">
+  1644→          <DialogHeader>
+  1645→            <DialogTitle className="flex items-center gap-2">
+  1646→              <div className="flex size-8 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/50">
+  1647→                <Trash2 className="size-4 text-red-600 dark:text-red-400" />
+  1648→              </div>
+  1649→              Supprimer la tâche
+  1650→            </DialogTitle>
+  1651→            <DialogDescription>
+  1652→              Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible.
+  1653→            </DialogDescription>
+  1654→          </DialogHeader>
+  1655→          <DialogFooter className="gap-2 sm:gap-0">
+  1656→            <Button
+  1657→              variant="outline"
+  1658→              onClick={() => {
+  1659→                setShowDeleteDialog(false)
+  1660→                setDeletingId(null)
+  1661→              }}
+  1662→            >
+  1663→              Annuler
+  1664→            </Button>
+  1665→            <Button
+  1666→              variant="destructive"
+  1667→              onClick={handleDelete}
+  1668→              className="gap-1.5"
+  1669→            >
+  1670→              <Trash2 className="size-4" />
+  1671→              Supprimer
+  1672→            </Button>
+  1673→          </DialogFooter>
+  1674→        </DialogContent>
+  1675→      </Dialog>
+  1676→
+  1677→      {/* ─── Add Interaction Dialog ──────────────────────────────── */}
+  1678→      <AddInteractionDialog
+  1679→        open={showAddInteractionDialog}
+  1680→        onOpenChange={setShowAddInteractionDialog}
+  1681→        taskId={interactionTaskId || undefined}
+  1682→        prospectId={interactionProspectId || undefined}
+  1683→        opportunityId={interactionOpportunityId || undefined}
+  1684→        contextLabel={interactionTaskName || 'cette tâche'}
+  1685→        onSuccess={() => {
+  1686→          fetchTasks()
+  1687→        }}
+  1688→      />
+  1689→    </div>
+  1690→  )
+  1691→}
+  1692→

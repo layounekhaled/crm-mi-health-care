@@ -860,7 +860,7 @@ export default function DocumentsModule() {
 
       {/* ====== UPLOAD DIALOG ====== */}
       <Dialog open={showUpload} onOpenChange={setShowUpload}>
-        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[640px] max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileUp className="h-5 w-5 text-[#F6852A]" />

@@ -709,7 +709,7 @@ export default function CatalogModule() {
 
       {/* ── Create Dialog ── */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[640px] max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-[#134885]">Nouveau produit</DialogTitle>
             <DialogDescription>Ajoutez un nouveau produit au catalogue.</DialogDescription>
@@ -828,7 +828,7 @@ export default function CatalogModule() {
 
       {/* ── Edit Dialog ── */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[640px] max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-[#134885]">Modifier le produit</DialogTitle>
             <DialogDescription>Modifiez les informations du produit.</DialogDescription>

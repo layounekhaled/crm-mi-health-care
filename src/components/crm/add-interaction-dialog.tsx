@@ -168,7 +168,7 @@ export function AddInteractionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[520px] max-h-[90dvh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Phone className="h-5 w-5 text-[#134885]" />
@@ -179,7 +179,7 @@ export function AddInteractionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 py-4 overflow-y-auto min-h-0">
           {/* Type */}
           <div className="grid gap-2">
             <Label>Type d&apos;interaction</Label>
@@ -274,7 +274,7 @@ export function AddInteractionDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => handleClose(false)}>
             Annuler
           </Button>

@@ -1027,7 +1027,7 @@ export default function TasksModule() {
 
       {/* ─── Task Detail Dialog ─────────────────────────────────── */}
       <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[700px]">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[700px]">
           {detailTask && (
             <>
               <DialogHeader>
@@ -1274,8 +1274,8 @@ export default function TasksModule() {
 
       {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="sm:max-w-[780px] p-0 gap-0">
-          <DialogHeader className="px-6 pt-5 pb-3">
+        <DialogContent className="sm:max-w-[780px] max-h-[90dvh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-6 pt-5 pb-3 shrink-0">
             <DialogTitle className="flex items-center gap-2.5">
               <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#134885] to-[#1A5A9E] shadow-sm">
                 <CheckSquare className="size-4 text-white" />
@@ -1287,9 +1287,9 @@ export default function TasksModule() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-0">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-0 overflow-y-auto min-h-0">
             {/* Left column: Informations + Liens */}
-            <div className="space-y-4 px-6 pb-4 border-r border-slate-100 dark:border-slate-800">
+            <div className="space-y-4 px-4 sm:px-6 pb-4 md:border-r border-slate-100 dark:border-slate-800">
               {/* Section: Informations */}
               <div>
                 <div className="flex items-center gap-2 mb-2.5">
@@ -1534,7 +1534,7 @@ export default function TasksModule() {
             </div>
 
             {/* Right column: Assignation */}
-            <div className="px-4 py-4">
+            <div className="px-4 py-4 md:border-t-0 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2 mb-2.5">
                 <div className="flex size-5 items-center justify-center rounded-md bg-[#134885]/10">
                   <User className="size-3 text-[#134885]" />
@@ -1617,7 +1617,7 @@ export default function TasksModule() {
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-3 border-t border-slate-100 dark:border-slate-800">
+          <DialogFooter className="px-4 sm:px-6 py-3 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-background rounded-b-lg">
             <Button
               variant="outline"
               onClick={() => setShowFormDialog(false)}

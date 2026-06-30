@@ -967,7 +967,7 @@ export default function EmployeesModule() {
 
       {/* ─── Add/Edit Employee Dialog ───────────────────────────── */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
@@ -1176,7 +1176,7 @@ export default function EmployeesModule() {
 
       {/* ─── Objectives Dialog ──────────────────────────────────── */}
       <Dialog open={showObjectivesDialog} onOpenChange={setShowObjectivesDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#F6852A]/10 dark:bg-[#F6852A]/20">

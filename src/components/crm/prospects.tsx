@@ -1213,7 +1213,7 @@ export default function ProspectsModule() {
 
         {/* ── Add/Edit Dialog ─────────────────────────────────────────────── */}
         <Dialog open={formOpen} onOpenChange={setFormOpen}>
-          <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[640px] max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {editingId ? (
@@ -1686,7 +1686,7 @@ export default function ProspectsModule() {
 
         {/* ── Detail Dialog ───────────────────────────────────────────────── */}
         <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0">
+          <DialogContent className="sm:max-w-[700px] max-h-[90dvh] overflow-y-auto p-0">
             {detailLoading ? (
               <div className="space-y-4 py-4 px-6">
                 <Skeleton className="h-8 w-48" />

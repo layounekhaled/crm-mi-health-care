@@ -1,8 +1,114 @@
 {
-  "timestamp": "2026-06-30T14:57:18.302Z",
+  "timestamp": "2026-06-30T15:03:06.218Z",
   "totalToImport": 3046,
-  "duplicatesEmail": 814,
-  "duplicatesPhone": 56,
-  "inserted": 2176,
-  "totalInDBAfter": 4518
+  "duplicatesEmailVsDB": 814,
+  "duplicatesPhoneVsDB": 30,
+  "actuallyInserted": 2202,
+  "errors": 0,
+  "totalInDBAfter": 6070,
+  "sampleDuplicatesEmail": [
+    {
+      "nom": "02 SANTE",
+      "email": "o2sante16@gmail.com",
+      "existing": "O2 SANTE PARAPHARM EURL"
+    },
+    {
+      "nom": "ABDENABI",
+      "email": "abdenabidjenane@gmail.com",
+      "existing": "ABDENABI"
+    },
+    {
+      "nom": "ACM MEDICAL",
+      "email": "acm.medical@yahoo.fr",
+      "existing": "ACM MEDICAL"
+    },
+    {
+      "nom": "AD MEDICAL GROUPE",
+      "email": "admedica1963@yahoo.fr",
+      "existing": "AD MEDICAL GROUPE"
+    },
+    {
+      "nom": "ADI BIOMEDICAL SARL",
+      "email": "adlisihemmedical@gmail.com",
+      "existing": "ADLI MEDICAL"
+    },
+    {
+      "nom": "AFMED SARL",
+      "email": "afmed.km@gmail.com",
+      "existing": "AFMED SARL"
+    },
+    {
+      "nom": "AHMED ZAID KAMEL ETS 0555-05-06-09",
+      "email": "djurdjuramedical@yahoo.fr",
+      "existing": "AHMED ZAID KAMEL ETS 0555-05-06-09"
+    },
+    {
+      "nom": "AISSANI NEE BELKHIR MIRA ETS",
+      "email": "muhammedaissani10@gmail.com",
+      "existing": "AISSANI NEE BELKHIR MIRA ETS"
+    },
+    {
+      "nom": "AKHROUF MEDICAL",
+      "email": "akhroufmedical@gmail.com",
+      "existing": "AKHROUF MEDICAL"
+    },
+    {
+      "nom": "AL FAROUK MATERIEL MEDICAL",
+      "email": "fmmannaba@outlook.com",
+      "existing": "AL FAROUK MATERIEL MEDICAL"
+    }
+  ],
+  "sampleDuplicatesPhone": [
+    {
+      "nom": "ABDELMALEK, ZAIR",
+      "phone": "05 56 03 00 31",
+      "existing": "zair abdelmalek"
+    },
+    {
+      "nom": "Bessadi Malek",
+      "phone": "034 11 92 03",
+      "existing": "Dr Malek BESSADI"
+    },
+    {
+      "nom": "BENGUERBA MEGHICI",
+      "phone": "023 81 71 37",
+      "existing": "Dr Benguerba Meghici N"
+    },
+    {
+      "nom": "DR FEZAA",
+      "phone": "05 42 79 40 57",
+      "existing": "Dr F LARBAOUI"
+    },
+    {
+      "nom": "Dr Malek BESSADI",
+      "phone": "0557 77 54 01",
+      "existing": "Bessadi Malek"
+    },
+    {
+      "nom": "Dr Khelladi Khaeld",
+      "phone": "0551 36 79 07",
+      "existing": "KHALED, KHALLADI"
+    },
+    {
+      "nom": "Dr ABAD Hachemi",
+      "phone": "0771 11 69 89",
+      "existing": "ABAD HACHEMI"
+    },
+    {
+      "nom": "DR ROUABHI IMENE",
+      "phone": "0551-57-49-47",
+      "existing": "DR ROUABHI IMENE"
+    },
+    {
+      "nom": "DR KEBDANI SAMIRA",
+      "phone": "0542973027",
+      "existing": "Dr Kebdani Samira"
+    },
+    {
+      "nom": "BENKIAR Nadia",
+      "phone": "025 58 14 78",
+      "existing": "BENKIAR Nadia"
+    }
+  ],
+  "errorsList": []
 }

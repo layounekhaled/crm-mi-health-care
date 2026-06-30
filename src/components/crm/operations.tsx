@@ -1279,7 +1279,7 @@ export default function OperationsModule() {
 
       {/* ─── Add/Edit Dialog ────────────────────────────────────── */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[640px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#134885]/10 dark:bg-[#134885]/20">
