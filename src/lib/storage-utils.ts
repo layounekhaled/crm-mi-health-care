@@ -12,26 +12,16 @@ export const BRAND_FOLDERS: Record<string, string> = {
   'Autres': 'autres',
 }
 
-// Get public URL for a file
-// For new uploads: returns Supabase Storage public URL (absolute, persistent)
-// For legacy uploads: returns /api/files/... path (relative, served via API route)
+// Get public URL for a file (served via /api/files/[...path] route)
 // This function is pure and safe for client usage
 export function getPublicUrl(filePath: string): string {
-  // If it's already an absolute URL (Supabase or legacy Vercel Blob), return as-is
+  // If it's already an absolute URL (Vercel Blob URLs), return as-is
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
     return filePath
   }
-  // For relative paths like "mir/1234567_file.pdf", serve via /api/files/ route
-  // The route will proxy the file from Supabase Storage
+  // Otherwise serve via our local file route
   // filePath is like "mir/1234567_file.pdf"
   return `/api/files/${filePath}`
-}
-
-// Get the Supabase public URL for a file path (used server-side during upload)
-export function getSupabaseUrl(filePath: string): string {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!supabaseUrl) return `/api/files/${filePath}`
-  return `${supabaseUrl}/storage/v1/object/public/Documents/${filePath}`
 }
 
 // Format file size — pure utility, safe for client
