@@ -116,8 +116,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Le mot de passe est requis pour créer les accès' }, { status: 400 });
     }
 
-    if (motDePasse.length < 6) {
-      return NextResponse.json({ error: 'Le mot de passe doit contenir au moins 6 caractères' }, { status: 400 });
+    if (motDePasse.length < 8) {
+      return NextResponse.json({ error: 'Le mot de passe doit contenir au moins 8 caractères' }, { status: 400 });
+    }
+
+    // Check password complexity
+    if (!/[A-Z]/.test(motDePasse) || !/[a-z]/.test(motDePasse) || !/[0-9]/.test(motDePasse)) {
+      return NextResponse.json({ error: 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre' }, { status: 400 });
     }
 
     // Check for duplicate email in Employee

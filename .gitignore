@@ -28,9 +28,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env files — ALL env files contain secrets
 .env
 .env*.local
+.env.production
+.env.check
+.env.staging
+.env.local.bak
 
 # vercel
 .vercel
@@ -46,6 +50,7 @@ db/*.db-journal
 # logs
 dev.log
 server.log
+dalia_build*.log
 
 # zscripts
 .zscripts/
@@ -61,3 +66,17 @@ examples/
 
 # download (generated files)
 download/
+
+# Import data files (contain PII)
+import-data*.json
+
+# Tool results
+tool-results/
+
+# Scripts with hardcoded credentials (use env vars instead)
+scripts/check_pwd.js
+scripts/delete-all-prospects.ts
+scripts/clean-sample-data.ts
+scripts/import-to-db.ts
+scripts/clean-specialites*.ts
+scripts/migrate-documents-to-supabase.ts

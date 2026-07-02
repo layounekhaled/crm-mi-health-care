@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  'https://dalia.fret.direct',
+  'https://dalia.wistyty.com',  // Legacy, kept for transition
+]
+
 /**
  * Build a canonical external URL for the current request.
  *
@@ -32,6 +38,27 @@ function getExternalUrl(request: NextRequest): string {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const origin = request.headers.get('origin')
+
+  // Handle CORS for API routes — reject requests from unknown origins
+  if (pathname.startsWith('/api/') && origin) {
+    // Allow requests with no origin (mobile apps, Postman, server-side)
+    // and requests from allowed origins
+    if (!ALLOWED_ORIGINS.includes(origin)) {
+      // For webhook and public routes, allow any origin
+      const isPublicApi = pathname.startsWith('/api/webhooks') ||
+        pathname.startsWith('/api/debug') ||
+        pathname.startsWith('/api/auth') ||
+        pathname.startsWith('/api/emails/ping')
+      
+      if (!isPublicApi) {
+        return NextResponse.json(
+          { error: 'Origine non autorisée' },
+          { status: 403 }
+        )
+      }
+    }
+  }
 
   // Allow public routes
   if (

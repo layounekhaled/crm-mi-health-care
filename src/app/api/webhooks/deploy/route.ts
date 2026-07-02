@@ -1,14 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHmac } from 'crypto'
 
 // Webhook receiver for GitHub push events
 // Triggers Coolify deployment when code is pushed to main
+// Secured with HMAC-SHA256 signature verification
 const COOLIFY_HOST = process.env.COOLIFY_HOST || 'http://156.67.26.104:8000'
 const COOLIFY_TOKEN = process.env.COOLIFY_TOKEN || ''
 const COOLIFY_APP_UUID = process.env.COOLIFY_APP_UUID || ''
+const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || ''
+
+function verifySignature(payload: string, signature: string | null): boolean {
+  if (!WEBHOOK_SECRET) {
+    console.warn('[WEBHOOK] No GITHUB_WEBHOOK_SECRET set — skipping signature verification')
+    return true // Allow if no secret configured (backward compatible)
+  }
+
+  if (!signature) return false
+
+  const expected = 'sha256=' + createHmac('sha256', WEBHOOK_SECRET).update(payload).digest('hex')
+  return expected === signature
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = await request.json()
+    const rawBody = await request.text()
+    const signature = request.headers.get('x-hub-signature-256')
+
+    // Verify GitHub webhook signature
+    if (!verifySignature(rawBody, signature)) {
+      console.warn('[WEBHOOK] Invalid signature — rejected')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
+    }
+
+    const payload = JSON.parse(rawBody)
     
     // Only deploy on push to main
     const ref = payload.ref
@@ -34,17 +58,15 @@ export async function POST(request: NextRequest) {
     const deployData = await deployRes.json()
 
     if (deployRes.ok) {
-      console.log('[WEBHOOK] Deployment triggered:', deployData)
+      console.log('[WEBHOOK] Deployment triggered')
       return NextResponse.json({ 
         success: true, 
         message: 'Deployment triggered',
-        deployment: deployData 
       })
     } else {
-      console.error('[WEBHOOK] Deploy failed:', deployData)
+      console.error('[WEBHOOK] Deploy failed')
       return NextResponse.json({ 
-        error: 'Deploy failed', 
-        details: deployData 
+        error: 'Deploy failed',
       }, { status: 500 })
     }
   } catch (error) {
