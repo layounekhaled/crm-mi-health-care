@@ -11,7 +11,7 @@ function resolveDocumentUrl(fileUrl: string, request: NextRequest): string {
     return fileUrl
   }
   // For relative paths like /api/files/mir/123_file.pdf, make them absolute
-  // Use NEXTAUTH_URL as the base (set to https://dalia.wistyty.com in production)
+  // Use NEXTAUTH_URL as the base (set to https://dalia.fret.direct in production)
   const baseUrl = process.env.NEXTAUTH_URL
     || (request.headers.get('host') ? `${request.headers.get('x-forwarded-proto') || 'https'}://${request.headers.get('host')}` : '')
   if (baseUrl && fileUrl.startsWith('/')) {

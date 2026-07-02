@@ -5,7 +5,7 @@ from odf.opendocument import load
 from odf.table import Table, TableRow, TableCell
 
 # ─── Config ─────────────────────────────────────────────────────
-API_BASE = "https://dalia.wistyty.com"
+API_BASE = "https://dalia.fret.direct"
 # API_BASE = "http://localhost:3000"  # For local testing
 
 # ─── ODS Reader ─────────────────────────────────────────────────
