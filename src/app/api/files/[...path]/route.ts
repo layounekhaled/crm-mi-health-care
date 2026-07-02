@@ -4,7 +4,9 @@ import { readFileContent } from '@/lib/storage'
 export const dynamic = 'force-dynamic'
 
 // GET /api/files/[...path] - Serve a stored file (PDF documents)
-// Files are stored locally on the Coolify volume at /data/dalia-documents/
+// Files are now stored in Supabase Storage — this route serves as a fallback
+// for old relative URLs like /api/files/mir/123_file.pdf
+// New uploads get absolute Supabase URLs and don't go through this route.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -22,6 +24,7 @@ export async function GET(
       return NextResponse.json({ error: 'Chemin invalide' }, { status: 400 })
     }
 
+    // Try to fetch from Supabase Storage
     const content = await readFileContent(safePath)
     if (!content) {
       return NextResponse.json({ error: 'Fichier introuvable' }, { status: 404 })
@@ -39,7 +42,7 @@ export async function GET(
     else if (ext === 'json') contentType = 'application/json'
 
     // Return file with appropriate headers
-    return new NextResponse(content, {
+    return new NextResponse(new Uint8Array(content), {
       status: 200,
       headers: {
         'Content-Type': contentType,
