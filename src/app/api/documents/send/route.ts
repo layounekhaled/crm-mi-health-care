@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
+import { getPublicUrl } from '@/lib/storage-utils'
+
+// Resolve a fileUrl to an absolute URL that email recipients can access
+function resolveDocumentUrl(fileUrl: string, request: NextRequest): string {
+  // If already an absolute URL (legacy Vercel Blob), return as-is
+  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+    return fileUrl
+  }
+  // For relative paths like /api/files/mir/123_file.pdf, make them absolute
+  // Use NEXTAUTH_URL as the base (set to https://dalia.wistyty.com in production)
+  const baseUrl = process.env.NEXTAUTH_URL
+    || (request.headers.get('host') ? `${request.headers.get('x-forwarded-proto') || 'https'}://${request.headers.get('host')}` : '')
+  if (baseUrl && fileUrl.startsWith('/')) {
+    return `${baseUrl}${fileUrl}`
+  }
+  // Fallback: use getPublicUrl (returns /api/files/... path)
+  return getPublicUrl(fileUrl)
+}
 
 // POST /api/documents/send - Envoyer des documents par email ou WhatsApp
 export async function POST(request: NextRequest) {
@@ -75,8 +93,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Build email content with links (NOT attachments)
+    // Resolve relative URLs to absolute URLs so email recipients can access them
     const documentLinks = documents
-      .map((doc, i) => `${i + 1}. <strong>${doc.title}</strong>${doc.brand ? ` (${doc.brand})` : ''} — <a href="${doc.fileUrl}" target="_blank">Voir / Télécharger</a>`)
+      .map((doc, i) => `${i + 1}. <strong>${doc.title}</strong>${doc.brand ? ` (${doc.brand})` : ''} — <a href="${resolveDocumentUrl(doc.fileUrl, request)}" target="_blank">Voir / Télécharger</a>`)
       .join('<br/>')
 
     const senderName = authUser.employeNom || 'MI HEALTH CARE'

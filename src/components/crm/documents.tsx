@@ -82,6 +82,21 @@ const DOCUMENT_TYPES = [
   { value: 'autre', label: 'Autre' },
 ]
 
+// Convert a relative fileUrl (like /api/files/mir/123.pdf) to an absolute URL for sharing
+// When sharing links externally (email, WhatsApp), recipients need a full URL
+function toAbsoluteUrl(fileUrl: string): string {
+  if (!fileUrl) return fileUrl
+  // Already absolute URL (legacy Vercel Blob)
+  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+    return fileUrl
+  }
+  // Relative path — prefix with current origin
+  if (typeof window !== 'undefined' && fileUrl.startsWith('/')) {
+    return `${window.location.origin}${fileUrl}`
+  }
+  return fileUrl
+}
+
 const BRAND_COLORS: Record<string, string> = {
   'MIR': 'bg-blue-100 text-blue-800',
   'BOSO BOSCH': 'bg-emerald-100 text-emerald-800',
@@ -330,7 +345,7 @@ export default function DocumentsModule() {
 
       const selectedDocs = documents.filter(d => selectedIds.has(d.id))
       const docLinks = selectedDocs.map((doc, i) =>
-        `${i + 1}. ${doc.title}${doc.brand ? ` (${doc.brand})` : ''} — ${doc.fileUrl}`
+        `${i + 1}. ${doc.title}${doc.brand ? ` (${doc.brand})` : ''} — ${toAbsoluteUrl(doc.fileUrl)}`
       ).join('\n')
 
       const message = sendForm.message
@@ -408,7 +423,7 @@ export default function DocumentsModule() {
 
   // Copy link
   const copyLink = (url: string) => {
-    navigator.clipboard.writeText(url)
+    navigator.clipboard.writeText(toAbsoluteUrl(url))
     toast.success('Lien copié')
   }
 
@@ -519,7 +534,7 @@ export default function DocumentsModule() {
                   onClick={() => {
                     const selectedDocs = documents.filter(d => selectedIds.has(d.id))
                     const docLinks = selectedDocs.map((doc, i) =>
-                      `${i + 1}. ${doc.title}${doc.brand ? ` (${doc.brand})` : ''} — ${doc.fileUrl}`
+                      `${i + 1}. ${doc.title}${doc.brand ? ` (${doc.brand})` : ''} — ${toAbsoluteUrl(doc.fileUrl)}`
                     ).join('\n')
                     const message = `Documents partagés — MI HEALTH CARE :\n${docLinks}`
                     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
@@ -753,7 +768,7 @@ export default function DocumentsModule() {
                           size="sm"
                           className="h-7 w-7 p-0 text-green-600"
                           onClick={() => {
-                            const message = `Document partagé — MI HEALTH CARE :\n${doc.title}${doc.brand ? ` (${doc.brand})` : ''} — ${doc.fileUrl}`
+                            const message = `Document partagé — MI HEALTH CARE :\n${doc.title}${doc.brand ? ` (${doc.brand})` : ''} — ${toAbsoluteUrl(doc.fileUrl)}`
                             window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
                           }}
                           title="Envoyer via WhatsApp"
