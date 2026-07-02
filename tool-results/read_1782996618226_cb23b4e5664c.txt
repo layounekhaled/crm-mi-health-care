@@ -1,0 +1,1753 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from 'react'
+     4→import { useAuth } from '@/lib/auth-context'
+     5→import { useCRMStore } from '@/lib/store'
+     6→import { ModuleHeader } from '@/components/crm/module-header'
+     7→import { Button } from '@/components/ui/button'
+     8→import { Input } from '@/components/ui/input'
+     9→import { ScrollArea } from '@/components/ui/scroll-area'
+    10→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    11→import { Badge } from '@/components/ui/badge'
+    12→import { Checkbox } from '@/components/ui/checkbox'
+    13→import {
+    14→  Dialog,
+    15→  DialogContent,
+    16→  DialogHeader,
+    17→  DialogTitle,
+    18→} from '@/components/ui/dialog'
+    19→import { Textarea } from '@/components/ui/textarea'
+    20→import { Label } from '@/components/ui/label'
+    21→import {
+    22→  DropdownMenu,
+    23→  DropdownMenuContent,
+    24→  DropdownMenuItem,
+    25→  DropdownMenuTrigger,
+    26→} from '@/components/ui/dropdown-menu'
+    27→import { toast } from 'sonner'
+    28→import {
+    29→  Mail,
+    30→  Send,
+    31→  Inbox,
+    32→  FileText,
+    33→  Trash2,
+    34→  RefreshCw,
+    35→  Settings,
+    36→  Search,
+    37→  Star,
+    38→  Paperclip,
+    39→  Reply,
+    40→  Forward,
+    41→  Loader2,
+    42→  FolderOpen,
+    43→  AlertCircle,
+    44→  Check,
+    45→  X,
+    46→  Eye,
+    47→  EyeOff,
+    48→  Shield,
+    49→  Wifi,
+    50→  WifiOff,
+    51→  ChevronDown,
+    52→  ChevronsUpDown,
+    53→  MoreHorizontal,
+    54→  ArrowRight,
+    55→  Archive,
+    56→} from 'lucide-react'
+    57→import DOMPurify from 'isomorphic-dompurify'
+    58→import QuillEmailEditor, { SignatureEditor } from '@/components/crm/quill-email-editor'
+    59→
+    60→// ─── Interfaces ───────────────────────────────────────────────
+    61→
+    62→interface EmailConfig {
+    63→  employeId: string
+    64→  email: string
+    65→  imapHost: string
+    66→  imapPort: number
+    67→  imapTls: boolean
+    68→  smtpHost: string
+    69→  smtpPort: number
+    70→  smtpTls: boolean
+    71→  isConfigured: boolean
+    72→  signature?: string
+    73→}
+    74→
+    75→interface EmailFolder {
+    76→  name: string
+    77→  path: string
+    78→  count: number
+    79→  unseen: number
+    80→  specialUse: string
+    81→}
+    82→
+    83→interface EmailEnvelope {
+    84→  date: string
+    85→  subject: string | null
+    86→  from: { name: string; address: string }[]
+    87→  to: { name: string; address: string }[]
+    88→  cc?: { name: string; address: string }[]
+    89→  messageId: string
+    90→  inReplyTo?: string
+    91→}
+    92→
+    93→interface BodyStructurePart {
+    94→  type: string
+    95→  disposition?: string
+    96→  filename?: string
+    97→  childNodes?: BodyStructurePart[]
+    98→  [key: string]: unknown
+    99→}
+   100→
+   101→interface EmailMessage {
+   102→  uid: number
+   103→  flags: string[] | Set<string>
+   104→  envelope: EmailEnvelope
+   105→  bodyStructure?: BodyStructurePart
+   106→}
+   107→
+   108→interface EmailDetail {
+   109→  uid: number
+   110→  flags: string[] | Set<string>
+   111→  envelope: EmailEnvelope
+   112→  textContent: string
+   113→  htmlContent: string
+   114→  isHtml: boolean
+   115→}
+   116→
+   117→// ─── Helper: normalize flags (Set or Array → Array) ──────────
+   118→
+   119→function normalizeFlags(flags: string[] | Set<string> | undefined | null): string[] {
+   120→  if (!flags) return []
+   121→  if (Array.isArray(flags)) return flags
+   122→  if (flags instanceof Set) return [...flags]
+   123→  return []
+   124→}
+   125→
+   126→function hasFlag(flags: string[] | Set<string> | undefined | null, flag: string): boolean {
+   127→  return normalizeFlags(flags).includes(flag)
+   128→}
+   129→
+   130→// ─── Presets ──────────────────────────────────────────────────
+   131→
+   132→const emailPresets: Record<string, Partial<EmailConfig> & { helpUrl?: string; helpText?: string }> = {
+   133→  gmail: {
+   134→    imapHost: 'imap.gmail.com', imapPort: 993, imapTls: true,
+   135→    smtpHost: 'smtp.gmail.com', smtpPort: 587, smtpTls: true,
+   136→    helpText: 'Gmail nécessite un "Mot de passe d\'application". Allez dans : Paramètres Google → Sécurité → Validation en deux étapes (activée) → Mots de passe d\'application → Créez-en un pour "Mail".',
+   137→  },
+   138→  outlook: {
+   139→    imapHost: 'outlook.office365.com', imapPort: 993, imapTls: true,
+   140→    smtpHost: 'smtp.office365.com', smtpPort: 587, smtpTls: true,
+   141→    helpText: 'Outlook/Office 365 : Utilisez votre mot de passe habituel. Si l\'authentification à deux facteurs est activée, créez un mot de passe d\'application.',
+   142→  },
+   143→  yahoo: {
+   144→    imapHost: 'imap.mail.yahoo.com', imapPort: 993, imapTls: true,
+   145→    smtpHost: 'smtp.mail.yahoo.com', smtpPort: 587, smtpTls: true,
+   146→    helpText: 'Yahoo nécessite un "Mot de passe d\'application". Allez dans : Paramètres du compte → Sécurité → Mots de passe d\'application.',
+   147→  },
+   148→  lws: {
+   149→    imapHost: 'mail.wistyty.com', imapPort: 993, imapTls: true,
+   150→    smtpHost: 'mail.wistyty.com', smtpPort: 587, smtpTls: true,
+   151→    helpText: 'Hébergement LWS Panel : Utilisez le mot de passe de votre compte de messagerie. IMAP port 993 (SSL), SMTP port 587 (STARTTLS). Vous pouvez aussi utiliser mail67.lwspanel.com comme serveur.',
+   152→  },
+   153→  custom: {},
+   154→}
+   155→
+   156→// ─── UI Helpers ───────────────────────────────────────────────
+   157→
+   158→function getFolderIcon(specialUse: string, path: string) {
+   159→  if (specialUse === '\\Inbox' || path === 'INBOX') return <Inbox className="h-4 w-4" />
+   160→  if (specialUse === '\\Sent') return <Send className="h-4 w-4" />
+   161→  if (specialUse === '\\Drafts') return <FileText className="h-4 w-4" />
+   162→  if (specialUse === '\\Trash') return <Trash2 className="h-4 w-4" />
+   163→  if (specialUse === '\\Junk' || specialUse === '\\Spam') return <AlertCircle className="h-4 w-4" />
+   164→  if (specialUse === '\\Flagged' || specialUse === '\\Starred') return <Star className="h-4 w-4" />
+   165→  if (specialUse === '\\Archive') return <Archive className="h-4 w-4" />
+   166→  // Fallback basé sur le chemin (support LWS/Dovecot français)
+   167→  const lowerPath = path.toLowerCase()
+   168→  if (lowerPath.includes('sent') || lowerPath.includes('envoy') || lowerPath.includes('éléments envoyés')) return <Send className="h-4 w-4" />
+   169→  if (lowerPath.includes('draft') || lowerPath.includes('brouillon')) return <FileText className="h-4 w-4" />
+   170→  if (lowerPath.includes('trash') || lowerPath.includes('corbeille') || lowerPath.includes('deleted') || lowerPath.includes('poubelle')) return <Trash2 className="h-4 w-4" />
+   171→  if (lowerPath.includes('junk') || lowerPath.includes('spam') || lowerPath.includes('indésirable') || lowerPath.includes('courrier indésirable')) return <AlertCircle className="h-4 w-4" />
+   172→  if (lowerPath.includes('flagged') || lowerPath.includes('starred') || lowerPath.includes('favori')) return <Star className="h-4 w-4" />
+   173→  if (lowerPath.includes('archive') || lowerPath.includes('all mail') || lowerPath.includes('tous les messages')) return <Archive className="h-4 w-4" />
+   174→  return <FolderOpen className="h-4 w-4" />
+   175→}
+   176→
+   177→function getFolderLabel(path: string) {
+   178→  if (path === 'INBOX') return 'Boîte de réception'
+   179→  // Utiliser des correspondances partielles insensibles à la casse pour supporter LWS/Dovecot
+   180→  const lowerPath = path.toLowerCase()
+   181→  if (lowerPath.includes('sent') || lowerPath.includes('envoy') || lowerPath.includes('éléments envoyés')) return 'Envoyés'
+   182→  if (lowerPath.includes('draft') || lowerPath.includes('brouillon')) return 'Brouillons'
+   183→  if (lowerPath.includes('trash') || lowerPath.includes('corbeille') || lowerPath.includes('deleted') || lowerPath.includes('poubelle')) return 'Corbeille'
+   184→  if (lowerPath.includes('junk') || lowerPath.includes('spam') || lowerPath.includes('indésirable') || lowerPath.includes('courrier indésirable')) return 'Indésirables'
+   185→  if (lowerPath.includes('flagged') || lowerPath.includes('starred') || lowerPath.includes('favori')) return 'Favoris'
+   186→  if (lowerPath.includes('archive') || lowerPath.includes('all mail') || lowerPath.includes('tous les messages')) return 'Archives'
+   187→  // Pour les dossiers Gmail qui commencent par [Gmail]/, afficher un nom plus propre
+   188→  if (path.startsWith('[Gmail]/')) {
+   189→    const gmailName = path.replace('[Gmail]/', '')
+   190→    return gmailName.replace(/([A-Z])/g, ' $1').trim()
+   191→  }
+   192→  // Pour les dossiers INBOX.xxx (Dovecot), afficher le nom après le séparateur
+   193→  if (path.startsWith('INBOX.')) {
+   194→    return path.replace('INBOX.', '')
+   195→  }
+   196→  return path
+   197→}
+   198→
+   199→function formatDate(dateStr: string) {
+   200→  try {
+   201→    const d = new Date(dateStr)
+   202→    const now = new Date()
+   203→    const diffMs = now.getTime() - d.getTime()
+   204→    const diffDays = Math.floor(diffMs / 86400000)
+   205→    if (diffDays < 1) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+   206→    if (diffDays < 7) return d.toLocaleDateString('fr-FR', { weekday: 'short' })
+   207→    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+   208→  } catch {
+   209→    return ''
+   210→  }
+   211→}
+   212→
+   213→function formatFullDate(dateStr: string) {
+   214→  try {
+   215→    return new Date(dateStr).toLocaleString('fr-FR', {
+   216→      dateStyle: 'long',
+   217→      timeStyle: 'short',
+   218→    })
+   219→  } catch {
+   220→    return ''
+   221→  }
+   222→}
+   223→
+   224→function extractSenderName(from: { name: string; address: string }[]) {
+   225→  if (!from || from.length === 0) return 'Inconnu'
+   226→  const sender = from[0]
+   227→  if (sender.name) return sender.name
+   228→  return sender.address?.split('@')[0] || 'Inconnu'
+   229→}
+   230→
+   231→function extractEmailAddress(from: { name: string; address: string }[]) {
+   232→  if (!from || from.length === 0) return ''
+   233→  return from.map((f) => f.name ? `${f.name} <${f.address}>` : f.address).join(', ')
+   234→}
+   235→
+   236→function extractSnippet(msg: EmailMessage): string {
+   237→  // bodyStructure may contain a preview but envelope doesn't have a text preview
+   238→  // We return empty for now – the real snippet would need a separate fetch
+   239→  return ''
+   240→}
+   241→
+   242→function hasAttachments(bodyStructure?: BodyStructurePart): boolean {
+   243→  if (!bodyStructure) return false
+   244→  const check = (part: BodyStructurePart): boolean => {
+   245→    if (part.disposition === 'attachment') return true
+   246→    if (part.childNodes) return part.childNodes.some(check)
+   247→    return false
+   248→  }
+   249→  return check(bodyStructure)
+   250→}
+   251→
+   252→function sanitizeHtml(html: string): string {
+   253→  return DOMPurify.sanitize(html, {
+   254→    ALLOWED_TAGS: [
+   255→      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'hr', 'div', 'span',
+   256→      'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption',
+   257→      'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+   258→      'a', 'img', 'figure', 'figcaption',
+   259→      'b', 'i', 'u', 's', 'em', 'strong', 'small', 'sub', 'sup',
+   260→      'blockquote', 'pre', 'code',
+   261→      'font', 'center',
+   262→    ],
+   263→    ALLOWED_ATTR: [
+   264→      'href', 'src', 'alt', 'title', 'width', 'height', 'style',
+   265→      'class', 'id', 'colspan', 'rowspan', 'cellpadding', 'cellspacing',
+   266→      'border', 'align', 'valign', 'bgcolor', 'color', 'size', 'face',
+   267→      'target', 'rel',
+   268→    ],
+   269→    ALLOW_DATA_ATTR: false,
+   270→    ADD_ATTR: ['target'],
+   271→  })
+   272→}
+   273→
+   274→// ─── Component ────────────────────────────────────────────────
+   275→
+   276→export default function EmailsModule() {
+   277→  const { user } = useAuth()
+   278→  const { currentUser } = useCRMStore()
+   279→  const employeId = user?.employeId || currentUser?.employeId
+   280→
+   281→  // State
+   282→  const [config, setConfig] = useState<EmailConfig | null>(null)
+   283→  const [folders, setFolders] = useState<EmailFolder[]>([])
+   284→  const [selectedFolder, setSelectedFolder] = useState('INBOX')
+   285→  const [messages, setMessages] = useState<EmailMessage[]>([])
+   286→  const [selectedMessage, setSelectedMessage] = useState<EmailDetail | null>(null)
+   287→  const [isLoadingFolders, setIsLoadingFolders] = useState(false)
+   288→  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+   289→  const [isLoadingMessage, setIsLoadingMessage] = useState(false)
+   290→  const [isSending, setIsSending] = useState(false)
+   291→  const [isTesting, setIsTesting] = useState(false)
+   292→  const [searchQuery, setSearchQuery] = useState('')
+   293→  const [showConfig, setShowConfig] = useState(false)
+   294→  const [showCompose, setShowCompose] = useState(false)
+   295→  const [connectionError, setConnectionError] = useState<string | null>(null)
+   296→  const [selectedUids, setSelectedUids] = useState<Set<number>>(new Set())
+   297→  const [messagePage, setMessagePage] = useState(1)
+   298→  const [totalMessages, setTotalMessages] = useState(0)
+   299→  const [hasMoreMessages, setHasMoreMessages] = useState(false)
+   300→
+   301→  // Compose form
+   302→  const [composeForm, setComposeForm] = useState({
+   303→    to: '',
+   304→    cc: '',
+   305→    bcc: '',
+   306→    subject: '',
+   307→    text: '',
+   308→    html: '',
+   309→    inReplyTo: '',
+   310→    replyTo: '',
+   311→  })
+   312→  const [showCcBcc, setShowCcBcc] = useState(false)
+   313→  const [signature, setSignature] = useState('')
+   314→  const [signatureDraft, setSignatureDraft] = useState('')
+   315→  const [showSignatureSettings, setShowSignatureSettings] = useState(false)
+   316→
+   317→  // Config form state
+   318→  const [configForm, setConfigForm] = useState({
+   319→    email: '',
+   320→    imapHost: '',
+   321→    imapPort: 993,
+   322→    imapTls: true,
+   323→    smtpHost: '',
+   324→    smtpPort: 587,
+   325→    smtpTls: true,
+   326→    emailPassword: '',
+   327→    preset: 'custom',
+   328→  })
+   329→
+   330→  // Test result state
+   331→  const [testResult, setTestResult] = useState<{
+   332→    success: boolean
+   333→    results?: {
+   334→      imap: { success: boolean; message: string }
+   335→      smtp: { success: boolean; message: string }
+   336→    }
+   337→  } | null>(null)
+   338→
+   339→  // Auto-refresh interval ref
+   340→  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+   341→
+   342→  // ─── API calls ──────────────────────────────────────────────
+   343→
+   344→  const fetchConfig = useCallback(async () => {
+   345→    try {
+   346→      const res = await fetch('/api/emails/config', { credentials: 'same-origin' })
+   347→      if (res.ok) {
+   348→        const data = await res.json()
+   349→        setConfig(data)
+   350→        if (data.email) {
+   351→          setConfigForm((prev) => ({
+   352→            ...prev,
+   353→            email: data.email,
+   354→            imapHost: data.imapHost || '',
+   355→            imapPort: data.imapPort || 993,
+   356→            imapTls: data.imapTls !== false,
+   357→            smtpHost: data.smtpHost || '',
+   358→            smtpPort: data.smtpPort || 587,
+   359→            smtpTls: data.smtpTls !== false,
+   360→          }))
+   361→        }
+   362→        // Charger la signature
+   363→        if (data.signature) {
+   364→          setSignature(data.signature)
+   365→          setSignatureDraft(data.signature)
+   366→        }
+   367→      }
+   368→    } catch (err) {
+   369→      console.error('[EMAILS] Erreur fetch config:', err)
+   370→    }
+   371→  }, [])
+   372→
+   373→  const fetchFolders = useCallback(async () => {
+   374→    if (!config?.isConfigured) return
+   375→    setIsLoadingFolders(true)
+   376→    setConnectionError(null)
+   377→    try {
+   378→      const res = await fetch('/api/emails/folders', { credentials: 'same-origin' })
+   379→      if (res.ok) {
+   380→        const data = await res.json()
+   381→        setFolders(data.folders || [])
+   382→      } else {
+   383→        const err = await res.json().catch(() => ({}))
+   384→        const errorMessage = err.error || 'Impossible de charger les dossiers'
+   385→        setConnectionError(errorMessage)
+   386→        toast.error('Erreur de connexion', { description: errorMessage, duration: 8000 })
+   387→      }
+   388→    } catch {
+   389→      setConnectionError('Erreur réseau')
+   390→    } finally {
+   391→      setIsLoadingFolders(false)
+   392→    }
+   393→  }, [config?.isConfigured])
+   394→
+   395→  const fetchMessages = useCallback(async (folder: string, search?: string, page: number = 1, append: boolean = false) => {
+   396→    if (!config?.isConfigured) return
+   397→    setIsLoadingMessages(true)
+   398→    try {
+   399→      const params = new URLSearchParams({ folder, page: String(page), limit: '25' })
+   400→      if (search) params.set('search', search)
+   401→      const res = await fetch(`/api/emails/inbox?${params}`, { credentials: 'same-origin' })
+   402→      if (res.ok) {
+   403→        const data = await res.json()
+   404→        const newMessages = (data.messages || []).map((msg: EmailMessage) => ({
+   405→          ...msg,
+   406→          flags: normalizeFlags(msg.flags),
+   407→        }))
+   408→        if (append) {
+   409→          setMessages((prev) => [...prev, ...newMessages])
+   410→        } else {
+   411→          setMessages(newMessages)
+   412→        }
+   413→        setTotalMessages(data.total || 0)
+   414→        setHasMoreMessages(data.page < data.totalPages)
+   415→      } else {
+   416→        const err = await res.json().catch(() => ({}))
+   417→        const errorMessage = err.error || 'Impossible de charger les emails'
+   418→        setConnectionError(errorMessage)
+   419→        toast.error('Erreur de connexion', { description: errorMessage, duration: 8000 })
+   420→      }
+   421→    } catch {
+   422→      console.error('[EMAILS] Erreur fetch messages')
+   423→    } finally {
+   424→      setIsLoadingMessages(false)
+   425→    }
+   426→  }, [config?.isConfigured])
+   427→
+   428→  const fetchMessage = async (uid: number, folder: string) => {
+   429→    setIsLoadingMessage(true)
+   430→    try {
+   431→      const res = await fetch(
+   432→        `/api/emails/message?uid=${uid}&folder=${encodeURIComponent(folder)}`,
+   433→        { credentials: 'same-origin' }
+   434→      )
+   435→      if (res.ok) {
+   436→        const data = await res.json()
+   437→        data.flags = normalizeFlags(data.flags)
+   438→        setSelectedMessage(data)
+   439→      } else {
+   440→        const err = await res.json().catch(() => ({}))
+   441→        toast.error('Erreur', { description: err.error || 'Impossible de lire le message' })
+   442→      }
+   443→    } catch {
+   444→      console.error('[EMAILS] Erreur fetch message')
+   445→    } finally {
+   446→      setIsLoadingMessage(false)
+   447→    }
+   448→  }
+   449→
+   450→  const toggleFlag = async (uid: number, flag: string, add: boolean) => {
+   451→    try {
+   452→      const res = await fetch('/api/emails/flags', {
+   453→        method: 'PATCH',
+   454→        headers: { 'Content-Type': 'application/json' },
+   455→        credentials: 'same-origin',
+   456→        body: JSON.stringify({
+   457→          folder: selectedFolder,
+   458→          uid,
+   459→          addFlags: add ? [flag] : undefined,
+   460→          removeFlags: add ? undefined : [flag],
+   461→        }),
+   462→      })
+   463→      if (res.ok) {
+   464→        // Update local state
+   465→        setMessages((prev) =>
+   466→          prev.map((msg) => {
+   467→            if (msg.uid !== uid) return msg
+   468→            const flags = normalizeFlags(msg.flags)
+   469→            const newFlags = add
+   470→              ? flags.includes(flag) ? flags : [...flags, flag]
+   471→              : flags.filter((f) => f !== flag)
+   472→            return { ...msg, flags: newFlags }
+   473→          })
+   474→        )
+   475→        if (selectedMessage?.uid === uid) {
+   476→          const flags = normalizeFlags(selectedMessage.flags)
+   477→          const newFlags = add
+   478→            ? flags.includes(flag) ? flags : [...flags, flag]
+   479→            : flags.filter((f) => f !== flag)
+   480→          setSelectedMessage({ ...selectedMessage, flags: newFlags })
+   481→        }
+   482→      } else {
+   483→        toast.error('Erreur', { description: 'Impossible de modifier le flag' })
+   484→      }
+   485→    } catch {
+   486→      toast.error('Erreur réseau')
+   487→    }
+   488→  }
+   489→
+   490→  const bulkAction = async (action: 'read' | 'unread' | 'delete') => {
+   491→    if (selectedUids.size === 0) return
+   492→    const uids = Array.from(selectedUids)
+   493→
+   494→    if (action === 'delete') {
+   495→      for (const uid of uids) {
+   496→        try {
+   497→          await fetch('/api/emails/message', {
+   498→            method: 'DELETE',
+   499→            headers: { 'Content-Type': 'application/json' },
+   500→            credentials: 'same-origin',
+   501→            body: JSON.stringify({ folder: selectedFolder, uid }),
+   502→          })
+   503→        } catch { /* ignore individual errors */ }
+   504→      }
+   505→      toast.success(`${uids.length} email(s) supprimé(s)`)
+   506→      setSelectedUids(new Set())
+   507→      if (selectedMessage && uids.includes(selectedMessage.uid)) {
+   508→        setSelectedMessage(null)
+   509→      }
+   510→      fetchMessages(selectedFolder, searchQuery || undefined)
+   511→      fetchFolders()
+   512→      return
+   513→    }
+   514→
+   515→    const flag = '\\Seen'
+   516→    const add = action === 'read'
+   517→    for (const uid of uids) {
+   518→      try {
+   519→        await fetch('/api/emails/flags', {
+   520→          method: 'PATCH',
+   521→          headers: { 'Content-Type': 'application/json' },
+   522→          credentials: 'same-origin',
+   523→          body: JSON.stringify({
+   524→            folder: selectedFolder,
+   525→            uid,
+   526→            addFlags: add ? [flag] : undefined,
+   527→            removeFlags: add ? undefined : [flag],
+   528→          }),
+   529→        })
+   530→      } catch { /* ignore */ }
+   531→    }
+   532→    toast.success(`${uids.length} email(s) marqué(s) comme ${action === 'read' ? 'lu' : 'non lu'}`)
+   533→    setMessages((prev) =>
+   534→      prev.map((msg) => {
+   535→        if (!selectedUids.has(msg.uid)) return msg
+   536→        const flags = normalizeFlags(msg.flags)
+   537→        const newFlags = add
+   538→          ? flags.includes(flag) ? flags : [...flags, flag]
+   539→          : flags.filter((f) => f !== flag)
+   540→        return { ...msg, flags: newFlags }
+   541→      })
+   542→    )
+   543→    setSelectedUids(new Set())
+   544→    fetchFolders()
+   545→  }
+   546→
+   547→  const testConnection = async () => {
+   548→    if (!configForm.email || !configForm.imapHost || !configForm.smtpHost || !configForm.emailPassword) {
+   549→      toast.error('Champs manquants', { description: 'Remplissez tous les champs avant de tester la connexion.' })
+   550→      return
+   551→    }
+   552→    setIsTesting(true)
+   553→    setTestResult(null)
+   554→    try {
+   555→      const res = await fetch('/api/emails/test', {
+   556→        method: 'POST',
+   557→        headers: { 'Content-Type': 'application/json' },
+   558→        credentials: 'same-origin',
+   559→        body: JSON.stringify(configForm),
+   560→      })
+   561→      const data = await res.json().catch(() => ({}))
+   562→      if (res.ok && data.success !== undefined) {
+   563→        setTestResult(data)
+   564→        if (data.success) {
+   565→          toast.success('Connexion réussie', { description: 'IMAP et SMTP fonctionnent correctement' })
+   566→        } else {
+   567→          const failedParts: string[] = []
+   568→          if (data.results?.imap && !data.results.imap.success) failedParts.push(`IMAP: ${data.results.imap.message}`)
+   569→          if (data.results?.smtp && !data.results.smtp.success) failedParts.push(`SMTP: ${data.results.smtp.message}`)
+   570→          toast.error('Échec de connexion', { description: failedParts.join(' | ') || data.error || 'Échec', duration: 15000 })
+   571→        }
+   572→      } else {
+   573→        // Erreur serveur - afficher les détails avec steps de diagnostic
+   574→        const errorDetail = data.details || data.error || 'Erreur inconnue'
+   575→        const errorCode = data.code || ''
+   576→        const steps = (data.steps || []).join(' → ')
+   577→        let desc = errorCode ? `${errorDetail} (code: ${errorCode})` : errorDetail
+   578→        if (steps) desc += ` | Étapes: ${steps}`
+   579→        toast.error(data.error || 'Erreur de test', { description: desc, duration: 20000 })
+   580→        // Mettre à jour testResult avec l'erreur
+   581→        setTestResult(data)
+   582→      }
+   583→    } catch {
+   584→      toast.error('Erreur réseau', { description: 'Impossible de joindre le serveur' })
+   585→    } finally {
+   586→      setIsTesting(false)
+   587→    }
+   588→  }
+   589→
+   590→  const saveConfig = async () => {
+   591→    if (!configForm.email || !configForm.imapHost || !configForm.smtpHost) {
+   592→      toast.error('Champs requis', { description: 'Email, serveur IMAP et SMTP sont obligatoires' })
+   593→      return
+   594→    }
+   595→    if (!configForm.emailPassword && !config?.isConfigured) {
+   596→      toast.error('Mot de passe requis', { description: 'Le mot de passe d\'application est obligatoire pour la première configuration' })
+   597→      return
+   598→    }
+   599→    setIsTesting(true)
+   600→    try {
+   601→      const testRes = await fetch('/api/emails/test', {
+   602→        method: 'POST',
+   603→        headers: { 'Content-Type': 'application/json' },
+   604→        credentials: 'same-origin',
+   605→        body: JSON.stringify(configForm),
+   606→      })
+   607→      const testData = await testRes.json().catch(() => ({}))
+   608→      if (testRes.ok && testData.success !== undefined) {
+   609→        setTestResult(testData)
+   610→        if (!testData.success) {
+   611→          setIsTesting(false)
+   612→          const failedParts: string[] = []
+   613→          if (testData.results?.imap && !testData.results.imap.success) failedParts.push(`IMAP: ${testData.results.imap.message}`)
+   614→          if (testData.results?.smtp && !testData.results.smtp.success) failedParts.push(`SMTP: ${testData.results.smtp.message}`)
+   615→          toast.error('Échec de connexion', { description: failedParts.join(' | ') || testData.error || 'Échec', duration: 15000 })
+   616→          return
+   617→        }
+   618→      } else {
+   619→        // Erreur serveur pendant le test
+   620→        setIsTesting(false)
+   621→        const errorDetail = testData.details || testData.error || 'Erreur inconnue'
+   622→        toast.error('Échec de connexion', { description: errorDetail, duration: 15000 })
+   623→        if (testData.results) setTestResult(testData)
+   624→        return
+   625→      }
+   626→    } catch {
+   627→      setIsTesting(false)
+   628→      toast.error('Erreur réseau lors du test')
+   629→      return
+   630→    }
+   631→    setIsTesting(false)
+   632→    try {
+   633→      // Exclure le champ preset avant d'envoyer
+   634→      const { preset: _preset, ...configData } = configForm as any
+   635→      const res = await fetch('/api/emails/config', {
+   636→        method: 'POST',
+   637→        headers: { 'Content-Type': 'application/json' },
+   638→        credentials: 'same-origin',
+   639→        body: JSON.stringify(configData),
+   640→      })
+   641→      if (res.ok) {
+   642→        const data = await res.json()
+   643→        setConfig({ ...data, isConfigured: true })
+   644→        toast.success('Configuration sauvegardée', { description: 'Votre boîte email est connectée' })
+   645→        setShowConfig(false)
+   646→      } else {
+   647→        const err = await res.json().catch(() => ({}))
+   648→        const errorDetail = [
+   649→          err.error,
+   650→          err.details,
+   651→          err.code ? `(code: ${err.code})` : '',
+   652→          err.meta ? `(meta: ${err.meta})` : '',
+   653→        ].filter(Boolean).join(' — ') || 'Impossible de sauvegarder la configuration'
+   654→        console.error('[EMAILS] Config save error:', err)
+   655→        toast.error('Erreur de sauvegarde', { description: errorDetail, duration: 20000 })
+   656→      }
+   657→    } catch (netErr) {
+   658→      console.error('[EMAILS] Config save network error:', netErr)
+   659→      toast.error('Erreur réseau')
+   660→    }
+   661→  }
+   662→
+   663→  const sendEmail = async () => {
+   664→    if (!composeForm.to || !composeForm.subject) {
+   665→      toast.error('Champs requis', { description: 'Destinataire et sujet sont obligatoires' })
+   666→      return
+   667→    }
+   668→    setIsSending(true)
+   669→    try {
+   670→      // Construire le HTML final avec signature
+   671→      const finalHtml = composeForm.html
+   672→        ? (signature ? `${composeForm.html}<br><br>${signature}` : composeForm.html)
+   673→        : (signature ? `<p>${composeForm.text.replace(/\n/g, '</p><p>')}</p><br><br>${signature}` : undefined)
+   674→
+   675→      // Générer une version texte brute (fallback)
+   676→      const plainText = composeForm.text || composeForm.html?.replace(/<[^>]*>/g, '') || ''
+   677→
+   678→      const payload: Record<string, unknown> = {
+   679→        to: composeForm.to,
+   680→        cc: composeForm.cc || undefined,
+   681→        bcc: composeForm.bcc || undefined,
+   682→        subject: composeForm.subject,
+   683→        text: plainText,
+   684→        html: finalHtml,
+   685→      }
+   686→      if (composeForm.replyTo) {
+   687→        payload.replyTo = composeForm.replyTo
+   688→      }
+   689→      if (composeForm.inReplyTo) {
+   690→        payload.inReplyTo = composeForm.inReplyTo
+   691→      }
+   692→      const res = await fetch('/api/emails/send', {
+   693→        method: 'POST',
+   694→        headers: { 'Content-Type': 'application/json' },
+   695→        credentials: 'same-origin',
+   696→        body: JSON.stringify(payload),
+   697→      })
+   698→      if (res.ok) {
+   699→        const data = await res.json()
+   700→        const desc = data.savedToImap
+   701→          ? `À ${composeForm.to} · Copie sauvegardée dans Envoyés`
+   702→          : `À ${composeForm.to}`
+   703→        toast.success('Email envoyé', { description: desc })
+   704→        setShowCompose(false)
+   705→        setComposeForm({ to: '', cc: '', bcc: '', subject: '', text: '', html: '', inReplyTo: '', replyTo: '' })
+   706→        // Rafraîchir la liste des dossiers pour mettre à jour le compteur
+   707→        fetchFolders()
+   708→      } else {
+   709→        const err = await res.json().catch(() => ({}))
+   710→        toast.error("Erreur d'envoi", { description: err.error || err.details || 'Impossible d\'envoyer l\'email' })
+   711→      }
+   712→    } catch {
+   713→      toast.error('Erreur réseau')
+   714→    } finally {
+   715→      setIsSending(false)
+   716→    }
+   717→  }
+   718→
+   719→  const deleteEmail = async (uid: number) => {
+   720→    try {
+   721→      const res = await fetch('/api/emails/message', {
+   722→        method: 'DELETE',
+   723→        headers: { 'Content-Type': 'application/json' },
+   724→        credentials: 'same-origin',
+   725→        body: JSON.stringify({ folder: selectedFolder, uid }),
+   726→      })
+   727→      if (res.ok) {
+   728→        toast.success('Email supprimé')
+   729→        setSelectedMessage(null)
+   730→        fetchMessages(selectedFolder, searchQuery || undefined)
+   731→        fetchFolders()
+   732→      }
+   733→    } catch {
+   734→      toast.error('Erreur de suppression')
+   735→    }
+   736→  }
+   737→
+   738→  const replyToEmail = (email: EmailDetail) => {
+   739→    const sender = email.envelope.from?.[0]
+   740→    const replyToAddr = sender ? (sender.name ? `${sender.name} <${sender.address}>` : sender.address) : ''
+   741→    const subject = email.envelope.subject?.startsWith('Re:') ? email.envelope.subject : `Re: ${email.envelope.subject || ''}`
+   742→    // Construire le HTML du message original cité
+   743→    const quotedHtml = `
+   744→      <br><br>
+   745→      <div style="border-left: 3px solid #ccc; padding-left: 10px; margin-left: 0; color: #666;">
+   746→        <p style="margin: 0; font-size: 12px; color: #999;">Le ${formatFullDate(email.envelope.date)}, ${extractEmailAddress(email.envelope.from)} a écrit :</p>
+   747→        ${email.isHtml && email.htmlContent ? email.htmlContent : `<p>${(email.textContent || '').replace(/\n/g, '</p><p>')}</p>`}
+   748→      </div>`
+   749→    setComposeForm({
+   750→      to: replyToAddr,
+   751→      cc: '',
+   752→      bcc: '',
+   753→      subject,
+   754→      text: `\n\n--- Message original ---\nDe: ${extractEmailAddress(email.envelope.from)}\nDate: ${email.envelope.date}\n\n${email.textContent || ''}`,
+   755→      html: quotedHtml,
+   756→      inReplyTo: email.envelope.messageId || '',
+   757→      replyTo: email.envelope.messageId || '',
+   758→    })
+   759→    setShowCcBcc(false)
+   760→    setShowCompose(true)
+   761→  }
+   762→
+   763→  const forwardEmail = (email: EmailDetail) => {
+   764→    const fwdHtml = `
+   765→      <br><br>
+   766→      <div style="background: #f9f9f9; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+   767→        <p style="margin: 0 0 5px; font-size: 12px; color: #666;"><b>Message transféré</b></p>
+   768→        <p style="margin: 0 0 3px; font-size: 12px; color: #666;">De: ${extractEmailAddress(email.envelope.from)}</p>
+   769→        <p style="margin: 0 0 3px; font-size: 12px; color: #666;">Date: ${formatFullDate(email.envelope.date)}</p>
+   770→        <p style="margin: 0 0 3px; font-size: 12px; color: #666;">Sujet: ${email.envelope.subject || ''}</p>
+   771→        <hr style="border: none; border-top: 1px solid #ddd; margin: 8px 0;">
+   772→        ${email.isHtml && email.htmlContent ? email.htmlContent : `<p>${(email.textContent || '').replace(/\n/g, '</p><p>')}</p>`}
+   773→      </div>`
+   774→    setComposeForm({
+   775→      to: '',
+   776→      cc: '',
+   777→      bcc: '',
+   778→      subject: email.envelope.subject?.startsWith('Fwd:') ? email.envelope.subject : `Fwd: ${email.envelope.subject || ''}`,
+   779→      text: `\n\n--- Message transféré ---\nDe: ${extractEmailAddress(email.envelope.from)}\nDate: ${email.envelope.date}\n\n${email.textContent || ''}`,
+   780→      html: fwdHtml,
+   781→      inReplyTo: '',
+   782→      replyTo: '',
+   783→    })
+   784→    setShowCcBcc(false)
+   785→    setShowCompose(true)
+   786→  }
+   787→
+   788→  const handlePresetChange = (preset: string) => {
+   789→    const p = emailPresets[preset] || {}
+   790→    setConfigForm((prev) => ({
+   791→      ...prev,
+   792→      preset,
+   793→      imapHost: p.imapHost || '',
+   794→      imapPort: p.imapPort || 993,
+   795→      imapTls: p.imapTls !== false,
+   796→      smtpHost: p.smtpHost || '',
+   797→      smtpPort: p.smtpPort || 587,
+   798→      smtpTls: p.smtpTls !== false,
+   799→    }))
+   800→    setTestResult(null)
+   801→  }
+   802→
+   803→  const openCompose = () => {
+   804→    setComposeForm({ to: '', cc: '', bcc: '', subject: '', text: '', html: '', inReplyTo: '', replyTo: '' })
+   805→    setShowCcBcc(false)
+   806→    setShowCompose(true)
+   807→  }
+   808→
+   809→  // ─── Effects ────────────────────────────────────────────────
+   810→
+   811→  useEffect(() => { fetchConfig() }, [fetchConfig])
+   812→
+   813→  useEffect(() => {
+   814→    if (config?.isConfigured) fetchFolders()
+   815→  }, [config?.isConfigured, fetchFolders])
+   816→
+   817→  useEffect(() => {
+   818→    if (config?.isConfigured && selectedFolder) {
+   819→      setMessagePage(1)
+   820→      setSelectedUids(new Set())
+   821→      fetchMessages(selectedFolder)
+   822→      setSelectedMessage(null)
+   823→    }
+   824→  }, [selectedFolder, config?.isConfigured, fetchMessages])
+   825→
+   826→  // Auto-refresh every 60 seconds
+   827→  useEffect(() => {
+   828→    if (!config?.isConfigured) return
+   829→    intervalRef.current = setInterval(() => {
+   830→      fetchFolders()
+   831→      fetchMessages(selectedFolder, searchQuery || undefined)
+   832→    }, 60000)
+   833→    return () => {
+   834→      if (intervalRef.current) clearInterval(intervalRef.current)
+   835→    }
+   836→  }, [config?.isConfigured, selectedFolder, searchQuery, fetchFolders, fetchMessages])
+   837→
+   838→  // ─── Select-all logic ───────────────────────────────────────
+   839→
+   840→  const allSelected = messages.length > 0 && messages.every((m) => selectedUids.has(m.uid))
+   841→  const someSelected = selectedUids.size > 0 && !allSelected
+   842→
+   843→  const toggleSelectAll = () => {
+   844→    if (allSelected) {
+   845→      setSelectedUids(new Set())
+   846→    } else {
+   847→      setSelectedUids(new Set(messages.map((m) => m.uid)))
+   848→    }
+   849→  }
+   850→
+   851→  const toggleSelect = (uid: number) => {
+   852→    setSelectedUids((prev) => {
+   853→      const next = new Set(prev)
+   854→      if (next.has(uid)) next.delete(uid)
+   855→      else next.add(uid)
+   856→      return next
+   857→    })
+   858→  }
+   859→
+   860→  // ─── Load more ──────────────────────────────────────────────
+   861→
+   862→  const loadMore = () => {
+   863→    const nextPage = messagePage + 1
+   864→    setMessagePage(nextPage)
+   865→    fetchMessages(selectedFolder, searchQuery || undefined, nextPage, true)
+   866→  }
+   867→
+   868→  // ─── Config Setup Screen ────────────────────────────────────
+   869→
+   870→  if (!config?.isConfigured) {
+   871→    return (
+   872→      <div className="min-h-screen bg-slate-50">
+   873→        <ModuleHeader title="Emails" subtitle="Accédez à votre boîte email depuis le CRM" />
+   874→        <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
+   875→          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+   876→            <div className="flex flex-col items-center text-center">
+   877→              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#134885]/10">
+   878→                <Mail className="h-8 w-8 text-[#134885]" />
+   879→              </div>
+   880→              <h2 className="text-xl font-bold text-slate-900">Configurez votre email</h2>
+   881→              <p className="mt-2 text-sm text-slate-500 max-w-md">
+   882→                Connectez votre boîte email professionnelle pour lire et envoyer des messages directement depuis le CRM.
+   883→              </p>
+   884→            </div>
+   885→
+   886→            <div className="mt-8 space-y-4">
+   887→              {/* Preset selector */}
+   888→              <div>
+   889→                <Label className="text-sm font-medium text-slate-700">Fournisseur email</Label>
+   890→                <div className="mt-2 grid grid-cols-5 gap-2">
+   891→                  {[
+   892→                    { id: 'gmail', label: 'Gmail' },
+   893→                    { id: 'outlook', label: 'Outlook' },
+   894→                    { id: 'yahoo', label: 'Yahoo' },
+   895→                    { id: 'lws', label: 'LWS' },
+   896→                    { id: 'custom', label: 'Autre' },
+   897→                  ].map((p) => (
+   898→                    <button
+   899→                      key={p.id}
+   900→                      onClick={() => handlePresetChange(p.id)}
+   901→                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+   902→                        configForm.preset === p.id
+   903→                          ? 'border-[#134885] bg-[#134885]/5 text-[#134885]'
+   904→                          : 'border-slate-200 text-slate-600 hover:border-slate-300'
+   905→                      }`}
+   906→                    >
+   907→                      {p.label}
+   908→                    </button>
+   909→                  ))}
+   910→                </div>
+   911→              </div>
+   912→
+   913→              {configForm.preset !== 'custom' && emailPresets[configForm.preset]?.helpText && (
+   914→                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+   915→                  <div className="flex items-start gap-2">
+   916→                    <Shield className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+   917→                    <p className="text-xs text-amber-800 leading-relaxed">
+   918→                      {emailPresets[configForm.preset].helpText}
+   919→                    </p>
+   920→                  </div>
+   921→                </div>
+   922→              )}
+   923→
+   924→              <div>
+   925→                <Label className="text-sm font-medium text-slate-700">Adresse email</Label>
+   926→                <Input
+   927→                  value={configForm.email}
+   928→                  onChange={(e) => { setConfigForm((prev) => ({ ...prev, email: e.target.value })); setTestResult(null) }}
+   929→                  placeholder="votre@email.com"
+   930→                  className="mt-1"
+   931→                />
+   932→              </div>
+   933→
+   934→              <div>
+   935→                <Label className="text-sm font-medium text-slate-700">Mot de passe de l&apos;application</Label>
+   936→                <Input
+   937→                  type="password"
+   938→                  value={configForm.emailPassword}
+   939→                  onChange={(e) => { setConfigForm((prev) => ({ ...prev, emailPassword: e.target.value })); setTestResult(null) }}
+   940→                  placeholder="Mot de passe d'application"
+   941→                  className="mt-1"
+   942→                />
+   943→                <p className="mt-1 text-[11px] text-slate-400">
+   944→                  {configForm.preset === 'custom'
+   945→                    ? 'Utilisez un mot de passe d\'application si votre fournisseur le requiert.'
+   946→                    : 'Collez ici le mot de passe d\'application généré ci-dessus.'}
+   947→                </p>
+   948→              </div>
+   949→
+   950→              <div className="grid grid-cols-2 gap-4">
+   951→                <div>
+   952→                  <Label className="text-sm font-medium text-slate-700">Serveur IMAP</Label>
+   953→                  <Input
+   954→                    value={configForm.imapHost}
+   955→                    onChange={(e) => { setConfigForm((prev) => ({ ...prev, imapHost: e.target.value })); setTestResult(null) }}
+   956→                    placeholder="imap.example.com"
+   957→                    className="mt-1"
+   958→                  />
+   959→                </div>
+   960→                <div>
+   961→                  <Label className="text-sm font-medium text-slate-700">Port IMAP</Label>
+   962→                  <Input
+   963→                    type="number"
+   964→                    value={configForm.imapPort}
+   965→                    onChange={(e) => setConfigForm((prev) => ({ ...prev, imapPort: parseInt(e.target.value) || 993 }))}
+   966→                    className="mt-1"
+   967→                  />
+   968→                </div>
+   969→              </div>
+   970→
+   971→              <div className="grid grid-cols-2 gap-4">
+   972→                <div>
+   973→                  <Label className="text-sm font-medium text-slate-700">Serveur SMTP</Label>
+   974→                  <Input
+   975→                    value={configForm.smtpHost}
+   976→                    onChange={(e) => { setConfigForm((prev) => ({ ...prev, smtpHost: e.target.value })); setTestResult(null) }}
+   977→                    placeholder="smtp.example.com"
+   978→                    className="mt-1"
+   979→                  />
+   980→                </div>
+   981→                <div>
+   982→                  <Label className="text-sm font-medium text-slate-700">Port SMTP</Label>
+   983→                  <Input
+   984→                    type="number"
+   985→                    value={configForm.smtpPort}
+   986→                    onChange={(e) => setConfigForm((prev) => ({ ...prev, smtpPort: parseInt(e.target.value) || 587 }))}
+   987→                    className="mt-1"
+   988→                  />
+   989→                </div>
+   990→              </div>
+   991→
+   992→              {testResult && (
+   993→                <div className={`rounded-lg border p-3 ${
+   994→                  testResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+   995→                }`}>
+   996→                  <div className="flex items-center gap-2 mb-2">
+   997→                    {testResult.success ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-red-600" />}
+   998→                    <span className={`text-sm font-medium ${testResult.success ? 'text-green-800' : 'text-red-800'}`}>
+   999→                      {testResult.success ? 'Connexion réussie' : 'Échec de connexion'}
+  1000→                    </span>
+  1001→                  </div>
+  1002→                  {testResult.results && (
+  1003→                    <div className="space-y-1.5 ml-6">
+  1004→                      <div className="flex items-center gap-2">
+  1005→                        {testResult.results.imap.success ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-red-500" />}
+  1006→                        <span className="text-xs text-slate-700">IMAP : {testResult.results.imap.message}</span>
+  1007→                      </div>
+  1008→                      <div className="flex items-center gap-2">
+  1009→                        {testResult.results.smtp.success ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-red-500" />}
+  1010→                        <span className="text-xs text-slate-700">SMTP : {testResult.results.smtp.message}</span>
+  1011→                      </div>
+  1012→                    </div>
+  1013→                  )}
+  1014→                </div>
+  1015→              )}
+  1016→
+  1017→              <div className="flex gap-3">
+  1018→                <Button
+  1019→                  onClick={testConnection}
+  1020→                  variant="outline"
+  1021→                  className="flex-1 border-slate-200"
+  1022→                  disabled={isTesting || !configForm.email || !configForm.imapHost || !configForm.smtpHost || !configForm.emailPassword}
+  1023→                >
+  1024→                  {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wifi className="mr-2 h-4 w-4" />}
+  1025→                  Tester la connexion
+  1026→                </Button>
+  1027→                <Button
+  1028→                  onClick={saveConfig}
+  1029→                  className="flex-1 bg-[#134885] hover:bg-[#0D3A6E]"
+  1030→                  disabled={isTesting || !configForm.email || !configForm.imapHost || !configForm.smtpHost}
+  1031→                >
+  1032→                  {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+  1033→                  Connecter
+  1034→                </Button>
+  1035→              </div>
+  1036→            </div>
+  1037→          </div>
+  1038→        </div>
+  1039→      </div>
+  1040→    )
+  1041→  }
+  1042→
+  1043→  // ─── Main Email Interface ───────────────────────────────────
+  1044→
+  1045→  const currentMessage = selectedMessage ? {
+  1046→    ...selectedMessage,
+  1047→    flags: normalizeFlags(selectedMessage.flags),
+  1048→  } : null
+  1049→
+  1050→  return (
+  1051→    <div className="min-h-screen bg-slate-50">
+  1052→      <ModuleHeader
+  1053→        title="Emails"
+  1054→        subtitle={config.email}
+  1055→        actions={
+  1056→          <div className="flex items-center gap-2">
+  1057→            <Button
+  1058→              onClick={() => {
+  1059→                fetchFolders()
+  1060→                fetchMessages(selectedFolder, searchQuery || undefined)
+  1061→              }}
+  1062→              variant="outline"
+  1063→              size="sm"
+  1064→              className="border-slate-200"
+  1065→              disabled={isLoadingFolders || isLoadingMessages}
+  1066→            >
+  1067→              <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isLoadingFolders || isLoadingMessages ? 'animate-spin' : ''}`} />
+  1068→              Actualiser
+  1069→            </Button>
+  1070→            <Button size="sm" className="bg-[#134885] hover:bg-[#0D3A6E]" onClick={openCompose}>
+  1071→              <Send className="mr-1.5 h-3.5 w-3.5" />
+  1072→              Nouveau message
+  1073→            </Button>
+  1074→            <Button
+  1075→              onClick={() => { setTestResult(null); setShowConfig(true) }}
+  1076→              variant="ghost"
+  1077→              size="icon"
+  1078→              className="h-8 w-8 text-slate-400 hover:text-slate-600"
+  1079→            >
+  1080→              <Settings className="h-4 w-4" />
+  1081→            </Button>
+  1082→          </div>
+  1083→        }
+  1084→      />
+  1085→
+  1086→      {/* Connection error banner */}
+  1087→      {connectionError && (
+  1088→        <div className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 p-3 flex items-center justify-between">
+  1089→          <div className="flex items-center gap-2">
+  1090→            <WifiOff className="h-4 w-4 text-red-500 shrink-0" />
+  1091→            <span className="text-sm text-red-700">{connectionError}</span>
+  1092→          </div>
+  1093→          <div className="flex items-center gap-2">
+  1094→            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 h-7 text-xs"
+  1095→              onClick={() => { fetchFolders(); fetchMessages(selectedFolder) }}>
+  1096→              <RefreshCw className="h-3 w-3 mr-1" /> Réessayer
+  1097→            </Button>
+  1098→            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 h-7 text-xs"
+  1099→              onClick={() => { setTestResult(null); setShowConfig(true) }}>
+  1100→              <Settings className="h-3 w-3 mr-1" /> Config
+  1101→            </Button>
+  1102→          </div>
+  1103→        </div>
+  1104→      )}
+  1105→
+  1106→      {/* 3-Pane Layout */}
+  1107→      <div className={`flex ${connectionError ? 'h-[calc(100vh-130px)]' : 'h-[calc(100vh-80px)]'}`}>
+  1108→
+  1109→        {/* ── Pane 1: Folders Sidebar ─────────────────────────── */}
+  1110→        <div className="w-56 shrink-0 border-r border-slate-200 bg-white flex flex-col">
+  1111→          <div className="p-3">
+  1112→            <div className="relative">
+  1113→              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+  1114→              <Input
+  1115→                value={searchQuery}
+  1116→                onChange={(e) => {
+  1117→                  setSearchQuery(e.target.value)
+  1118→                  if (e.target.value.length >= 2 || e.target.value.length === 0) {
+  1119→                    fetchMessages(selectedFolder, e.target.value || undefined)
+  1120→                  }
+  1121→                }}
+  1122→                placeholder="Rechercher..."
+  1123→                className="h-8 pl-8 text-xs border-slate-200"
+  1124→              />
+  1125→            </div>
+  1126→          </div>
+  1127→          <ScrollArea className="flex-1">
+  1128→            <div className="px-2 pb-2">
+  1129→              {isLoadingFolders ? (
+  1130→                <div className="flex justify-center py-4">
+  1131→                  <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+  1132→                </div>
+  1133→              ) : (
+  1134→                folders.map((folder) => (
+  1135→                  <button
+  1136→                    key={folder.path}
+  1137→                    onClick={() => setSelectedFolder(folder.path)}
+  1138→                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+  1139→                      selectedFolder === folder.path
+  1140→                        ? 'bg-[#134885]/10 text-[#134885] font-medium'
+  1141→                        : 'text-slate-600 hover:bg-slate-50'
+  1142→                    }`}
+  1143→                  >
+  1144→                    <span className={selectedFolder === folder.path ? 'text-[#134885]' : 'text-slate-400'}>
+  1145→                      {getFolderIcon(folder.specialUse, folder.path)}
+  1146→                    </span>
+  1147→                    <span className="flex-1 truncate text-left">{getFolderLabel(folder.path)}</span>
+  1148→                    {folder.unseen > 0 ? (
+  1149→                      <Badge className="h-5 min-w-5 flex items-center justify-center rounded-full bg-[#F6852A] px-1 text-[10px] font-bold text-white border-0">
+  1150→                        {folder.unseen}
+  1151→                      </Badge>
+  1152→                    ) : folder.count > 0 ? (
+  1153→                      <span className="text-[10px] text-slate-400">{folder.count}</span>
+  1154→                    ) : null}
+  1155→                  </button>
+  1156→                ))
+  1157→              )}
+  1158→            </div>
+  1159→          </ScrollArea>
+  1160→        </div>
+  1161→
+  1162→        {/* ── Pane 2: Message List ────────────────────────────── */}
+  1163→        <div className={`shrink-0 border-r border-slate-200 bg-white flex flex-col transition-all ${currentMessage ? 'w-80' : 'w-96'}`}>
+  1164→          {/* List header */}
+  1165→          <div className="border-b border-slate-100 px-3 py-2 flex items-center gap-2">
+  1166→            <Checkbox
+  1167→              checked={allSelected}
+  1168→              ref={(el) => {
+  1169→                if (el) {
+  1170→                  (el as unknown as HTMLButtonElement).dataset.state = someSelected ? 'indeterminate' : allSelected ? 'checked' : 'unchecked'
+  1171→                }
+  1172→              }}
+  1173→              onCheckedChange={toggleSelectAll}
+  1174→              className="shrink-0"
+  1175→            />
+  1176→            <h3 className="text-sm font-semibold text-slate-700 flex-1">
+  1177→              {getFolderLabel(selectedFolder)}
+  1178→            </h3>
+  1179→            <span className="text-xs text-slate-400">{totalMessages} message{totalMessages > 1 ? 's' : ''}</span>
+  1180→
+  1181→            {/* Bulk actions dropdown */}
+  1182→            {selectedUids.size > 0 && (
+  1183→              <DropdownMenu>
+  1184→                <DropdownMenuTrigger asChild>
+  1185→                  <Button variant="ghost" size="sm" className="h-7 text-xs text-[#134885]">
+  1186→                    Actions ({selectedUids.size})
+  1187→                    <ChevronDown className="ml-1 h-3 w-3" />
+  1188→                  </Button>
+  1189→                </DropdownMenuTrigger>
+  1190→                <DropdownMenuContent align="end">
+  1191→                  <DropdownMenuItem onClick={() => bulkAction('read')}>
+  1192→                    <Eye className="mr-2 h-3.5 w-3.5" /> Marquer comme lu
+  1193→                  </DropdownMenuItem>
+  1194→                  <DropdownMenuItem onClick={() => bulkAction('unread')}>
+  1195→                    <EyeOff className="mr-2 h-3.5 w-3.5" /> Marquer comme non lu
+  1196→                  </DropdownMenuItem>
+  1197→                  <DropdownMenuItem onClick={() => bulkAction('delete')} className="text-red-600 focus:text-red-600">
+  1198→                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+  1199→                  </DropdownMenuItem>
+  1200→                </DropdownMenuContent>
+  1201→              </DropdownMenu>
+  1202→            )}
+  1203→          </div>
+  1204→
+  1205→          {/* Message list */}
+  1206→          <ScrollArea className="flex-1">
+  1207→            {isLoadingMessages ? (
+  1208→              <div className="flex justify-center py-8">
+  1209→                <Loader2 className="h-6 w-6 animate-spin text-[#134885]" />
+  1210→              </div>
+  1211→            ) : messages.length === 0 ? (
+  1212→              <div className="flex flex-col items-center gap-2 py-12 px-4">
+  1213→                <Mail className="h-8 w-8 text-slate-300" />
+  1214→                <p className="text-sm text-slate-400">Aucun message</p>
+  1215→              </div>
+  1216→            ) : (
+  1217→              <>
+  1218→                {messages.map((msg) => {
+  1219→                  const flags = normalizeFlags(msg.flags)
+  1220→                  const isUnread = !flags.includes('\\Seen')
+  1221→                  const isFlagged = flags.includes('\\Flagged')
+  1222→                  const isSelected = currentMessage?.uid === msg.uid
+  1223→                  const isChecked = selectedUids.has(msg.uid)
+  1224→                  const hasAttach = hasAttachments(msg.bodyStructure)
+  1225→                  const snippet = extractSnippet(msg)
+  1226→
+  1227→                  return (
+  1228→                    <div
+  1229→                      key={msg.uid}
+  1230→                      className={`flex gap-2 border-b border-slate-50 px-3 py-2.5 text-left transition-colors cursor-pointer ${
+  1231→                        isSelected
+  1232→                          ? 'bg-[#134885]/5 border-l-2 border-l-[#134885]'
+  1233→                          : isUnread
+  1234→                            ? 'bg-white hover:bg-slate-50 border-l-2 border-l-[#F6852A]'
+  1235→                            : 'bg-slate-50/50 hover:bg-slate-50 border-l-2 border-l-transparent'
+  1236→                      }`}
+  1237→                      onClick={() => fetchMessage(msg.uid, selectedFolder)}
+  1238→                    >
+  1239→                      {/* Checkbox + Star column */}
+  1240→                      <div className="flex flex-col items-center gap-1.5 pt-0.5 shrink-0">
+  1241→                        <Checkbox
+  1242→                          checked={isChecked}
+  1243→                          onCheckedChange={() => toggleSelect(msg.uid)}
+  1244→                          onClick={(e) => e.stopPropagation()}
+  1245→                          className="h-3.5 w-3.5"
+  1246→                        />
+  1247→                        <button
+  1248→                          onClick={(e) => {
+  1249→                            e.stopPropagation()
+  1250→                            toggleFlag(msg.uid, '\\Flagged', !isFlagged)
+  1251→                          }}
+  1252→                          className="p-0 hover:scale-110 transition-transform"
+  1253→                        >
+  1254→                          <Star className={`h-3.5 w-3.5 ${isFlagged ? 'text-[#F6852A] fill-[#F6852A]' : 'text-slate-300 hover:text-[#F6852A]'}`} />
+  1255→                        </button>
+  1256→                      </div>
+  1257→
+  1258→                      {/* Message content */}
+  1259→                      <div className="flex-1 min-w-0">
+  1260→                        <div className="flex items-center justify-between gap-2">
+  1261→                          <span className={`truncate text-sm ${isUnread ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
+  1262→                            {extractSenderName(msg.envelope.from)}
+  1263→                          </span>
+  1264→                          <div className="flex items-center gap-1 shrink-0">
+  1265→                            {hasAttach && <Paperclip className="h-3 w-3 text-slate-400" />}
+  1266→                            <span className="text-[10px] text-slate-400" title={formatFullDate(msg.envelope.date)}>
+  1267→                              {formatDate(msg.envelope.date)}
+  1268→                            </span>
+  1269→                          </div>
+  1270→                        </div>
+  1271→                        <p className={`truncate text-sm ${isUnread ? 'font-medium text-slate-800' : 'text-slate-500'}`}>
+  1272→                          {msg.envelope.subject || '(Sans sujet)'}
+  1273→                        </p>
+  1274→                        {snippet && (
+  1275→                          <p className="truncate text-xs text-slate-400 mt-0.5">{snippet}</p>
+  1276→                        )}
+  1277→                      </div>
+  1278→                    </div>
+  1279→                  )
+  1280→                })}
+  1281→
+  1282→                {/* Load more button */}
+  1283→                {hasMoreMessages && (
+  1284→                  <div className="flex justify-center py-3">
+  1285→                    <Button
+  1286→                      variant="ghost"
+  1287→                      size="sm"
+  1288→                      className="text-[#134885] text-xs"
+  1289→                      onClick={loadMore}
+  1290→                      disabled={isLoadingMessages}
+  1291→                    >
+  1292→                      {isLoadingMessages ? (
+  1293→                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+  1294→                      ) : null}
+  1295→                      Charger plus
+  1296→                    </Button>
+  1297→                  </div>
+  1298→                )}
+  1299→              </>
+  1300→            )}
+  1301→          </ScrollArea>
+  1302→        </div>
+  1303→
+  1304→        {/* ── Pane 3: Message Detail ──────────────────────────── */}
+  1305→        <div className="flex-1 bg-white">
+  1306→          {isLoadingMessage ? (
+  1307→            <div className="flex items-center justify-center h-full">
+  1308→              <Loader2 className="h-8 w-8 animate-spin text-[#134885]" />
+  1309→            </div>
+  1310→          ) : currentMessage ? (
+  1311→            <div className="flex h-full flex-col">
+  1312→              {/* Message Header + Toolbar */}
+  1313→              <div className="border-b border-slate-200 px-6 py-4">
+  1314→                <div className="flex items-start justify-between gap-4">
+  1315→                  <div className="min-w-0 flex-1">
+  1316→                    <h2 className="text-lg font-bold text-slate-900">
+  1317→                      {currentMessage.envelope.subject || '(Sans sujet)'}
+  1318→                    </h2>
+  1319→                    <div className="mt-2 space-y-1">
+  1320→                      <div className="flex items-center gap-2 text-sm">
+  1321→                        <Avatar className="h-8 w-8">
+  1322→                          <AvatarFallback className="bg-[#134885]/10 text-[11px] font-semibold text-[#134885]">
+  1323→                            {extractSenderName(currentMessage.envelope.from).slice(0, 2).toUpperCase()}
+  1324→                          </AvatarFallback>
+  1325→                        </Avatar>
+  1326→                        <div>
+  1327→                          <span className="font-medium text-slate-800">
+  1328→                            {extractSenderName(currentMessage.envelope.from)}
+  1329→                          </span>
+  1330→                          <span className="ml-1 text-slate-400 text-xs">
+  1331→                            &lt;{currentMessage.envelope.from?.[0]?.address}&gt;
+  1332→                          </span>
+  1333→                        </div>
+  1334→                      </div>
+  1335→                      <div className="text-xs text-slate-400 pl-10">
+  1336→                        À: {currentMessage.envelope.to?.map((r) => r.address).join(', ')}
+  1337→                      </div>
+  1338→                      {currentMessage.envelope.cc && currentMessage.envelope.cc.length > 0 && (
+  1339→                        <div className="text-xs text-slate-400 pl-10">
+  1340→                          Cc: {currentMessage.envelope.cc.map((r) => r.address).join(', ')}
+  1341→                        </div>
+  1342→                      )}
+  1343→                      <div className="text-xs text-slate-400 pl-10">
+  1344→                        {formatFullDate(currentMessage.envelope.date)}
+  1345→                      </div>
+  1346→                    </div>
+  1347→                  </div>
+  1348→
+  1349→                  {/* Action toolbar */}
+  1350→                  <div className="flex items-center gap-1 shrink-0">
+  1351→                    <Button variant="ghost" size="sm" className="text-slate-400 hover:text-[#134885]" onClick={() => replyToEmail(currentMessage)} title="Répondre">
+  1352→                      <Reply className="h-4 w-4" />
+  1353→                    </Button>
+  1354→                    <Button variant="ghost" size="sm" className="text-slate-400 hover:text-[#134885]" onClick={() => forwardEmail(currentMessage)} title="Transférer">
+  1355→                      <Forward className="h-4 w-4" />
+  1356→                    </Button>
+  1357→                    <Button
+  1358→                      variant="ghost" size="sm"
+  1359→                      className={hasFlag(currentMessage.flags, '\\Seen') ? 'text-[#134885]' : 'text-slate-400 hover:text-[#134885]'}
+  1360→                      onClick={() => toggleFlag(currentMessage.uid, '\\Seen', hasFlag(currentMessage.flags, '\\Seen') ? false : true)}
+  1361→                      title={hasFlag(currentMessage.flags, '\\Seen') ? 'Marquer comme non lu' : 'Marquer comme lu'}
+  1362→                    >
+  1363→                      {hasFlag(currentMessage.flags, '\\Seen') ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+  1364→                    </Button>
+  1365→                    <Button
+  1366→                      variant="ghost" size="sm"
+  1367→                      className={hasFlag(currentMessage.flags, '\\Flagged') ? 'text-[#F6852A]' : 'text-slate-400 hover:text-[#F6852A]'}
+  1368→                      onClick={() => toggleFlag(currentMessage.uid, '\\Flagged', !hasFlag(currentMessage.flags, '\\Flagged'))}
+  1369→                      title={hasFlag(currentMessage.flags, '\\Flagged') ? 'Retirer l\'étoile' : 'Ajouter une étoile'}
+  1370→                    >
+  1371→                      <Star className={`h-4 w-4 ${hasFlag(currentMessage.flags, '\\Flagged') ? 'fill-[#F6852A]' : ''}`} />
+  1372→                    </Button>
+  1373→                    <DropdownMenu>
+  1374→                      <DropdownMenuTrigger asChild>
+  1375→                        <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-600">
+  1376→                          <MoreHorizontal className="h-4 w-4" />
+  1377→                        </Button>
+  1378→                      </DropdownMenuTrigger>
+  1379→                      <DropdownMenuContent align="end">
+  1380→                        <DropdownMenuItem onClick={() => replyToEmail(currentMessage)}>
+  1381→                          <Reply className="mr-2 h-3.5 w-3.5" /> Répondre
+  1382→                        </DropdownMenuItem>
+  1383→                        <DropdownMenuItem onClick={() => forwardEmail(currentMessage)}>
+  1384→                          <Forward className="mr-2 h-3.5 w-3.5" /> Transférer
+  1385→                        </DropdownMenuItem>
+  1386→                        <DropdownMenuItem onClick={() => toggleFlag(currentMessage.uid, '\\Seen', !hasFlag(currentMessage.flags, '\\Seen'))}>
+  1387→                          {hasFlag(currentMessage.flags, '\\Seen') ? <EyeOff className="mr-2 h-3.5 w-3.5" /> : <Eye className="mr-2 h-3.5 w-3.5" />}
+  1388→                          {hasFlag(currentMessage.flags, '\\Seen') ? 'Marquer comme non lu' : 'Marquer comme lu'}
+  1389→                        </DropdownMenuItem>
+  1390→                        <DropdownMenuItem onClick={() => deleteEmail(currentMessage.uid)} className="text-red-600 focus:text-red-600">
+  1391→                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+  1392→                        </DropdownMenuItem>
+  1393→                      </DropdownMenuContent>
+  1394→                    </DropdownMenu>
+  1395→                    <Button variant="ghost" size="sm" className="text-slate-400 hover:text-red-500" onClick={() => deleteEmail(currentMessage.uid)} title="Supprimer">
+  1396→                      <Trash2 className="h-4 w-4" />
+  1397→                    </Button>
+  1398→                  </div>
+  1399→                </div>
+  1400→              </div>
+  1401→
+  1402→              {/* Message Body */}
+  1403→              <ScrollArea className="flex-1">
+  1404→                <div className="p-6">
+  1405→                  {currentMessage.isHtml && currentMessage.htmlContent ? (
+  1406→                    <div
+  1407→                      className="prose prose-sm max-w-none"
+  1408→                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentMessage.htmlContent) }}
+  1409→                    />
+  1410→                  ) : (
+  1411→                    <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed">
+  1412→                      {currentMessage.textContent || '(Aucun contenu)'}
+  1413→                    </pre>
+  1414→                  )}
+  1415→                </div>
+  1416→              </ScrollArea>
+  1417→
+  1418→              {/* Quick Reply */}
+  1419→              <div className="border-t border-slate-200 px-4 py-3">
+  1420→                <div className="flex items-center gap-2">
+  1421→                  <Input
+  1422→                    placeholder="Réponse rapide..."
+  1423→                    className="h-9 flex-1 text-sm border-slate-200"
+  1424→                    onKeyDown={(e) => {
+  1425→                      if (e.key === 'Enter') {
+  1426→                        const target = e.target as HTMLInputElement
+  1427→                        if (target.value.trim()) replyToEmail(currentMessage)
+  1428→                      }
+  1429→                    }}
+  1430→                    onFocus={(e) => {
+  1431→                      if (!e.target.value) replyToEmail(currentMessage)
+  1432→                    }}
+  1433→                  />
+  1434→                  <Button size="sm" variant="outline" className="border-[#134885]/30 text-[#134885] hover:bg-[#134885]/5" onClick={() => replyToEmail(currentMessage)}>
+  1435→                    <Reply className="h-3.5 w-3.5 mr-1" /> Répondre
+  1436→                  </Button>
+  1437→                  <Button size="sm" variant="outline" className="border-[#134885]/30 text-[#134885] hover:bg-[#134885]/5" onClick={() => forwardEmail(currentMessage)}>
+  1438→                    <ArrowRight className="h-3.5 w-3.5 mr-1" /> Transférer
+  1439→                  </Button>
+  1440→                </div>
+  1441→              </div>
+  1442→            </div>
+  1443→          ) : (
+  1444→            <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400">
+  1445→              <Eye className="h-12 w-12 text-slate-200" />
+  1446→              <p className="text-sm">Sélectionnez un message pour le lire</p>
+  1447→            </div>
+  1448→          )}
+  1449→        </div>
+  1450→      </div>
+  1451→
+  1452→      {/* ── Compose Dialog ────────────────────────────────────── */}
+  1453→      <Dialog open={showCompose} onOpenChange={setShowCompose}>
+  1454→        <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col p-0 gap-0">
+  1455→          {/* ── Compose Header ──────────────────────────────────── */}
+  1456→          <div className="border-b border-slate-200 px-5 py-3 flex items-center justify-between shrink-0">
+  1457→            <DialogTitle className="text-base font-semibold text-slate-900">
+  1458→              {composeForm.inReplyTo ? 'Répondre' : composeForm.replyTo ? 'Transférer' : 'Nouveau message'}
+  1459→            </DialogTitle>
+  1460→            <div className="flex items-center gap-2">
+  1461→              <Button variant="ghost" size="sm" className="text-xs text-slate-400 h-7"
+  1462→                onClick={() => setShowSignatureSettings(!showSignatureSettings)}
+  1463→              >
+  1464→                <FileText className="h-3.5 w-3.5 mr-1" />
+  1465→                Signature
+  1466→              </Button>
+  1467→              <Button variant="outline" size="sm" onClick={() => setShowCompose(false)} className="h-7 text-xs">Annuler</Button>
+  1468→              <Button
+  1469→                onClick={sendEmail}
+  1470→                disabled={isSending || !composeForm.to || !composeForm.subject}
+  1471→                className="bg-[#134885] hover:bg-[#0D3A6E] h-7 text-xs"
+  1472→                size="sm"
+  1473→              >
+  1474→                {isSending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
+  1475→                Envoyer
+  1476→              </Button>
+  1477→            </div>
+  1478→          </div>
+  1479→
+  1480→          {/* ── Compose Body ────────────────────────────────────── */}
+  1481→          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2.5">
+  1482→            {/* À */}
+  1483→            <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+  1484→              <span className="text-sm font-medium text-slate-500 w-10 shrink-0">À</span>
+  1485→              <Input
+  1486→                value={composeForm.to}
+  1487→                onChange={(e) => setComposeForm((prev) => ({ ...prev, to: e.target.value }))}
+  1488→                placeholder="destinataire@email.com"
+  1489→                className="border-0 shadow-none h-7 text-sm focus-visible:ring-0 px-0"
+  1490→              />
+  1491→              {!showCcBcc && (
+  1492→                <Button variant="ghost" size="sm" className="text-xs text-slate-400 h-6 px-1.5 shrink-0"
+  1493→                  onClick={() => setShowCcBcc(true)}>
+  1494→                  Cc/Cci
+  1495→                </Button>
+  1496→              )}
+  1497→            </div>
+  1498→
+  1499→            {/* Cc / Cci */}
+  1500→            {showCcBcc && (
+  1501→              <>
+  1502→                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+  1503→                  <span className="text-sm font-medium text-slate-500 w-10 shrink-0">Cc</span>
+  1504→                  <Input
+  1505→                    value={composeForm.cc}
+  1506→                    onChange={(e) => setComposeForm((prev) => ({ ...prev, cc: e.target.value }))}
+  1507→                    placeholder="copie@email.com (optionnel)"
+  1508→                    className="border-0 shadow-none h-7 text-sm focus-visible:ring-0 px-0"
+  1509→                  />
+  1510→                </div>
+  1511→                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+  1512→                  <span className="text-sm font-medium text-slate-500 w-10 shrink-0">Cci</span>
+  1513→                  <Input
+  1514→                    value={composeForm.bcc}
+  1515→                    onChange={(e) => setComposeForm((prev) => ({ ...prev, bcc: e.target.value }))}
+  1516→                    placeholder="copie cachée@email.com (optionnel)"
+  1517→                    className="border-0 shadow-none h-7 text-sm focus-visible:ring-0 px-0"
+  1518→                  />
+  1519→                </div>
+  1520→              </>
+  1521→            )}
+  1522→
+  1523→            {/* Sujet */}
+  1524→            <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+  1525→              <span className="text-sm font-medium text-slate-500 w-10 shrink-0">Sujet</span>
+  1526→              <Input
+  1527→                value={composeForm.subject}
+  1528→                onChange={(e) => setComposeForm((prev) => ({ ...prev, subject: e.target.value }))}
+  1529→                placeholder="Sujet du message"
+  1530→                className="border-0 shadow-none h-7 text-sm font-medium focus-visible:ring-0 px-0"
+  1531→              />
+  1532→            </div>
+  1533→
+  1534→            {/* Signature settings panel (collapsible) */}
+  1535→            {showSignatureSettings && (
+  1536→              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+  1537→                <div className="flex items-center justify-between">
+  1538→                  <span className="text-sm font-medium text-slate-700">Signature email</span>
+  1539→                  <div className="flex items-center gap-2">
+  1540→                    <Button variant="ghost" size="sm" className="h-6 text-xs text-[#134885]"
+  1541→                      onClick={async () => {
+  1542→                        try {
+  1543→                          const res = await fetch('/api/emails/config', {
+  1544→                            method: 'POST',
+  1545→                            headers: { 'Content-Type': 'application/json' },
+  1546→                            credentials: 'same-origin',
+  1547→                            body: JSON.stringify({ ...configForm, signature: signatureDraft }),
+  1548→                          })
+  1549→                          if (res.ok) {
+  1550→                            setSignature(signatureDraft)
+  1551→                            toast.success('Signature sauvegardée')
+  1552→                          }
+  1553→                        } catch {
+  1554→                          toast.error('Erreur de sauvegarde')
+  1555→                        }
+  1556→                      }}>
+  1557→                      <Check className="h-3 w-3 mr-1" /> Sauvegarder
+  1558→                    </Button>
+  1559→                  </div>
+  1560→                </div>
+  1561→                <div className="quill-compose-signature">
+  1562→                  <SignatureEditor
+  1563→                    value={signatureDraft}
+  1564→                    onChange={setSignatureDraft}
+  1565→                    placeholder="Creez votre signature : nom, poste, entreprise, téléphone..."
+  1566→                  />
+  1567→                </div>
+  1568→                <p className="text-[10px] text-slate-400">
+  1569→                  La signature sera ajoutée automatiquement à la fin de chaque email envoyé.
+  1570→                </p>
+  1571→              </div>
+  1572→            )}
+  1573→
+  1574→            {/* Signature preview (if exists and not editing) */}
+  1575→            {!showSignatureSettings && signature && (
+  1576→              <div className="border-b border-slate-100 pb-1">
+  1577→                <p className="text-[10px] text-slate-400 mb-0.5">Signature ajoutée automatiquement :</p>
+  1578→                <div
+  1579→                  className="text-xs text-slate-500 line-clamp-2"
+  1580→                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(signature) }}
+  1581→                />
+  1582→              </div>
+  1583→            )}
+  1584→
+  1585→            {/* Rich Text Editor */}
+  1586→            <div className="quill-compose-editor">
+  1587→              <QuillEmailEditor
+  1588→                value={composeForm.html}
+  1589→                onChange={(html) => setComposeForm((prev) => ({
+  1590→                  ...prev,
+  1591→                  html,
+  1592→                  text: html.replace(/<[^>]*>/g, ''),
+  1593→                }))}
+  1594→                placeholder="Écrivez votre message..."
+  1595→              />
+  1596→            </div>
+  1597→          </div>
+  1598→        </DialogContent>
+  1599→      </Dialog>
+  1600→
+  1601→      {/* ── Config Dialog ─────────────────────────────────────── */}
+  1602→      <Dialog open={showConfig} onOpenChange={setShowConfig}>
+  1603→        <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
+  1604→          <DialogHeader>
+  1605→            <DialogTitle>Configuration email</DialogTitle>
+  1606→          </DialogHeader>
+  1607→          <div className="space-y-4 mt-4">
+  1608→            {/* Preset selector */}
+  1609→            <div>
+  1610→              <Label className="text-sm font-medium">Fournisseur</Label>
+  1611→              <div className="mt-1 grid grid-cols-4 gap-2">
+  1612→                {[
+  1613→                  { id: 'gmail', label: 'Gmail' },
+  1614→                  { id: 'outlook', label: 'Outlook' },
+  1615→                  { id: 'yahoo', label: 'Yahoo' },
+  1616→                  { id: 'custom', label: 'Autre' },
+  1617→                ].map((p) => (
+  1618→                  <button
+  1619→                    key={p.id}
+  1620→                    onClick={() => handlePresetChange(p.id)}
+  1621→                    className={`rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
+  1622→                      configForm.preset === p.id
+  1623→                        ? 'border-[#134885] bg-[#134885]/5 text-[#134885]'
+  1624→                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+  1625→                    }`}
+  1626→                  >
+  1627→                    {p.label}
+  1628→                  </button>
+  1629→                ))}
+  1630→              </div>
+  1631→            </div>
+  1632→
+  1633→            {/* Help text */}
+  1634→            {configForm.preset !== 'custom' && emailPresets[configForm.preset]?.helpText && (
+  1635→              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+  1636→                <div className="flex items-start gap-2">
+  1637→                  <Shield className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+  1638→                  <p className="text-[11px] text-amber-800 leading-relaxed">
+  1639→                    {emailPresets[configForm.preset].helpText}
+  1640→                  </p>
+  1641→                </div>
+  1642→              </div>
+  1643→            )}
+  1644→
+  1645→            <div>
+  1646→              <Label className="text-sm font-medium">Adresse email</Label>
+  1647→              <Input
+  1648→                value={configForm.email}
+  1649→                onChange={(e) => { setConfigForm((prev) => ({ ...prev, email: e.target.value })); setTestResult(null) }}
+  1650→              />
+  1651→            </div>
+  1652→            <div>
+  1653→              <Label className="text-sm font-medium">Mot de passe de l&apos;application</Label>
+  1654→              <Input
+  1655→                type="password"
+  1656→                value={configForm.emailPassword}
+  1657→                onChange={(e) => { setConfigForm((prev) => ({ ...prev, emailPassword: e.target.value })); setTestResult(null) }}
+  1658→                placeholder="Laisser vide pour ne pas changer"
+  1659→              />
+  1660→            </div>
+  1661→            <div className="grid grid-cols-2 gap-4">
+  1662→              <div>
+  1663→                <Label className="text-sm font-medium">Serveur IMAP</Label>
+  1664→                <Input
+  1665→                  value={configForm.imapHost}
+  1666→                  onChange={(e) => { setConfigForm((prev) => ({ ...prev, imapHost: e.target.value })); setTestResult(null) }}
+  1667→                />
+  1668→              </div>
+  1669→              <div>
+  1670→                <Label className="text-sm font-medium">Port IMAP</Label>
+  1671→                <Input
+  1672→                  type="number"
+  1673→                  value={configForm.imapPort}
+  1674→                  onChange={(e) => setConfigForm((prev) => ({ ...prev, imapPort: parseInt(e.target.value) || 993 }))}
+  1675→                />
+  1676→              </div>
+  1677→            </div>
+  1678→            <div className="grid grid-cols-2 gap-4">
+  1679→              <div>
+  1680→                <Label className="text-sm font-medium">Serveur SMTP</Label>
+  1681→                <Input
+  1682→                  value={configForm.smtpHost}
+  1683→                  onChange={(e) => { setConfigForm((prev) => ({ ...prev, smtpHost: e.target.value })); setTestResult(null) }}
+  1684→                />
+  1685→              </div>
+  1686→              <div>
+  1687→                <Label className="text-sm font-medium">Port SMTP</Label>
+  1688→                <Input
+  1689→                  type="number"
+  1690→                  value={configForm.smtpPort}
+  1691→                  onChange={(e) => setConfigForm((prev) => ({ ...prev, smtpPort: parseInt(e.target.value) || 587 }))}
+  1692→                />
+  1693→              </div>
+  1694→            </div>
+  1695→
+  1696→            {/* Test result in dialog */}
+  1697→            {testResult && (
+  1698→              <div className={`rounded-lg border p-3 ${
+  1699→                testResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+  1700→              }`}>
+  1701→                <div className="flex items-center gap-2 mb-2">
+  1702→                  {testResult.success ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-red-600" />}
+  1703→                  <span className={`text-sm font-medium ${testResult.success ? 'text-green-800' : 'text-red-800'}`}>
+  1704→                    {testResult.success ? 'Connexion réussie' : 'Échec de connexion'}
+  1705→                  </span>
+  1706→                </div>
+  1707→                {testResult.results && (
+  1708→                  <div className="space-y-1.5 ml-6">
+  1709→                    <div className="flex items-center gap-2">
+  1710→                      {testResult.results.imap.success ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-red-500" />}
+  1711→                      <span className="text-xs text-slate-700">IMAP : {testResult.results.imap.message}</span>
+  1712→                    </div>
+  1713→                    <div className="flex items-center gap-2">
+  1714→                      {testResult.results.smtp.success ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-red-500" />}
+  1715→                      <span className="text-xs text-slate-700">SMTP : {testResult.results.smtp.message}</span>
+  1716→                    </div>
+  1717→                  </div>
+  1718→                )}
+  1719→              </div>
+  1720→            )}
+  1721→
+  1722→            <div className="flex items-center justify-between pt-2">
+  1723→              <Button
+  1724→                variant="destructive"
+  1725→                size="sm"
+  1726→                onClick={async () => {
+  1727→                  await fetch('/api/emails/config', { method: 'DELETE', credentials: 'same-origin' })
+  1728→                  setConfig(null)
+  1729→                  setShowConfig(false)
+  1730→                  toast.success('Configuration supprimée')
+  1731→                }}
+  1732→              >
+  1733→                Supprimer la config
+  1734→              </Button>
+  1735→              <div className="flex gap-2">
+  1736→                <Button variant="outline" size="sm" onClick={testConnection} disabled={isTesting}>
+  1737→                  {isTesting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Wifi className="mr-1.5 h-3.5 w-3.5" />}
+  1738→                  Tester
+  1739→                </Button>
+  1740→                <Button variant="outline" onClick={() => setShowConfig(false)}>Annuler</Button>
+  1741→                <Button onClick={saveConfig} className="bg-[#134885] hover:bg-[#0D3A6E]" disabled={isTesting}>
+  1742→                  {isTesting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+  1743→                  Sauvegarder
+  1744→                </Button>
+  1745→              </div>
+  1746→            </div>
+  1747→          </div>
+  1748→        </DialogContent>
+  1749→      </Dialog>
+  1750→    </div>
+  1751→  )
+  1752→}
+  1753→

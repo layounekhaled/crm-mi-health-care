@@ -150,6 +150,11 @@ const emailPresets: Record<string, Partial<EmailConfig> & { helpUrl?: string; he
     smtpHost: 'mail.wistyty.com', smtpPort: 587, smtpTls: true,
     helpText: 'Hébergement LWS Panel : Utilisez le mot de passe de votre compte de messagerie. IMAP port 993 (SSL), SMTP port 587 (STARTTLS). Vous pouvez aussi utiliser mail67.lwspanel.com comme serveur.',
   },
+  'o365-connector': {
+    imapHost: 'outlook.office365.com', imapPort: 993, imapTls: true,
+    smtpHost: 'mihealthcare-com0e.mail.protection.outlook.com', smtpPort: 25, smtpTls: true,
+    helpText: 'Office 365 Connecteur MI Healthcare : SMTP sur port 25 (TLS) sans authentification — IP autorisée via SPF. IMAP via Office 365 standard. Utilisez votre mot de passe Office 365 pour l\'IMAP.',
+  },
   custom: {},
 }
 
@@ -887,8 +892,9 @@ export default function EmailsModule() {
               {/* Preset selector */}
               <div>
                 <Label className="text-sm font-medium text-slate-700">Fournisseur email</Label>
-                <div className="mt-2 grid grid-cols-5 gap-2">
+                <div className="mt-2 grid grid-cols-6 gap-2">
                   {[
+                    { id: 'o365-connector', label: 'MI Healthcare' },
                     { id: 'gmail', label: 'Gmail' },
                     { id: 'outlook', label: 'Outlook' },
                     { id: 'yahoo', label: 'Yahoo' },
@@ -1608,11 +1614,13 @@ export default function EmailsModule() {
             {/* Preset selector */}
             <div>
               <Label className="text-sm font-medium">Fournisseur</Label>
-              <div className="mt-1 grid grid-cols-4 gap-2">
+              <div className="mt-1 grid grid-cols-6 gap-2">
                 {[
+                  { id: 'o365-connector', label: 'MI Healthcare' },
                   { id: 'gmail', label: 'Gmail' },
                   { id: 'outlook', label: 'Outlook' },
                   { id: 'yahoo', label: 'Yahoo' },
+                  { id: 'lws', label: 'LWS' },
                   { id: 'custom', label: 'Autre' },
                 ].map((p) => (
                   <button

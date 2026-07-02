@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser, staleSessionResponse } from '@/lib/auth-helpers'
+import { getAuthUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import nodemailer from 'nodemailer'
+import { sendEmail } from '@/lib/email'
 
 // POST /api/documents/send - Envoyer des documents par email ou WhatsApp
 export async function POST(request: NextRequest) {
@@ -74,24 +74,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email du destinataire requis' }, { status: 400 })
     }
 
-    // Get email config for sender
-    const emailConfig = await db.emailConfig.findUnique({
-      where: { employeId: authUser.employeId },
-    })
-
-    if (!emailConfig || !emailConfig.smtpHost || !emailConfig.emailPassword) {
-      return NextResponse.json(
-        { error: 'Configuration email manquante. Configurez votre email d\'abord.' },
-        { status: 400 }
-      )
-    }
-
     // Build email content with links (NOT attachments)
     const documentLinks = documents
       .map((doc, i) => `${i + 1}. <strong>${doc.title}</strong>${doc.brand ? ` (${doc.brand})` : ''} — <a href="${doc.fileUrl}" target="_blank">Voir / Télécharger</a>`)
       .join('<br/>')
 
-    const senderName = authUser.employeNom || emailConfig.email
+    const senderName = authUser.employeNom || 'MI HEALTH CARE'
     const emailSubject = documents.length === 1
       ? `Document : ${documents[0].title}`
       : `${documents.length} documents partagés - MI HEALTH CARE`
@@ -116,29 +104,37 @@ export async function POST(request: NextRequest) {
       </div>
     `
 
-    // Send email
-    const transporter = nodemailer.createTransport({
-      host: emailConfig.smtpHost,
-      port: emailConfig.smtpPort,
-      secure: emailConfig.smtpPort === 465,
-      auth: {
-        user: emailConfig.email,
-        pass: emailConfig.emailPassword,
-      },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
-    })
-
-    await transporter.sendMail({
-      from: `"${senderName}" <${emailConfig.email}>`,
+    // Use the centralised sendEmail utility (personal SMTP or Office 365 fallback)
+    const result = await sendEmail(authUser.employeId, {
       to: recipientEmail,
       subject: emailSubject,
       html: emailHtml,
+      fromName: senderName,
     })
 
-    transporter.close()
+    if (!result.success) {
+      // Record failed send
+      try {
+        await db.documentSend.create({
+          data: {
+            documentIds: JSON.stringify(documentIds),
+            sentBy: authUser.employeId,
+            sendMethod: 'email',
+            recipientType: recipientType || 'manual',
+            recipientId: recipientId || null,
+            recipientEmail,
+            recipientPhone: '',
+            message: message || null,
+            status: 'failed',
+          },
+        })
+      } catch {}
+
+      return NextResponse.json(
+        { error: result.error || "Impossible d'envoyer l'email" },
+        { status: 500 }
+      )
+    }
 
     // Record the send
     const documentSend = await db.documentSend.create({
@@ -168,17 +164,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ data: documentSend })
+    return NextResponse.json({ data: documentSend, emailMethod: result.method })
   } catch (error) {
     console.error('[DOCUMENTS_SEND_POST]', error)
     const errMessage = error instanceof Error ? error.message : 'Erreur inconnue'
-
-    let userMessage = "Impossible d'envoyer l'email"
-    if (errMessage.includes('Invalid login') || errMessage.includes('AUTH') || errMessage.includes('credentials')) {
-      userMessage = 'Identifiants SMTP incorrects.'
-    } else if (errMessage.includes('ENOTFOUND') || errMessage.includes('getaddrinfo')) {
-      userMessage = 'Serveur SMTP introuvable.'
-    }
 
     // Record failed send
     try {
@@ -201,6 +190,6 @@ export async function POST(request: NextRequest) {
       }
     } catch {}
 
-    return NextResponse.json({ error: userMessage }, { status: 500 })
+    return NextResponse.json({ error: "Impossible d'envoyer l'email", details: errMessage }, { status: 500 })
   }
 }
