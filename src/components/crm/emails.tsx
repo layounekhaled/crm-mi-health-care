@@ -155,6 +155,11 @@ const emailPresets: Record<string, Partial<EmailConfig> & { helpUrl?: string; he
     smtpHost: 'mihealthcare-com0e.mail.protection.outlook.com', smtpPort: 25, smtpTls: true,
     helpText: 'Office 365 Connecteur MI Healthcare : SMTP sur port 25 (TLS) sans authentification — IP autorisée via SPF. IMAP via Office 365 standard. Utilisez votre mot de passe Office 365 pour l\'IMAP.',
   },
+  'o365-smtp-only': {
+    imapHost: '', imapPort: 993, imapTls: true,
+    smtpHost: 'smtp.office365.com', smtpPort: 587, smtpTls: true,
+    helpText: 'Office 365 SMTP uniquement : Envoi d\'emails via smtp.office365.com (port 587 STARTTLS). IMAP non configuré — vous ne pourrez pas lire les emails entrants, mais vous pourrez envoyer des emails. Utilisez votre adresse email et votre mot de passe Office 365.',
+  },
   custom: {},
 }
 
@@ -550,8 +555,8 @@ export default function EmailsModule() {
   }
 
   const testConnection = async () => {
-    if (!configForm.email || !configForm.imapHost || !configForm.smtpHost || !configForm.emailPassword) {
-      toast.error('Champs manquants', { description: 'Remplissez tous les champs avant de tester la connexion.' })
+    if (!configForm.email || !configForm.smtpHost || !configForm.emailPassword) {
+      toast.error('Champs manquants', { description: 'Remplissez l\'email, le serveur SMTP et le mot de passe avant de tester la connexion.' })
       return
     }
     setIsTesting(true)
@@ -567,10 +572,15 @@ export default function EmailsModule() {
       if (res.ok && data.success !== undefined) {
         setTestResult(data)
         if (data.success) {
-          toast.success('Connexion réussie', { description: 'IMAP et SMTP fonctionnent correctement' })
+          const hasImap = configForm.imapHost
+          if (hasImap && data.results?.imap?.success) {
+            toast.success('Connexion réussie', { description: 'IMAP et SMTP fonctionnent correctement' })
+          } else {
+            toast.success('Connexion SMTP réussie', { description: 'Envoi d\'emails opérationnel' + (data.results?.imap && !data.results.imap.success ? ' — IMAP non disponible' : '') })
+          }
         } else {
           const failedParts: string[] = []
-          if (data.results?.imap && !data.results.imap.success) failedParts.push(`IMAP: ${data.results.imap.message}`)
+          if (data.results?.imap && !data.results.imap.success && configForm.imapHost) failedParts.push(`IMAP: ${data.results.imap.message}`)
           if (data.results?.smtp && !data.results.smtp.success) failedParts.push(`SMTP: ${data.results.smtp.message}`)
           toast.error('Échec de connexion', { description: failedParts.join(' | ') || data.error || 'Échec', duration: 15000 })
         }
@@ -593,8 +603,8 @@ export default function EmailsModule() {
   }
 
   const saveConfig = async () => {
-    if (!configForm.email || !configForm.imapHost || !configForm.smtpHost) {
-      toast.error('Champs requis', { description: 'Email, serveur IMAP et SMTP sont obligatoires' })
+    if (!configForm.email || !configForm.smtpHost) {
+      toast.error('Champs requis', { description: 'Email et serveur SMTP sont obligatoires' })
       return
     }
     if (!configForm.emailPassword && !config?.isConfigured) {
@@ -612,13 +622,20 @@ export default function EmailsModule() {
       const testData = await testRes.json().catch(() => ({}))
       if (testRes.ok && testData.success !== undefined) {
         setTestResult(testData)
+        // Le test SMTP doit réussir — IMAP est optionnel
         if (!testData.success) {
           setIsTesting(false)
           const failedParts: string[] = []
-          if (testData.results?.imap && !testData.results.imap.success) failedParts.push(`IMAP: ${testData.results.imap.message}`)
+          // N'afficher l'erreur IMAP que si l'utilisateur a configuré IMAP
+          if (testData.results?.imap && !testData.results.imap.success && configForm.imapHost) failedParts.push(`IMAP: ${testData.results.imap.message}`)
           if (testData.results?.smtp && !testData.results.smtp.success) failedParts.push(`SMTP: ${testData.results.smtp.message}`)
-          toast.error('Échec de connexion', { description: failedParts.join(' | ') || testData.error || 'Échec', duration: 15000 })
-          return
+          // Si seul IMAP échoue (SMTP OK), on permet la sauvegarde quand même
+          if (testData.results?.smtp?.success && !testData.results?.imap?.success && configForm.imapHost) {
+            toast.warning('IMAP non disponible', { description: 'La connexion IMAP a échoué, mais l\'envoi SMTP fonctionne. Vous pourrez envoyer des emails mais pas lire la boîte de réception.', duration: 10000 })
+          } else {
+            toast.error('Échec de connexion', { description: failedParts.join(' | ') || testData.error || 'Échec', duration: 15000 })
+            return
+          }
         }
       } else {
         // Erreur serveur pendant le test
@@ -646,7 +663,7 @@ export default function EmailsModule() {
       if (res.ok) {
         const data = await res.json()
         setConfig({ ...data, isConfigured: true })
-        toast.success('Configuration sauvegardée', { description: 'Votre boîte email est connectée' })
+        toast.success('Configuration sauvegardée', { description: configForm.imapHost ? 'Votre boîte email est connectée' : 'Envoi d\'emails configuré (sans réception)' })
         setShowConfig(false)
       } else {
         const err = await res.json().catch(() => ({}))
@@ -884,7 +901,7 @@ export default function EmailsModule() {
               </div>
               <h2 className="text-xl font-bold text-slate-900">Configurez votre email</h2>
               <p className="mt-2 text-sm text-slate-500 max-w-md">
-                Connectez votre boîte email professionnelle pour lire et envoyer des messages directement depuis le CRM.
+                Configurez votre email pour envoyer des messages directement depuis le CRM. La réception (IMAP) est optionnelle.
               </p>
             </div>
 
@@ -892,9 +909,10 @@ export default function EmailsModule() {
               {/* Preset selector */}
               <div>
                 <Label className="text-sm font-medium text-slate-700">Fournisseur email</Label>
-                <div className="mt-2 grid grid-cols-6 gap-2">
+                <div className="mt-2 grid grid-cols-7 gap-2">
                   {[
                     { id: 'o365-connector', label: 'MI Healthcare' },
+                    { id: 'o365-smtp-only', label: 'O365 SMTP' },
                     { id: 'gmail', label: 'Gmail' },
                     { id: 'outlook', label: 'Outlook' },
                     { id: 'yahoo', label: 'Yahoo' },
@@ -955,13 +973,14 @@ export default function EmailsModule() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Serveur IMAP</Label>
+                  <Label className="text-sm font-medium text-slate-700">Serveur IMAP <span className="text-slate-400 font-normal">(optionnel)</span></Label>
                   <Input
                     value={configForm.imapHost}
                     onChange={(e) => { setConfigForm((prev) => ({ ...prev, imapHost: e.target.value })); setTestResult(null) }}
                     placeholder="imap.example.com"
                     className="mt-1"
                   />
+                  <p className="mt-1 text-[11px] text-slate-400">Laissez vide pour envoi SMTP uniquement</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-slate-700">Port IMAP</Label>
@@ -970,6 +989,7 @@ export default function EmailsModule() {
                     value={configForm.imapPort}
                     onChange={(e) => setConfigForm((prev) => ({ ...prev, imapPort: parseInt(e.target.value) || 993 }))}
                     className="mt-1"
+                    disabled={!configForm.imapHost}
                   />
                 </div>
               </div>
@@ -1025,7 +1045,7 @@ export default function EmailsModule() {
                   onClick={testConnection}
                   variant="outline"
                   className="flex-1 border-slate-200"
-                  disabled={isTesting || !configForm.email || !configForm.imapHost || !configForm.smtpHost || !configForm.emailPassword}
+                  disabled={isTesting || !configForm.email || !configForm.smtpHost || !configForm.emailPassword}
                 >
                   {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wifi className="mr-2 h-4 w-4" />}
                   Tester la connexion
@@ -1033,7 +1053,7 @@ export default function EmailsModule() {
                 <Button
                   onClick={saveConfig}
                   className="flex-1 bg-[#134885] hover:bg-[#0D3A6E]"
-                  disabled={isTesting || !configForm.email || !configForm.imapHost || !configForm.smtpHost}
+                  disabled={isTesting || !configForm.email || !configForm.smtpHost}
                 >
                   {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                   Connecter
@@ -1614,9 +1634,10 @@ export default function EmailsModule() {
             {/* Preset selector */}
             <div>
               <Label className="text-sm font-medium">Fournisseur</Label>
-              <div className="mt-1 grid grid-cols-6 gap-2">
+              <div className="mt-1 grid grid-cols-7 gap-2">
                 {[
                   { id: 'o365-connector', label: 'MI Healthcare' },
+                  { id: 'o365-smtp-only', label: 'O365 SMTP' },
                   { id: 'gmail', label: 'Gmail' },
                   { id: 'outlook', label: 'Outlook' },
                   { id: 'yahoo', label: 'Yahoo' },
@@ -1668,10 +1689,11 @@ export default function EmailsModule() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm font-medium">Serveur IMAP</Label>
+                <Label className="text-sm font-medium">Serveur IMAP <span className="text-slate-400 font-normal">(optionnel)</span></Label>
                 <Input
                   value={configForm.imapHost}
                   onChange={(e) => { setConfigForm((prev) => ({ ...prev, imapHost: e.target.value })); setTestResult(null) }}
+                  placeholder="Laissez vide pour SMTP uniquement"
                 />
               </div>
               <div>
@@ -1680,6 +1702,7 @@ export default function EmailsModule() {
                   type="number"
                   value={configForm.imapPort}
                   onChange={(e) => setConfigForm((prev) => ({ ...prev, imapPort: parseInt(e.target.value) || 993 }))}
+                  disabled={!configForm.imapHost}
                 />
               </div>
             </div>

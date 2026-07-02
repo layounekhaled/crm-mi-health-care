@@ -50,54 +50,58 @@ export async function GET(request: NextRequest) {
       signature: emailConfig.signature,
     } : null
 
-    if (!emailConfig?.imapHost) {
-      return NextResponse.json({ ...debug, error: 'Pas de config email' })
+    if (!emailConfig?.smtpHost) {
+      return NextResponse.json({ ...debug, error: 'Pas de config email SMTP' })
     }
 
-    // Test IMAP
-    debug.imapTest = { status: 'testing...' }
-    try {
-      const imapClient = new ImapFlow({
-        host: emailConfig.imapHost,
-        port: emailConfig.imapPort,
-        secure: emailConfig.imapTls,
-        auth: {
-          user: emailConfig.email,
-          pass: emailConfig.emailPassword,
-        },
-        tls: { rejectUnauthorized: false },
-        logger: false as unknown as undefined,
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 15000,
-      })
+    // Test IMAP (optionnel)
+    if (emailConfig.imapHost) {
+      debug.imapTest = { status: 'testing...' }
+      try {
+        const imapClient = new ImapFlow({
+          host: emailConfig.imapHost,
+          port: emailConfig.imapPort,
+          secure: emailConfig.imapTls,
+          auth: {
+            user: emailConfig.email,
+            pass: emailConfig.emailPassword || '',
+          },
+          tls: { rejectUnauthorized: false },
+          logger: false as unknown as undefined,
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+          socketTimeout: 15000,
+        })
 
-      await imapClient.connect()
-      const mailboxes = await imapClient.list()
-      await imapClient.logout()
-      debug.imapTest = {
-        status: 'success',
-        folders: mailboxes.map(m => m.path + ' (' + m.specialUse + ')'),
+        await imapClient.connect()
+        const mailboxes = await imapClient.list()
+        await imapClient.logout()
+        debug.imapTest = {
+          status: 'success',
+          folders: mailboxes.map(m => m.path + ' (' + m.specialUse + ')'),
+        }
+      } catch (imapErr: unknown) {
+        const err = imapErr instanceof Error ? imapErr : new Error(String(imapErr))
+        debug.imapTest = {
+          status: 'failed',
+          error: err.message,
+          code: (err as any)?.code || '',
+        }
       }
-    } catch (imapErr: unknown) {
-      const err = imapErr instanceof Error ? imapErr : new Error(String(imapErr))
-      debug.imapTest = {
-        status: 'failed',
-        error: err.message,
-        code: (err as any)?.code || '',
-      }
+    } else {
+      debug.imapTest = { status: 'skipped', reason: 'IMAP non configuré' }
     }
 
     // Test SMTP
     debug.smtpTest = { status: 'testing...' }
     try {
       const transporter = nodemailer.createTransport({
-        host: emailConfig.smtpHost,
+        host: emailConfig.smtpHost!,
         port: emailConfig.smtpPort,
         secure: emailConfig.smtpPort === 465,
         auth: {
           user: emailConfig.email,
-          pass: emailConfig.emailPassword,
+          pass: emailConfig.emailPassword || '',
         },
         tls: { rejectUnauthorized: false },
         connectionTimeout: 15000,
@@ -121,13 +125,14 @@ export async function GET(request: NextRequest) {
     debug.dnsTest = { status: 'testing...' }
     try {
       const { lookup } = await import('node:dns/promises')
-      const imapDns = await lookup(emailConfig.imapHost)
-      const smtpDns = await lookup(emailConfig.smtpHost)
-      debug.dnsTest = {
-        status: 'success',
-        imap: { address: imapDns.address, family: imapDns.family },
-        smtp: { address: smtpDns.address, family: smtpDns.family },
+      const results: Record<string, { address: string; family: number }> = {}
+      if (emailConfig.imapHost) {
+        const imapDns = await lookup(emailConfig.imapHost)
+        results.imap = { address: imapDns.address, family: imapDns.family }
       }
+      const smtpDns = await lookup(emailConfig.smtpHost!)
+      results.smtp = { address: smtpDns.address, family: smtpDns.family }
+      debug.dnsTest = { status: 'success', ...results }
     } catch (dnsErr: unknown) {
       debug.dnsTest = {
         status: 'failed',
@@ -180,48 +185,51 @@ export async function POST(request: NextRequest) {
 
     const { email, imapHost, imapPort, imapTls, smtpHost, smtpPort, smtpTls, emailPassword } = body
 
-    if (!email || !imapHost || !smtpHost || !emailPassword) {
+    if (!email || !smtpHost || !emailPassword) {
       return NextResponse.json({
         ...debug,
         error: 'Champs manquants',
         missing: [
           !email && 'email',
-          !imapHost && 'imapHost',
           !smtpHost && 'smtpHost',
           !emailPassword && 'emailPassword',
         ].filter(Boolean),
       })
     }
 
-    // Test IMAP
-    debug.imapTest = { status: 'testing...', host: imapHost, port: imapPort || 993 }
-    try {
-      const imapClient = new ImapFlow({
-        host: imapHost,
-        port: imapPort || 993,
-        secure: imapTls !== false,
-        auth: { user: email, pass: emailPassword },
-        tls: { rejectUnauthorized: false },
-        logger: false as unknown as undefined,
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 15000,
-      })
+    // Test IMAP (optionnel — seulement si imapHost est fourni)
+    if (imapHost) {
+      debug.imapTest = { status: 'testing...', host: imapHost, port: imapPort || 993 }
+      try {
+        const imapClient = new ImapFlow({
+          host: imapHost,
+          port: imapPort || 993,
+          secure: imapTls !== false,
+          auth: { user: email, pass: emailPassword },
+          tls: { rejectUnauthorized: false },
+          logger: false as unknown as undefined,
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+          socketTimeout: 15000,
+        })
 
-      await imapClient.connect()
-      const mailboxes = await imapClient.list()
-      await imapClient.logout()
-      debug.imapTest = {
-        status: 'success',
-        folders: mailboxes.map(m => m.path + ' (' + m.specialUse + ')'),
+        await imapClient.connect()
+        const mailboxes = await imapClient.list()
+        await imapClient.logout()
+        debug.imapTest = {
+          status: 'success',
+          folders: mailboxes.map(m => m.path + ' (' + m.specialUse + ')'),
+        }
+      } catch (imapErr: unknown) {
+        const err = imapErr instanceof Error ? imapErr : new Error(String(imapErr))
+        debug.imapTest = {
+          status: 'failed',
+          error: err.message,
+          code: (err as any)?.code || '',
+        }
       }
-    } catch (imapErr: unknown) {
-      const err = imapErr instanceof Error ? imapErr : new Error(String(imapErr))
-      debug.imapTest = {
-        status: 'failed',
-        error: err.message,
-        code: (err as any)?.code || '',
-      }
+    } else {
+      debug.imapTest = { status: 'skipped', reason: 'IMAP non configuré' }
     }
 
     // Test SMTP
@@ -255,13 +263,14 @@ export async function POST(request: NextRequest) {
     debug.dnsTest = { status: 'testing...' }
     try {
       const { lookup } = await import('node:dns/promises')
-      const imapDns = await lookup(imapHost)
-      const smtpDns = await lookup(smtpHost)
-      debug.dnsTest = {
-        status: 'success',
-        imap: { address: imapDns.address },
-        smtp: { address: smtpDns.address },
+      const results: Record<string, { address: string }> = {}
+      if (imapHost) {
+        const imapDns = await lookup(imapHost)
+        results.imap = { address: imapDns.address }
       }
+      const smtpDns = await lookup(smtpHost)
+      results.smtp = { address: smtpDns.address }
+      debug.dnsTest = { status: 'success', ...results }
     } catch (dnsErr: unknown) {
       debug.dnsTest = {
         status: 'failed',

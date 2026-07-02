@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ...emailConfig,
       emailPassword: undefined,
-      isConfigured: !!(emailConfig.imapHost && emailConfig.email),
+      isConfigured: !!(emailConfig.smtpHost && emailConfig.email),
     })
   } catch (error) {
     console.error('[EMAIL_CONFIG_GET]', error)
@@ -96,9 +96,10 @@ export async function POST(request: NextRequest) {
 
     const { email, imapHost, imapPort, imapTls, smtpHost, smtpPort, smtpTls, emailPassword, signature } = body
 
-    if (!email || !imapHost || !smtpHost) {
+    // IMAP est optionnel — seul SMTP est requis pour l'envoi d'emails
+    if (!email || !smtpHost) {
       return NextResponse.json(
-        { error: 'Email, serveur IMAP et SMTP sont requis' },
+        { error: 'Email et serveur SMTP sont requis' },
         { status: 400 }
       )
     }
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
         where: { employeId },
         data: {
           email,
-          imapHost,
+          imapHost: imapHost || null,
           imapPort: imapPort || 993,
           imapTls: imapTls !== false,
           smtpHost,
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
         data: {
           employeId,
           email,
-          imapHost,
+          imapHost: imapHost || null,
           imapPort: imapPort || 993,
           imapTls: imapTls !== false,
           smtpHost,

@@ -36,70 +36,77 @@ export async function POST(request: NextRequest) {
 
     const { email, imapHost, imapPort, imapTls, smtpHost, smtpPort, smtpTls, emailPassword } = body
 
-    if (!email || !imapHost || !smtpHost || !emailPassword) {
+    // IMAP est optionnel — seul SMTP est requis pour l'envoi d'emails
+    if (!email || !smtpHost || !emailPassword) {
       return NextResponse.json(
-        { error: 'Email, mot de passe, serveur IMAP et SMTP sont requis', steps },
+        { error: 'Email, mot de passe et serveur SMTP sont requis', steps },
         { status: 400 }
       )
     }
-    steps.push(`3c. Fields OK: email=${email}, imap=${imapHost}:${imapPort || 993}, smtp=${smtpHost}:${smtpPort || 587}`)
+    const hasImap = !!imapHost
+    steps.push(`3c. Fields OK: email=${email}, imap=${imapHost || '(non configuré)'}:${imapPort || 993}, smtp=${smtpHost}:${smtpPort || 587}`)
 
     const results: { imap: { success: boolean; message: string }; smtp: { success: boolean; message: string } } = {
       imap: { success: false, message: '' },
       smtp: { success: false, message: '' },
     }
 
-    // Test IMAP
-    steps.push('4. Testing IMAP connection')
-    try {
-      const imapPortNum = imapPort || 993
-      const imapClient = new ImapFlow({
-        host: imapHost,
-        port: imapPortNum,
-        secure: imapTls !== false,
-        auth: {
-          user: email,
-          pass: emailPassword,
-        },
-        tls: { rejectUnauthorized: false },
-        logger: false as unknown as undefined,
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 15000,
-      })
+    // Test IMAP (optionnel — seulement si imapHost est fourni)
+    if (hasImap) {
+      steps.push('4. Testing IMAP connection')
+      try {
+        const imapPortNum = imapPort || 993
+        const imapClient = new ImapFlow({
+          host: imapHost,
+          port: imapPortNum,
+          secure: imapTls !== false,
+          auth: {
+            user: email,
+            pass: emailPassword,
+          },
+          tls: { rejectUnauthorized: false },
+          logger: false as unknown as undefined,
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+          socketTimeout: 15000,
+        })
 
-      await imapClient.connect()
-      steps.push('4c. IMAP connected')
-      await imapClient.list()
-      steps.push('4d. IMAP listed folders')
-      await imapClient.logout()
-      steps.push('4e. IMAP logout OK')
-      results.imap = { success: true, message: 'Connexion IMAP réussie' }
-    } catch (imapError: unknown) {
-      const errorMsg = imapError instanceof Error ? imapError.message : 'Erreur inconnue'
-      const errorCode = (imapError as any)?.code || ''
-      steps.push(`4b. IMAP FAILED: ${errorMsg} (code: ${errorCode})`)
-      console.error('[EMAIL_TEST_IMAP]', errorMsg, 'Code:', errorCode)
+        await imapClient.connect()
+        steps.push('4c. IMAP connected')
+        await imapClient.list()
+        steps.push('4d. IMAP listed folders')
+        await imapClient.logout()
+        steps.push('4e. IMAP logout OK')
+        results.imap = { success: true, message: 'Connexion IMAP réussie' }
+      } catch (imapError: unknown) {
+        const errorMsg = imapError instanceof Error ? imapError.message : 'Erreur inconnue'
+        const errorCode = (imapError as any)?.code || ''
+        steps.push(`4b. IMAP FAILED: ${errorMsg} (code: ${errorCode})`)
+        console.error('[EMAIL_TEST_IMAP]', errorMsg, 'Code:', errorCode)
 
-      let userMessage = errorMsg
-      if (errorMsg.includes('AUTHENTICATE FAILED') || errorMsg.includes('Invalid credentials')) {
-        userMessage = 'Identifiants incorrects. Vérifiez votre email et mot de passe.'
-      } else if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo')) {
-        userMessage = `Serveur "${imapHost}" introuvable. Vérifiez l'adresse du serveur IMAP.`
-      } else if (errorMsg.includes('ECONNREFUSED')) {
-        userMessage = `Connexion refusée par ${imapHost}:${imapPort || 993}. Le port est peut-être bloqué.`
-      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout') || errorCode === 'ETIMEDOUT') {
-        userMessage = `Délai dépassé pour ${imapHost}:${imapPort || 993}. Le port est probablement bloqué par Vercel.`
-      } else if (errorMsg.includes('SSL') || errorMsg.includes('TLS') || errorMsg.includes('certificate')) {
-        userMessage = 'Erreur SSL/TLS. Essayez de désactiver TLS.'
-      } else if (errorMsg.includes('Too many login') || errorMsg.includes('rate limit')) {
-        userMessage = 'Trop de tentatives. Réessayez dans quelques minutes.'
-      } else if (errorMsg.includes('EHOSTUNREACH') || errorCode === 'EHOSTUNREACH') {
-        userMessage = `Impossible de joindre ${imapHost}:${imapPort || 993}. Port bloqué par Vercel.`
-      } else if (errorMsg.includes('ECONNRESET') || errorCode === 'ECONNRESET') {
-        userMessage = `Connexion réinitialisée par ${imapHost}. Le port est peut-être bloqué par Vercel.`
+        let userMessage = errorMsg
+        if (errorMsg.includes('AUTHENTICATE FAILED') || errorMsg.includes('Invalid credentials')) {
+          userMessage = 'Identifiants incorrects. Vérifiez votre email et mot de passe.'
+        } else if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo')) {
+          userMessage = `Serveur "${imapHost}" introuvable. Vérifiez l'adresse du serveur IMAP.`
+        } else if (errorMsg.includes('ECONNREFUSED')) {
+          userMessage = `Connexion refusée par ${imapHost}:${imapPort || 993}. Le port est peut-être bloqué.`
+        } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout') || errorCode === 'ETIMEDOUT') {
+          userMessage = `Délai dépassé pour ${imapHost}:${imapPort || 993}. Le port est probablement bloqué par Vercel.`
+        } else if (errorMsg.includes('SSL') || errorMsg.includes('TLS') || errorMsg.includes('certificate')) {
+          userMessage = 'Erreur SSL/TLS. Essayez de désactiver TLS.'
+        } else if (errorMsg.includes('Too many login') || errorMsg.includes('rate limit')) {
+          userMessage = 'Trop de tentatives. Réessayez dans quelques minutes.'
+        } else if (errorMsg.includes('EHOSTUNREACH') || errorCode === 'EHOSTUNREACH') {
+          userMessage = `Impossible de joindre ${imapHost}:${imapPort || 993}. Port bloqué par Vercel.`
+        } else if (errorMsg.includes('ECONNRESET') || errorCode === 'ECONNRESET') {
+          userMessage = `Connexion réinitialisée par ${imapHost}. Le port est peut-être bloqué par Vercel.`
+        }
+        results.imap = { success: false, message: userMessage }
       }
-      results.imap = { success: false, message: userMessage }
+    } else {
+      steps.push('4. IMAP non configuré (ignoré)')
+      results.imap = { success: true, message: 'IMAP non configuré — envoi SMTP uniquement' }
     }
 
     // Test SMTP
@@ -147,12 +154,15 @@ export async function POST(request: NextRequest) {
       results.smtp = { success: false, message: userMessage }
     }
 
-    const allSuccess = results.imap.success && results.smtp.success
+    // Le succès global dépend uniquement de SMTP (IMAP est optionnel)
+    const allSuccess = results.smtp.success
+    const imapOptional = !hasImap // IMAP non configuré = optionnel
 
     return NextResponse.json({
       success: allSuccess,
+      imapOptional,
       results,
-      error: allSuccess ? undefined : 'Certains tests de connexion ont échoué',
+      error: allSuccess ? undefined : 'Le test de connexion SMTP a échoué',
       steps,
     })
   } catch (error) {
