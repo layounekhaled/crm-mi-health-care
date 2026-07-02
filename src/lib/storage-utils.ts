@@ -12,15 +12,15 @@ export const BRAND_FOLDERS: Record<string, string> = {
   'Autres': 'autres',
 }
 
-// Get public URL for a file (served via /api/files/[...path] route)
-// This function is pure and safe for client usage
+// Get public URL for a file
+// For Vercel Blob uploads: the URL is absolute and stored directly in DB
+// This function handles legacy relative paths that might still exist
 export function getPublicUrl(filePath: string): string {
-  // If it's already an absolute URL (Vercel Blob URLs), return as-is
+  // If it's already an absolute URL (Vercel Blob), return as-is
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
     return filePath
   }
-  // Otherwise serve via our local file route
-  // filePath is like "mir/1234567_file.pdf"
+  // For legacy relative paths, serve via /api/files/ route
   return `/api/files/${filePath}`
 }
 

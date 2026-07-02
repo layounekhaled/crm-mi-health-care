@@ -1,11 +1,8 @@
-// Server-only storage module — uses local filesystem for file storage
+// Server-only storage module — uses Vercel Blob for file storage
 // Re-exports pure utilities from storage-utils.ts for convenience in API routes
 // IMPORTANT: this module must only be imported from server-side code (API routes, server components)
-// because it uses Node.js 'fs' which is not available in the browser.
 
-import { promises as fs } from 'fs'
-import path from 'path'
-import os from 'os'
+import { put, del, list, head } from '@vercel/blob'
 
 // Re-export everything from storage-utils so API routes can still import from '@/lib/storage'
 export {
@@ -16,25 +13,7 @@ export {
 
 import { BRAND_FOLDERS, getPublicUrl } from './storage-utils'
 
-// Storage root: persistent volume mounted on Coolify (or local /tmp in dev)
-// On Coolify: /data/dalia-documents (MUST be mounted as a persistent volume!)
-// On dev: /tmp/dalia-documents (ephemeral but works for testing)
-const STORAGE_ROOT = process.env.DOCUMENTS_STORAGE_PATH || '/data/dalia-documents'
-
-// Get effective storage path (with fallback for dev environments)
-async function getEffectiveStorageRoot(): Promise<string> {
-  try {
-    await fs.access(STORAGE_ROOT)
-    await fs.mkdir(STORAGE_ROOT, { recursive: true })
-    return STORAGE_ROOT
-  } catch {
-    const fallback = path.join(os.tmpdir(), 'dalia-documents')
-    await fs.mkdir(fallback, { recursive: true })
-    return fallback
-  }
-}
-
-// Upload a file to local storage
+// Upload a file to Vercel Blob Storage
 // filePath is relative path like "mir/1234567_file.pdf"
 // Returns: { url: public URL to access the file, pathname: relative path stored in DB }
 export async function uploadFile(
@@ -42,106 +21,107 @@ export async function uploadFile(
   file: File | Blob | Buffer,
   contentType?: string
 ): Promise<{ url: string; pathname: string }> {
-  const storageRoot = await getEffectiveStorageRoot()
-  const fullPath = path.join(storageRoot, filePath)
-
-  // Ensure parent directory exists
-  await fs.mkdir(path.dirname(fullPath), { recursive: true })
-
-  // Get file content as Buffer
-  let buffer: Buffer
-  if (Buffer.isBuffer(file)) {
-    buffer = file
-  } else if (file instanceof File) {
-    const arrayBuffer = await file.arrayBuffer()
-    buffer = Buffer.from(arrayBuffer)
-  } else if (file instanceof Blob) {
-    const arrayBuffer = await file.arrayBuffer()
-    buffer = Buffer.from(arrayBuffer)
-  } else {
-    throw new Error('Type de fichier non supporté')
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error('BLOB_READ_WRITE_TOKEN non configuré. Veuillez lier le Blob Store dans le dashboard Vercel.')
   }
 
-  // Write to disk
-  await fs.writeFile(fullPath, buffer)
+  // Convert to Blob if it's a Buffer
+  let blobData: Blob
+  if (Buffer.isBuffer(file)) {
+    blobData = new Blob([file], { type: contentType || 'application/pdf' })
+  } else {
+    blobData = file
+  }
+
+  const blob = await put(filePath, blobData, {
+    access: 'public',
+    contentType: contentType || 'application/pdf',
+    allowOverwrite: true,
+  })
 
   return {
-    url: getPublicUrl(filePath),
-    pathname: filePath,
+    url: blob.url,
+    pathname: blob.pathname,
   }
 }
 
-// Delete a file from local storage
-// url can be either a full URL (legacy Vercel Blob) or a relative path
+// Delete a file from Vercel Blob Storage
 export async function deleteFile(url: string): Promise<void> {
-  // If it's an absolute URL pointing to our own server, extract the path
-  if (url.startsWith('/api/files/')) {
-    const relativePath = url.replace('/api/files/', '')
-    const storageRoot = await getEffectiveStorageRoot()
-    const fullPath = path.join(storageRoot, relativePath)
+  // Only delete Vercel Blob URLs
+  if (url.includes('vercel-storage.com') || url.includes('blob.vercel-storage.com')) {
     try {
-      await fs.unlink(fullPath)
-    } catch (err: any) {
-      if (err.code !== 'ENOENT') throw err
+      await del(url)
+    } catch (err) {
+      console.error('[STORAGE_DELETE_ERROR]', err)
     }
     return
   }
-  // Legacy Vercel Blob URLs - we can't delete those, just skip
-  console.log(`[STORAGE] Skipping deletion of legacy URL: ${url}`)
+  // For relative /api/files/ paths (shouldn't happen with Vercel Blob, but just in case)
+  console.log(`[STORAGE] Skipping deletion of non-blob URL: ${url}`)
 }
 
-// List files in a folder (relative path like "mir/")
+// List files in a folder (prefix like "mir/")
 export async function listFiles(prefix?: string) {
-  const storageRoot = await getEffectiveStorageRoot()
-  const fullPath = prefix ? path.join(storageRoot, prefix) : storageRoot
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return { blobs: [] }
+  }
 
   try {
-    const entries = await fs.readdir(fullPath, { withFileTypes: true })
-    const files = entries
-      .filter((e) => e.isFile())
-      .map((e) => ({
-        pathname: prefix ? `${prefix}${e.name}` : e.name,
-        url: getPublicUrl(prefix ? `${prefix}${e.name}` : e.name),
-      }))
-    return { blobs: files }
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return { blobs: [] }
-    throw err
+    const result = await list({
+      prefix: prefix || undefined,
+      limit: 100,
+    })
+
+    return {
+      blobs: result.blobs.map((b) => ({
+        pathname: b.pathname,
+        url: b.url,
+      })),
+    }
+  } catch (err) {
+    console.error('[STORAGE_LIST_ERROR]', err)
+    return { blobs: [] }
   }
 }
 
 // Get file metadata (size, etc.)
 export async function getFileHead(url: string) {
-  if (url.startsWith('/api/files/')) {
-    const relativePath = url.replace('/api/files/', '')
-    const storageRoot = await getEffectiveStorageRoot()
-    const fullPath = path.join(storageRoot, relativePath)
+  if (url.includes('vercel-storage.com')) {
     try {
-      const stat = await fs.stat(fullPath)
+      const result = await head(url)
       return {
-        size: stat.size,
-        uploadedAt: stat.mtime,
-        pathname: relativePath,
-        url,
+        size: result.size,
+        uploadedAt: result.uploadedAt,
+        pathname: result.pathname,
+        url: result.url,
       }
     } catch {
       return null
     }
   }
-  // Legacy URL - return minimal info
   return { url, pathname: url }
 }
 
-// Read file content for serving via API route
+// Read file content — downloads from Vercel Blob
+// Used by /api/files/[...path] route as a fallback for old relative URLs
 export async function readFileContent(filePath: string): Promise<Buffer | null> {
-  const storageRoot = await getEffectiveStorageRoot()
-  const fullPath = path.join(storageRoot, filePath)
-
   try {
-    const content = await fs.readFile(fullPath)
-    return content
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return null
-    throw err
+    // Try to find the file in Vercel Blob by pathname
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const result = await list({ prefix: filePath, limit: 1 })
+      const blob = result.blobs.find(b => b.pathname === filePath)
+
+      if (blob) {
+        const response = await fetch(blob.url)
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer()
+          return Buffer.from(arrayBuffer)
+        }
+      }
+    }
+    return null
+  } catch (err) {
+    console.error('[STORAGE_READ_ERROR]', err)
+    return null
   }
 }
