@@ -24,6 +24,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { Loader2, ShieldAlert } from 'lucide-react'
 import ChatWidget from '@/components/crm/chat'
 import { GlobalSearch } from '@/components/crm/global-search'
+import { ImpersonationBanner } from '@/components/crm/impersonation-banner'
 
 // Map between store Page keys and permission module keys.
 // This is needed to verify that the current page is actually allowed for the user.
@@ -195,6 +196,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <ImpersonationBanner />
       <CRMSidebar />
       <div
         className={`transition-all duration-300 ease-in-out ${!isMobile && sidebarOpen ? 'ml-64' : 'ml-0'}`}

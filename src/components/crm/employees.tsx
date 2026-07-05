@@ -21,6 +21,7 @@ import {
   Eye,
   EyeOff,
   XCircle,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -68,6 +69,7 @@ import {
   type PermissionModule,
   type PermissionAction,
 } from '@/lib/permissions'
+import { useAuth } from '@/lib/auth-context'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -439,10 +441,14 @@ function PermissionsEditor({
 
 export default function EmployeesModule() {
   const { toast } = useToast()
+  const { user: currentUser, isImpersonating } = useAuth()
 
   // Data
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Impersonation
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
 
   // Filters
   const [filterRole, setFilterRole] = useState<string>('all')
@@ -669,6 +675,46 @@ export default function EmployeesModule() {
       }
     } catch (err) {
       console.error('Toggle failed:', err)
+    }
+  }
+
+  // ─── Impersonation Handler ──────────────────────────────────────
+
+  const handleImpersonate = async (emp: Employee) => {
+    if (!emp.hasUserAccount) {
+      toast({
+        title: 'Impossible',
+        description: 'Cet employé n\'a pas de compte utilisateur.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!emp.actif) {
+      toast({
+        title: 'Impossible',
+        description: 'Ce compte est désactivé.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setImpersonatingId(emp.id)
+    try {
+      const res = await fetch('/api/impersonate/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId: emp.id }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Erreur lors de l\'accès au compte')
+      }
+      // Reload the page with the new session
+      window.location.href = '/'
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue'
+      toast({ title: 'Erreur', description: message, variant: 'destructive' })
+    } finally {
+      setImpersonatingId(null)
     }
   }
 
@@ -916,6 +962,23 @@ export default function EmployeesModule() {
 
                         {/* Actions */}
                         <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                          {currentUser?.role === 'admin' && !isImpersonating && emp.hasUserAccount && emp.actif && emp.id !== currentUser.employeId && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 gap-1 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                              onClick={() => handleImpersonate(emp)}
+                              disabled={impersonatingId === emp.id}
+                              title="Accéder au compte de cet employé"
+                            >
+                              {impersonatingId === emp.id ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <ArrowLeftRight className="size-3" />
+                              )}
+                              Accéder
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

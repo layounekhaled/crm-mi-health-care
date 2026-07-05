@@ -9,6 +9,8 @@ declare module 'next-auth' {
     employeId?: string | null
     employeNom?: string | null
     permissions?: Record<string, unknown> | null
+    impersonatedBy?: string | null
+    impersonatedByNom?: string | null
   }
   interface Session {
     user: {
@@ -18,6 +20,8 @@ declare module 'next-auth' {
       employeId?: string | null
       employeNom?: string | null
       permissions?: Record<string, unknown> | null
+      impersonatedBy?: string | null
+      impersonatedByNom?: string | null
     }
   }
 }
@@ -29,6 +33,8 @@ declare module 'next-auth/jwt' {
     employeId?: string | null
     employeNom?: string | null
     permissions?: Record<string, unknown> | null
+    impersonatedBy?: string | null
+    impersonatedByNom?: string | null
   }
 }
 
@@ -99,6 +105,11 @@ export const authOptions: NextAuthOptions = {
         token.employeId = user.employeId
         token.employeNom = user.employeNom
         token.permissions = user.permissions
+        // Propagate impersonation fields if present
+        if (user.impersonatedBy) {
+          token.impersonatedBy = user.impersonatedBy
+          token.impersonatedByNom = user.impersonatedByNom
+        }
       }
       return token
     },
@@ -109,6 +120,8 @@ export const authOptions: NextAuthOptions = {
         session.user.employeId = token.employeId
         session.user.employeNom = token.employeNom
         session.user.permissions = token.permissions
+        session.user.impersonatedBy = token.impersonatedBy
+        session.user.impersonatedByNom = token.impersonatedByNom
       }
       return session
     },

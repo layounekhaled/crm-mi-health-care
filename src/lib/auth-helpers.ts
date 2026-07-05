@@ -9,6 +9,8 @@ export interface AuthUser {
   employeId: string | null
   employeNom: string | null
   permissions: Record<string, unknown> | null
+  impersonatedBy: string | null
+  impersonatedByNom: string | null
 }
 
 export async function getAuthUser(request: NextRequest): Promise<AuthUser | null> {
@@ -25,6 +27,8 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUser | null
       employeId: token.employeId as string | null,
       employeNom: token.employeNom as string | null,
       permissions: (token.permissions as Record<string, unknown> | null) || null,
+      impersonatedBy: (token.impersonatedBy as string | null) || null,
+      impersonatedByNom: (token.impersonatedByNom as string | null) || null,
     }
   } catch {
     return null

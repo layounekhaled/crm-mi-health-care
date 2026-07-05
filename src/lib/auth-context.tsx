@@ -12,6 +12,8 @@ interface AuthUser {
   employeId: string | null
   employeNom: string | null
   permissions: Record<string, unknown> | null
+  impersonatedBy: string | null
+  impersonatedByNom: string | null
 }
 
 interface AuthContextType {
@@ -22,6 +24,8 @@ interface AuthContextType {
   logout: () => void
   hasPermission: (module: PermissionModule, action: PermissionAction) => boolean
   canViewModule: (module: PermissionModule) => boolean
+  isImpersonating: boolean
+  stopImpersonating: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -32,6 +36,8 @@ const AuthContext = createContext<AuthContextType>({
   logout: () => {},
   hasPermission: () => false,
   canViewModule: () => false,
+  isImpersonating: false,
+  stopImpersonating: async () => {},
 })
 
 function mapSessionUser(sessionUser: {
@@ -41,6 +47,8 @@ function mapSessionUser(sessionUser: {
   employeId?: string | null
   employeNom?: string | null
   permissions?: Record<string, unknown> | null
+  impersonatedBy?: string | null
+  impersonatedByNom?: string | null
 }): AuthUser {
   return {
     id: sessionUser.id || '',
@@ -49,6 +57,8 @@ function mapSessionUser(sessionUser: {
     employeId: sessionUser.employeId || null,
     employeNom: sessionUser.employeNom || null,
     permissions: sessionUser.permissions || null,
+    impersonatedBy: sessionUser.impersonatedBy || null,
+    impersonatedByNom: sessionUser.impersonatedByNom || null,
   }
 }
 
@@ -66,6 +76,20 @@ function AuthInner({ children }: { children: React.ReactNode }) {
   }, [session, status, setCurrentUser, clearCurrentUser])
 
   const user = session?.user ? mapSessionUser(session.user) : null
+
+  const isImpersonating = !!(user?.impersonatedBy)
+
+  const stopImpersonating = async () => {
+    try {
+      const res = await fetch('/api/impersonate/stop', { method: 'POST' })
+      if (res.ok) {
+        // Force session refresh
+        window.location.href = '/'
+      }
+    } catch {
+      console.error('Failed to stop impersonation')
+    }
+  }
 
   const logout = () => {
     clearCurrentUser()
@@ -96,6 +120,8 @@ function AuthInner({ children }: { children: React.ReactNode }) {
         logout,
         hasPermission: userHasPermission,
         canViewModule: userCanViewModule,
+        isImpersonating,
+        stopImpersonating,
       }}
     >
       {children}
