@@ -19,6 +19,7 @@ import EmailsModule from '@/components/crm/emails'
 import RHModule from '@/components/crm/rh'
 import DocumentsModule from '@/components/crm/documents'
 import ChargesModule from '@/components/crm/charges'
+import CashManagement from '@/components/crm/cash'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Loader2, ShieldAlert } from 'lucide-react'
 import ChatWidget from '@/components/crm/chat'
@@ -42,6 +43,7 @@ const PAGE_PERMISSION_MAP: Record<string, string> = {
   rh: 'rh',
   documents: 'documents',
   charges: 'charges',
+  caisse: 'caisse',
 }
 
 // Default landing page per role — used when the user has no explicit page
@@ -62,6 +64,7 @@ const PREFERRED_FALLBACK_ORDER: string[] = [
   'documents',
   'rh',
   'charges',
+  'caisse',
   'employees',
 ]
 
@@ -183,6 +186,8 @@ export default function Home() {
         return <DocumentsModule />
       case 'charges':
         return <ChargesModule />
+      case 'caisse':
+        return <CashManagement />
       default:
         return <Dashboard />
     }

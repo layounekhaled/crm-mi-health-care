@@ -38,6 +38,7 @@ model Prospect {
   documentSends DocumentSend[]
   photos        ProspectPhoto[]
   creePar       Employee?  @relation("ProspectCreePar", fields: [creeParId], references: [id])
+  cashPayments  CashPayment[]
 }
 
 model Event {
@@ -110,6 +111,7 @@ model Opportunity {
   tasks        Task[]
   interactions Interaction[]
   charges      Charge[]
+  cashPayments CashPayment[]
 }
 
 model Operation {
@@ -280,6 +282,13 @@ model Employee {
   eventsModifies      Event[]      @relation("EventModifiePar")
   prospectsCrees      Prospect[]  @relation("ProspectCreePar")
   opportunitesCrees   Opportunity[] @relation("OpportunitesCrees")
+  cashPaymentsCreated CashPayment[] @relation("CashPaymentCreator")
+  cashPaymentsValidated CashPayment[] @relation("CashPaymentValidator")
+  cashPaymentsModified CashPayment[] @relation("CashPaymentModifier")
+  cashExpensesCreated CashExpense[] @relation("CashExpenseCreator")
+  bankDepositsCreated BankDeposit[] @relation("BankDepositCreator")
+  cashJournalEntries  CashJournalEntry[]
+  cashAuditLogs       CashAuditLog[]
 }
 
 model Objective {
@@ -548,5 +557,130 @@ model ProspectPhoto {
   uploader Employee? @relation(fields: [uploadedBy], references: [id])
 
   @@index([prospectId])
+  @@index([createdAt])
+}
+
+// ─── Cash Management Module ──────────────────────────────────────
+
+model CashPayment {
+  id              String    @id @default(cuid())
+  prospectId      String?   // Client who paid
+  opportunityId   String?   // Optional: linked opportunity/sale
+  reference       String?   // Invoice or bon reference
+  montant         Float     // Amount in DZD
+  datePaiement    DateTime  @default(now()) // Date/time of payment (auto, modifiable)
+  modePaiement    String    @default("especes") // especes only for now
+  description     String?   // Description / remark
+  justificatifUrl String?   // Photo of receipt/justificatif (Vercel Blob URL)
+  justificatifPath String?  // Blob pathname for deletion
+  statut          String    @default("en_attente") // en_attente / valide / refuse / archive
+  motifRefus      String?   // Required if refused
+  creeParId       String    // Employee who declared the payment
+  valideParId     String?   // Admin who validated
+  dateValidation  DateTime? // When validated
+  modifieParId    String?   // Last modifier
+  archived        Boolean   @default(false) // Logical archive (no hard delete)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  prospect      Prospect?  @relation(fields: [prospectId], references: [id])
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+  creePar       Employee   @relation("CashPaymentCreator", fields: [creeParId], references: [id])
+  validePar     Employee?  @relation("CashPaymentValidator", fields: [valideParId], references: [id])
+  modifiePar    Employee?  @relation("CashPaymentModifier", fields: [modifieParId], references: [id])
+  journalEntry  CashJournalEntry?
+  auditLogs     CashAuditLog[]
+
+  @@index([prospectId])
+  @@index([opportunityId])
+  @@index([creeParId])
+  @@index([valideParId])
+  @@index([statut])
+  @@index([datePaiement])
+  @@index([archived])
+}
+
+model CashJournalEntry {
+  id              String   @id @default(cuid())
+  type            String   // encaissement / depot_banque / sortie / depense / ajustement
+  reference       String?  // Reference number
+  montantEntree   Float    @default(0) // Amount coming in
+  montantSortie   Float    @default(0) // Amount going out
+  soldeApres      Float    // Balance after this operation
+  description     String?
+  employeId       String   // User who performed the operation
+  cashPaymentId   String?  @unique // Link to CashPayment (for encaissement type)
+  bankDepositId   String?  @unique // Link to BankDeposit
+  cashExpenseId   String?  @unique // Link to CashExpense
+  dateOperation   DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  employe       Employee       @relation(fields: [employeId], references: [id])
+  cashPayment   CashPayment?   @relation(fields: [cashPaymentId], references: [id])
+  bankDeposit   BankDeposit?   @relation(fields: [bankDepositId], references: [id])
+  cashExpense   CashExpense?   @relation(fields: [cashExpenseId], references: [id])
+
+  @@index([type])
+  @@index([dateOperation])
+  @@index([employeId])
+}
+
+model CashExpense {
+  id              String   @id @default(cuid())
+  categorie       String   // carburant / fournitures / deplacement / restauration / divers
+  montant         Float    // Amount in DZD
+  description     String?
+  justificatifUrl String?  // Photo of receipt
+  justificatifPath String?
+  creeParId       String   // Admin who recorded it
+  archived        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  creePar        Employee        @relation("CashExpenseCreator", fields: [creeParId], references: [id])
+  journalEntry   CashJournalEntry?
+
+  @@index([categorie])
+  @@index([creeParId])
+  @@index([archived])
+  @@index([createdAt])
+}
+
+model BankDeposit {
+  id          String   @id @default(cuid())
+  montant     Float    // Amount deposited
+  banque      String   // Bank name
+  compte      String?  // Bank account number
+  reference   String?  // Reference number
+  observation String?  // Notes
+  creeParId   String   // Admin who made the deposit
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creePar        Employee        @relation("BankDepositCreator", fields: [creeParId], references: [id])
+  journalEntry   CashJournalEntry?
+
+  @@index([banque])
+  @@index([creeParId])
+  @@index([archived])
+  @@index([createdAt])
+}
+
+model CashAuditLog {
+  id          String   @id @default(cuid())
+  entityType  String   // cash_payment / cash_expense / bank_deposit / cash_adjustment
+  entityId    String   // ID of the affected entity
+  action      String   // create / validate / refuse / modify / archive
+  details     Json?    // { field: oldValue → newValue, ... }
+  employeId   String   // Who performed the action
+  createdAt   DateTime @default(now())
+
+  employe      Employee     @relation(fields: [employeId], references: [id])
+  cashPayment  CashPayment? @relation(fields: [entityId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([employeId])
   @@index([createdAt])
 }

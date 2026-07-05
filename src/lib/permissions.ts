@@ -21,6 +21,7 @@ export interface Permissions {
   tasks: ModulePermissions
   afterSales: ModulePermissions
   charges: ModulePermissions
+  caisse: ModulePermissions
   employees: ModulePermissions
   documents: ModulePermissions
   calendar: ModulePermissions
@@ -44,6 +45,7 @@ export const MODULE_LABELS: Record<PermissionModule, { label: string; icon: stri
   tasks: { label: 'Tâches', icon: 'CheckSquare' },
   afterSales: { label: 'Après-vente', icon: 'Wrench' },
   charges: { label: 'Charges', icon: 'Receipt' },
+  caisse: { label: 'Caisse', icon: 'Wallet' },
   employees: { label: 'Employés', icon: 'Users' },
   documents: { label: 'Documents', icon: 'FileText' },
   calendar: { label: 'Calendrier', icon: 'CalendarClock' },
@@ -76,6 +78,7 @@ export const ROLE_DEFAULTS: Record<string, Permissions> = {
     tasks: FULL_ACCESS,
     afterSales: FULL_ACCESS,
     charges: FULL_ACCESS,
+    caisse: FULL_ACCESS,
     employees: FULL_ACCESS,
     documents: FULL_ACCESS,
     calendar: FULL_ACCESS,
@@ -93,6 +96,7 @@ export const ROLE_DEFAULTS: Record<string, Permissions> = {
     tasks: FULL_ACCESS,
     afterSales: FULL_ACCESS,
     charges: { view: true, create: true, edit: true, delete: false },
+    caisse: { view: true, create: true, edit: false, delete: false },
     employees: NO_ACCESS,
     documents: { view: true, create: true, edit: true, delete: false },
     calendar: FULL_ACCESS,
@@ -110,6 +114,7 @@ export const ROLE_DEFAULTS: Record<string, Permissions> = {
     tasks: FULL_ACCESS,
     afterSales: FULL_ACCESS,
     charges: { view: true, create: true, edit: false, delete: false },
+    caisse: { view: true, create: true, edit: false, delete: false },
     employees: NO_ACCESS,
     documents: { view: true, create: true, edit: true, delete: false },
     calendar: FULL_ACCESS,

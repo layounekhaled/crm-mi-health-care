@@ -26,6 +26,7 @@ import {
   CalendarClock,
   FileText,
   Receipt,
+  Wallet,
   ChevronDown,
   ChevronRight,
   Sparkles,
@@ -84,6 +85,7 @@ const navGroups: NavGroup[] = [
     items: [
       { page: 'employees', label: 'Employés', icon: Users, permissionModule: 'employees' },
       { page: 'charges', label: 'Charges', icon: Receipt, permissionModule: 'charges' },
+      { page: 'caisse', label: 'Caisse', icon: Wallet, permissionModule: 'caisse' },
       { page: 'calendar', label: 'Calendrier', icon: CalendarClock, permissionModule: 'calendar' },
       { page: 'rh', label: 'RH', icon: CalendarDays, permissionModule: 'rh' },
       { page: 'emails', label: 'Emails', icon: Mail, permissionModule: 'emails' },
