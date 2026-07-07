@@ -70,6 +70,7 @@ interface ProspectOption {
   email?: string | null
   telephone?: string | null
   whatsapp?: string | null
+  isClient?: boolean
 }
 
 const BRANDS = ['MIR', 'BOSO BOSCH', 'Löwenstein', 'Yuwell', 'Gelenke', 'DRIVE DEVILBISS', 'INOGEN', 'Autres']
@@ -199,9 +200,10 @@ export default function DocumentsModule() {
     try {
       const res = await fetch('/api/prospects?limit=500')
       const data = await res.json()
-      if (data.prospects) {
-        setProspects(data.prospects.map((p: any) => ({
-          id: p.id, nom: p.nom, email: p.email, telephone: p.telephone, whatsapp: p.whatsapp
+      const list = data.data || data.prospects || []
+      if (list.length > 0) {
+        setProspects(list.map((p: any) => ({
+          id: p.id, nom: p.nom, email: p.email, telephone: p.telephone, whatsapp: p.whatsapp, isClient: p.isClient
         })))
       }
     } catch {}
@@ -1150,7 +1152,7 @@ export default function DocumentsModule() {
                   <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                   <SelectContent className="max-h-48">
                     {prospects
-                      .filter(p => sendForm.recipientType === 'client' ? true : true)
+                      .filter(p => sendForm.recipientType === 'client' ? p.isClient === true : !p.isClient)
                       .map(p => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.nom}
