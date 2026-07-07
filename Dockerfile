@@ -2,7 +2,9 @@
 
 # ─── Stage 1: deps ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat python3 make g++
+# Fix TLS issues on some servers by using HTTP mirror for Alpine packages
+RUN sed -i 's|https://dl-cdn.alpinelinux.org|http://dl-cdn.alpinelinux.org|g' /etc/apk/repositories \
+    && apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 
 COPY package.json package-lock.json ./
