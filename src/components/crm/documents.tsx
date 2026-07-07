@@ -21,6 +21,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
 import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from '@/components/ui/command'
+import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -64,13 +70,12 @@ interface DocumentSendRecord {
   documents: { id: string; title: string; brand: string }[]
 }
 
-interface ProspectOption {
+interface RecipientOption {
   id: string
   nom: string
   email?: string | null
   telephone?: string | null
   whatsapp?: string | null
-  isClient?: boolean
 }
 
 const BRANDS = ['MIR', 'BOSO BOSCH', 'Löwenstein', 'Yuwell', 'Gelenke', 'DRIVE DEVILBISS', 'INOGEN', 'Autres']
@@ -128,7 +133,9 @@ export default function DocumentsModule() {
   // State
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
   const [sends, setSends] = useState<DocumentSendRecord[]>([])
-  const [prospects, setProspects] = useState<ProspectOption[]>([])
+  const [prospects, setProspects] = useState<RecipientOption[]>([])
+  const [clients, setClients] = useState<RecipientOption[]>([])
+  const [recipientSearchOpen, setRecipientSearchOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterBrand, setFilterBrand] = useState<string>('all')
@@ -195,17 +202,25 @@ export default function DocumentsModule() {
     }
   }, [])
 
-  // Fetch prospects for send dialog
-  const fetchProspects = useCallback(async () => {
+  // Fetch prospects & clients for send dialog
+  const fetchRecipients = useCallback(async () => {
     try {
-      const res = await fetch('/api/prospects?limit=500')
-      const data = await res.json()
-      const list = data.data || data.prospects || []
-      if (list.length > 0) {
-        setProspects(list.map((p: any) => ({
-          id: p.id, nom: p.nom, email: p.email, telephone: p.telephone, whatsapp: p.whatsapp, isClient: p.isClient
-        })))
-      }
+      const [prospectRes, clientRes] = await Promise.all([
+        fetch('/api/prospects?limit=500&isClient=false'),
+        fetch('/api/prospects?limit=500&isClient=true'),
+      ])
+      const prospectData = await prospectRes.json()
+      const clientData = await clientRes.json()
+
+      const prospectList = prospectData.data || prospectData.prospects || []
+      const clientList = clientData.data || clientData.prospects || []
+
+      const mapRecipient = (p: any): RecipientOption => ({
+        id: p.id, nom: p.nom, email: p.email, telephone: p.telephone, whatsapp: p.whatsapp,
+      })
+
+      setProspects(prospectList.map(mapRecipient))
+      setClients(clientList.map(mapRecipient))
     } catch {}
   }, [])
 
@@ -213,11 +228,11 @@ export default function DocumentsModule() {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      await Promise.all([fetchDocuments(), fetchSends(), fetchProspects()])
+      await Promise.all([fetchDocuments(), fetchSends(), fetchRecipients()])
       setLoading(false)
     }
     load()
-  }, [fetchDocuments, fetchSends, fetchProspects])
+  }, [fetchDocuments, fetchSends, fetchRecipients])
 
   // Refetch when filters change
   useEffect(() => {
@@ -473,13 +488,14 @@ export default function DocumentsModule() {
   }
 
   // Handle prospect selection for send
-  const handleProspectSelect = (prospectId: string) => {
-    const prospect = prospects.find(p => p.id === prospectId)
+  const handleProspectSelect = (recipientId: string) => {
+    const list = sendForm.recipientType === 'client' ? clients : prospects
+    const recipient = list.find(p => p.id === recipientId)
     setSendForm(prev => ({
       ...prev,
-      recipientId: prospectId,
-      recipientEmail: prospect?.email || '',
-      recipientPhone: prospect?.whatsapp || prospect?.telephone || '',
+      recipientId,
+      recipientEmail: recipient?.email || '',
+      recipientPhone: recipient?.whatsapp || recipient?.telephone || '',
     }))
   }
 
@@ -1131,7 +1147,7 @@ export default function DocumentsModule() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Destinataire</label>
               <Select
                 value={sendForm.recipientType}
-                onValueChange={(v) => setSendForm(prev => ({ ...prev, recipientType: v, recipientId: '', recipientEmail: '', recipientPhone: '' }))}
+                onValueChange={(v) => { setSendForm(prev => ({ ...prev, recipientType: v, recipientId: '', recipientEmail: '', recipientPhone: '' })); setRecipientSearchOpen(false) }}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1142,28 +1158,61 @@ export default function DocumentsModule() {
               </Select>
             </div>
 
-            {/* Prospect/Client selection */}
+            {/* Prospect/Client selection with search */}
             {(sendForm.recipientType === 'prospect' || sendForm.recipientType === 'client') && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   {sendForm.recipientType === 'prospect' ? 'Prospect' : 'Client'}
                 </label>
-                <Select value={sendForm.recipientId} onValueChange={handleProspectSelect}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                  <SelectContent className="max-h-48">
-                    {prospects
-                      .filter(p => sendForm.recipientType === 'client' ? p.isClient === true : !p.isClient)
-                      .map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.nom}
-                          {sendForm.sendMethod === 'whatsapp'
-                            ? (p.whatsapp || p.telephone ? ` (${p.whatsapp || p.telephone})` : '')
-                            : (p.email ? ` (${p.email})` : '')
-                          }
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={recipientSearchOpen} onOpenChange={setRecipientSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={recipientSearchOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {sendForm.recipientId
+                        ? (sendForm.recipientType === 'client' ? clients : prospects).find(p => p.id === sendForm.recipientId)?.nom || 'Sélectionner...'
+                        : 'Sélectionner...'}
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command shouldFilter={true}>
+                      <CommandInput
+                        placeholder={`Rechercher un ${sendForm.recipientType === 'client' ? 'client' : 'prospect'}...`}
+                      />
+                      <CommandList>
+                        <CommandEmpty>Aucun résultat trouvé.</CommandEmpty>
+                        <CommandGroup>
+                          {(sendForm.recipientType === 'client' ? clients : prospects)
+                            .map(p => (
+                              <CommandItem
+                                key={p.id}
+                                value={`${p.nom} ${p.email || ''} ${p.telephone || ''} ${p.whatsapp || ''}`}
+                                onSelect={() => {
+                                  handleProspectSelect(p.id)
+                                  setRecipientSearchOpen(false)
+                                }}
+                              >
+                                <Check className={`mr-2 h-4 w-4 ${sendForm.recipientId === p.id ? 'opacity-100' : 'opacity-0'}`} />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{p.nom}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {sendForm.sendMethod === 'whatsapp'
+                                      ? (p.whatsapp || p.telephone || 'Sans numéro')
+                                      : (p.email || 'Sans email')
+                                    }
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
 
