@@ -17,6 +17,7 @@ export type Page =
   | 'documents'
   | 'charges'
   | 'caisse'
+  | 'backup'
 
 interface CurrentUser {
   id: string

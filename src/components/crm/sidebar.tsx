@@ -27,6 +27,7 @@ import {
   FileText,
   Receipt,
   Wallet,
+  Database,
   ChevronDown,
   ChevronRight,
   Sparkles,
@@ -90,6 +91,7 @@ const navGroups: NavGroup[] = [
       { page: 'rh', label: 'RH', icon: CalendarDays, permissionModule: 'rh' },
       { page: 'emails', label: 'Emails', icon: Mail, permissionModule: 'emails' },
       { page: 'documents', label: 'Documents', icon: FileText, permissionModule: 'documents' },
+      { page: 'backup', label: 'Sauvegardes', icon: Database, permissionModule: 'employees' },
     ],
   },
 ]

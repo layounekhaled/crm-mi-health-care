@@ -68,6 +68,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/api/documents/init-bucket') ||
     pathname.startsWith('/api/emails/ping') ||
+    pathname.startsWith('/api/backups/auto') ||  // Cron-triggered auto backup (protected by Bearer token)
     pathname.startsWith('/api/files/') ||  // Document links shared via email/WhatsApp must be publicly accessible
     pathname.startsWith('/_next')
   ) {

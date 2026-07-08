@@ -289,6 +289,7 @@ model Employee {
   bankDepositsCreated BankDeposit[] @relation("BankDepositCreator")
   cashJournalEntries  CashJournalEntry[]
   cashAuditLogs       CashAuditLog[]
+  backups             BackupRecord[]
 }
 
 model Objective {
@@ -682,5 +683,28 @@ model CashAuditLog {
   @@index([entityType, entityId])
   @@index([action])
   @@index([employeId])
+  @@index([createdAt])
+}
+
+// ─── Backup System ──────────────────────────────────────────────
+
+model BackupRecord {
+  id            String   @id @default(cuid())
+  type          String   @default("manual") // manual / auto / pre_restore
+  statut        String   @default("in_progress") // in_progress / completed / failed
+  blobUrl       String?  // Vercel Blob URL of the backup file
+  blobPathname  String?  // Blob pathname for deletion
+  fileSize      Int?     // Size in bytes
+  recordCount   Int?     // Total number of records exported
+  tableCount    Int?     // Number of tables exported
+  durationMs    Int?     // Duration in milliseconds
+  erreur        String?  // Error message if failed
+  declenchePar  String?  // employeId who triggered the backup
+  createdAt     DateTime @default(now())
+
+  employe       Employee? @relation(fields: [declenchePar], references: [id])
+
+  @@index([statut])
+  @@index([type])
   @@index([createdAt])
 }
