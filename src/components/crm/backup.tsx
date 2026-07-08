@@ -126,10 +126,14 @@ export default function BackupModule() {
     const load = async () => {
       setLoading(true)
       await fetchBackups()
+      // Check if auto backup is needed and trigger it silently
+      if (user?.role === 'admin') {
+        fetch('/api/backups/check-auto').catch(() => {})
+      }
       setLoading(false)
     }
     load()
-  }, [fetchBackups])
+  }, [fetchBackups, user?.role])
 
   const handleCreateBackup = async () => {
     setCreating(true)
