@@ -36,89 +36,101 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 1. Fix Document URLs
+    // 1. Fix Document URLs — find all with http:// URLs (MinIO or Vercel Blob)
     const docs = await db.document.findMany({
-      where: { fileUrl: { contains: 'dalia-' } },
+      where: { fileUrl: { startsWith: 'http' } },
       select: { id: true, fileUrl: true, filePath: true },
     })
+    let docUpdated = 0
     for (const doc of docs) {
       const newUrl = convertUrl(doc.fileUrl)
       if (newUrl !== doc.fileUrl) {
         await db.document.update({ where: { id: doc.id }, data: { fileUrl: newUrl } })
         totalUpdated++
+        docUpdated++
       }
     }
-    results.push(`Documents: ${docs.length} checked`)
+    results.push(`Documents: ${docs.length} checked, ${docUpdated} updated`)
 
     // 2. Fix ProspectPhoto URLs
     const photos = await db.prospectPhoto.findMany({
-      where: { url: { contains: 'dalia-' } },
+      where: { url: { startsWith: 'http' } },
       select: { id: true, url: true },
     })
+    let photoUpdated = 0
     for (const photo of photos) {
       const newUrl = convertUrl(photo.url)
       if (newUrl !== photo.url) {
         await db.prospectPhoto.update({ where: { id: photo.id }, data: { url: newUrl } })
         totalUpdated++
+        photoUpdated++
       }
     }
-    results.push(`ProspectPhotos: ${photos.length} checked`)
+    results.push(`ProspectPhotos: ${photos.length} checked, ${photoUpdated} updated`)
 
     // 3. Fix InteractionPhoto URLs
     const intPhotos = await db.interactionPhoto.findMany({
-      where: { url: { contains: 'dalia-' } },
+      where: { url: { startsWith: 'http' } },
       select: { id: true, url: true },
     })
+    let intPhotoUpdated = 0
     for (const photo of intPhotos) {
       const newUrl = convertUrl(photo.url)
       if (newUrl !== photo.url) {
         await db.interactionPhoto.update({ where: { id: photo.id }, data: { url: newUrl } })
         totalUpdated++
+        intPhotoUpdated++
       }
     }
-    results.push(`InteractionPhotos: ${intPhotos.length} checked`)
+    results.push(`InteractionPhotos: ${intPhotos.length} checked, ${intPhotoUpdated} updated`)
 
     // 4. Fix BackupRecord URLs
     const backups = await db.backupRecord.findMany({
-      where: { blobUrl: { contains: 'dalia-' } },
+      where: { blobUrl: { startsWith: 'http' } },
       select: { id: true, blobUrl: true },
     })
+    let backupUpdated = 0
     for (const backup of backups) {
       const newUrl = convertUrl(backup.blobUrl!)
       if (newUrl !== backup.blobUrl) {
         await db.backupRecord.update({ where: { id: backup.id }, data: { blobUrl: newUrl } })
         totalUpdated++
+        backupUpdated++
       }
     }
-    results.push(`BackupRecords: ${backups.length} checked`)
+    results.push(`BackupRecords: ${backups.length} checked, ${backupUpdated} updated`)
 
     // 5. Fix Charge URLs
     const charges = await db.charge.findMany({
-      where: { justificatifUrl: { contains: 'dalia-' } },
+      where: { justificatifUrl: { startsWith: 'http' } },
       select: { id: true, justificatifUrl: true },
     })
+    let chargeUpdated = 0
     for (const charge of charges) {
       const newUrl = convertUrl(charge.justificatifUrl!)
       if (newUrl !== charge.justificatifUrl) {
         await db.charge.update({ where: { id: charge.id }, data: { justificatifUrl: newUrl } })
         totalUpdated++
+        chargeUpdated++
       }
     }
-    results.push(`Charges: ${charges.length} checked`)
+    results.push(`Charges: ${charges.length} checked, ${chargeUpdated} updated`)
 
     // 6. Fix ChatMessage URLs (image messages)
     const chatMsgs = await db.chatMessage.findMany({
-      where: { imageUrl: { contains: 'dalia-' } },
+      where: { imageUrl: { startsWith: 'http' } },
       select: { id: true, imageUrl: true },
     })
+    let chatUpdated = 0
     for (const msg of chatMsgs) {
       const newUrl = convertUrl(msg.imageUrl!)
       if (newUrl !== msg.imageUrl) {
         await db.chatMessage.update({ where: { id: msg.id }, data: { imageUrl: newUrl } })
         totalUpdated++
+        chatUpdated++
       }
     }
-    results.push(`ChatMessages: ${chatMsgs.length} checked`)
+    results.push(`ChatMessages: ${chatMsgs.length} checked, ${chatUpdated} updated`)
 
     return NextResponse.json({ success: true, totalUpdated, details: results })
   } catch (error: any) {
