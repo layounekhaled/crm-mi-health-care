@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthUser, canAccess, isAdmin } from '@/lib/auth-helpers';
-import { del } from '@vercel/blob';
+import { deleteFile } from '@/lib/storage';
 
 export async function GET(
   request: NextRequest,
@@ -124,13 +124,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
-    // Delete the justificatif file from Vercel Blob if it exists
+    // Delete the justificatif file from MinIO if it exists
     if (existing.justificatifUrl) {
       try {
-        await del(existing.justificatifUrl);
-      } catch (blobErr) {
-        console.error('[CHARGE_DELETE_BLOB]', blobErr);
-        // Continue with deletion even if blob delete fails
+        await deleteFile(existing.justificatifUrl, 'media');
+      } catch (s3Err) {
+        console.error('[CHARGE_DELETE_S3]', s3Err);
+        // Continue with deletion even if S3 delete fails
       }
     }
 

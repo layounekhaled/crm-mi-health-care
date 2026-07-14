@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, isAdmin } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
-import { del } from '@vercel/blob'
+import { deleteFile } from '@/lib/storage'
 
 // DELETE /api/backups/[id] — Delete a backup
 export async function DELETE(
@@ -24,12 +24,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Sauvegarde introuvable' }, { status: 404 })
     }
 
-    // Delete blob file if exists
+    // Delete backup file from MinIO (or skip if old Vercel Blob URL)
     if (backup.blobUrl) {
       try {
-        await del(backup.blobUrl)
+        await deleteFile(backup.blobUrl, 'backups')
       } catch (err) {
-        console.error('[BACKUP_DELETE] Error deleting blob:', err)
+        console.error('[BACKUP_DELETE] Error deleting file:', err)
       }
     }
 

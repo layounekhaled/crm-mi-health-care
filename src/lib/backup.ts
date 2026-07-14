@@ -1,7 +1,7 @@
 // Server-only backup utility — exports all DB data to a compressed JSON backup
-// Uploads the backup file to Vercel Blob for persistent storage
+// Uploads the backup file to MinIO S3 for persistent storage
 
-import { put } from '@vercel/blob'
+import { uploadFile, deleteFile } from '@/lib/storage'
 import { db } from '@/lib/db'
 
 // All Prisma model names in dependency order (parent tables first for restore)
@@ -44,7 +44,6 @@ const BACKUP_TABLES = [
 type TableName = typeof BACKUP_TABLES[number]
 
 // Map table names to Prisma delegate accessors
-// Prisma uses camelCase model names as delegate properties
 const TABLE_TO_DELEGATE: Record<TableName, string> = {
   'employee': 'employee',
   'user': 'user',
@@ -151,15 +150,11 @@ export async function createBackup(options: {
     const jsonBuffer = Buffer.from(jsonStr, 'utf-8')
     const fileSize = jsonBuffer.length
 
-    // Upload to Vercel Blob
+    // Upload to MinIO S3
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-    const blobPath = `backups/dalia-backup-${timestamp}.json`
+    const backupPath = `backups/dalia-backup-${timestamp}.json`
 
-    const blob = await put(blobPath, jsonBuffer, {
-      access: 'public',
-      contentType: 'application/json',
-      allowOverwrite: false,
-    })
+    const { url: fileUrl } = await uploadFile(backupPath, jsonBuffer, 'application/json', 'backups')
 
     const durationMs = Date.now() - startTime
 
@@ -168,8 +163,8 @@ export async function createBackup(options: {
       where: { id: backupRecord.id },
       data: {
         statut: 'completed',
-        blobUrl: blob.url,
-        blobPathname: blob.pathname,
+        blobUrl: fileUrl,
+        blobPathname: backupPath,
         fileSize,
         recordCount: totalRecords,
         tableCount: tablesExported,
@@ -183,8 +178,8 @@ export async function createBackup(options: {
       recordCount: totalRecords,
       tableCount: tablesExported,
       fileSize,
-      blobUrl: blob.url,
-      blobPathname: blob.pathname,
+      blobUrl: fileUrl,
+      blobPathname: backupPath,
       durationMs,
     }
   } catch (error) {
@@ -261,14 +256,13 @@ export async function cleanupOldBackups(keepCount = 30) {
 
   const toDelete = allBackups.slice(keepCount)
 
-  // Delete blob files
-  const { del } = await import('@vercel/blob')
+  // Delete files from MinIO
   for (const backup of toDelete) {
     if (backup.blobUrl) {
       try {
-        await del(backup.blobUrl)
+        await deleteFile(backup.blobUrl, 'backups')
       } catch (err) {
-        console.error(`[BACKUP_CLEANUP] Error deleting blob ${backup.blobUrl}:`, err)
+        console.error(`[BACKUP_CLEANUP] Error deleting file ${backup.blobUrl}:`, err)
       }
     }
   }

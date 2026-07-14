@@ -106,13 +106,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Upload to Vercel Blob Storage
+    // Upload to MinIO S3 Storage
     const folder = BRAND_FOLDERS[brand] || 'autres'
     const timestamp = Date.now()
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const filePath = `${folder}/${timestamp}_${safeName}`
 
-    const { url: fileUrl, pathname } = await uploadFile(filePath, file, 'application/pdf')
+    const { url: fileUrl, pathname } = await uploadFile(filePath, file, 'application/pdf', 'documents')
 
     // Create document record
     const document = await db.document.create({

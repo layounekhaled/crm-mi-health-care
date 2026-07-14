@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
+import { uploadFile } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { getAuthUser, canAccess } from '@/lib/auth-helpers';
 
@@ -10,9 +10,9 @@ export async function POST(request: NextRequest) {
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     if (!canAccess(authUser, ['admin', 'commercial', 'technicien'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      console.error('[INTERACTION_PHOTOS_UPLOAD] BLOB_READ_WRITE_TOKEN is not set');
-      return NextResponse.json({ error: 'Configuration manquante : token de stockage non trouvé' }, { status: 500 });
+    if (!process.env.S3_ACCESS_KEY) {
+      console.error('[INTERACTION_PHOTOS_UPLOAD] S3_ACCESS_KEY is not set');
+      return NextResponse.json({ error: 'Configuration manquante : stockage S3 non configuré' }, { status: 500 });
     }
 
     const formData = await request.formData();
@@ -34,7 +34,10 @@ export async function POST(request: NextRequest) {
     }
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    const uploadedPhotos = [];
+    const uploadedPhotos: Array<{
+      id: string; interactionId: string; url: string; pathname: string;
+      fileName: string; fileSize: number; createdAt: Date;
+    }> = [];
 
     for (const file of files) {
       if (!allowedTypes.includes(file.type)) {
@@ -49,17 +52,14 @@ export async function POST(request: NextRequest) {
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const pathname = `interaction-photos/${interactionId}/${timestamp}-${sanitizedName}`;
 
-      const blob = await put(pathname, file, {
-        access: 'public',
-        contentType: file.type,
-        allowOverwrite: false,
-      });
+      // Upload to MinIO via storage module
+      const { url: fileUrl } = await uploadFile(pathname, file, file.type, 'media');
 
       const photo = await db.interactionPhoto.create({
         data: {
           interactionId,
-          url: blob.url,
-          pathname: blob.pathname,
+          url: fileUrl,
+          pathname,
           fileName: file.name,
           fileSize: file.size,
         },

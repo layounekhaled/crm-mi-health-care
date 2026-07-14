@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
+import { uploadFile, deleteFile } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { getAuthUser, canAccess } from '@/lib/auth-helpers';
 
@@ -38,9 +38,9 @@ export async function POST(request: NextRequest) {
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      console.error('[PROSPECT_PHOTOS_UPLOAD] BLOB_READ_WRITE_TOKEN is not set');
-      return NextResponse.json({ error: 'Configuration manquante : token de stockage non trouvé' }, { status: 500 });
+    if (!process.env.S3_ACCESS_KEY) {
+      console.error('[PROSPECT_PHOTOS_UPLOAD] S3_ACCESS_KEY is not set');
+      return NextResponse.json({ error: 'Configuration manquante : stockage S3 non configuré' }, { status: 500 });
     }
 
     const formData = await request.formData();
@@ -77,17 +77,14 @@ export async function POST(request: NextRequest) {
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const pathname = `prospect-photos/${prospectId}/${timestamp}-${sanitizedName}`;
 
-    const blob = await put(pathname, file, {
-      access: 'public',
-      contentType: file.type,
-      allowOverwrite: false,
-    });
+    // Upload to MinIO via storage module
+    const { url: fileUrl } = await uploadFile(pathname, file, file.type, 'media');
 
     const photo = await db.prospectPhoto.create({
       data: {
         prospectId,
-        url: blob.url,
-        pathname: blob.pathname,
+        url: fileUrl,
+        pathname,
         fileName: file.name,
         fileSize: file.size,
         legend: legend || null,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { del } from '@vercel/blob';
+import { deleteFile } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { getAuthUser, canAccess, isAdmin } from '@/lib/auth-helpers';
 
@@ -25,12 +25,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
-    // Delete the file from Vercel Blob
+    // Delete the file from MinIO
     try {
-      await del(photo.url);
-    } catch (blobErr) {
-      console.error('[PROSPECT_PHOTO_DELETE_BLOB]', blobErr);
-      // Continue with DB deletion even if blob delete fails
+      await deleteFile(photo.url, 'media');
+    } catch (s3Err) {
+      console.error('[PROSPECT_PHOTO_DELETE_S3]', s3Err);
+      // Continue with DB deletion even if S3 delete fails
     }
 
     await db.prospectPhoto.delete({ where: { id } });
