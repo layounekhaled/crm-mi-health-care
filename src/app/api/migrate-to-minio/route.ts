@@ -189,18 +189,21 @@ export async function POST(request: NextRequest) {
       }
       results.backupRecords = backupResults
 
-      // Charges
+      // Charges (only justificatifUrl, no justificatifPath on this model)
       const chargeResults = { total: 0, migrated: 0, skipped: 0, errors: 0 }
       const charges = await db.charge.findMany({
         where: { justificatifUrl: { contains: 'vercel-storage.com' } },
-        select: { id: true, justificatifUrl: true, justificatifPath: true },
+        select: { id: true, justificatifUrl: true },
       })
       chargeResults.total = charges.length
 
       for (const charge of charges) {
         if (dryRun) { chargeResults.skipped++; continue }
+        // Extract key from URL since there's no separate path field
+        const urlObj = new URL(charge.justificatifUrl!)
+        const key = urlObj.pathname.split('/').filter(Boolean).slice(1).join('/') // remove bucket name prefix if present
         const bucket = 'dalia-media'
-        const { success } = await migrateFile(client, charge.justificatifUrl!, charge.justificatifPath || '', bucket)
+        const { success } = await migrateFile(client, charge.justificatifUrl!, key || 'charges/unknown', bucket)
         if (success) chargeResults.migrated++
         else chargeResults.errors++
       }
@@ -293,19 +296,21 @@ export async function POST(request: NextRequest) {
       }
       results.backupRecordUpdates = backupUpdates
 
-      // Update Charge URLs
+      // Update Charge URLs (no justificatifPath field on Charge model)
       const chargeUpdates = { total: 0, updated: 0, errors: 0 }
       const charges = await db.charge.findMany({
         where: { justificatifUrl: { contains: 'vercel-storage.com' } },
-        select: { id: true, justificatifUrl: true, justificatifPath: true },
+        select: { id: true, justificatifUrl: true },
       })
       chargeUpdates.total = charges.length
 
       for (const charge of charges) {
         if (dryRun) continue
         try {
+          const urlObj = new URL(charge.justificatifUrl!)
+          const key = urlObj.pathname.split('/').filter(Boolean).slice(1).join('/')
           const bucket = 'dalia-media'
-          const newUrl = getPublicUrl(bucket, charge.justificatifPath || '')
+          const newUrl = getPublicUrl(bucket, key || 'charges/unknown')
           await db.charge.update({ where: { id: charge.id }, data: { justificatifUrl: newUrl } })
           chargeUpdates.updated++
         } catch (err) {
