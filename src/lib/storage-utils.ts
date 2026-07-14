@@ -13,14 +13,18 @@ export const BRAND_FOLDERS: Record<string, string> = {
 }
 
 // Get public URL for a file
-// For Vercel Blob uploads: the URL is absolute and stored directly in DB
-// This function handles legacy relative paths that might still exist
+// All files are served through /api/files/ proxy to avoid exposing MinIO directly
+// and to work over HTTPS (MinIO is HTTP-only)
 export function getPublicUrl(filePath: string): string {
-  // If it's already an absolute URL (Vercel Blob), return as-is
+  // If it's already a /api/files/ URL, return as-is
+  if (filePath.startsWith('/api/files/')) {
+    return filePath
+  }
+  // If it's already an absolute URL (legacy Vercel Blob), return as-is
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
     return filePath
   }
-  // For legacy relative paths, serve via /api/files/ route
+  // For relative paths, serve via /api/files/ route
   return `/api/files/${filePath}`
 }
 

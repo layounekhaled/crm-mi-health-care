@@ -61,13 +61,17 @@ function getBackupsBucket(): string {
 // ─── Public URL helpers ──────────────────────────────────────────────────────
 
 /**
- * Build the public URL for an object in MinIO.
- * If S3_PUBLIC_URL is set, use that as base (e.g. https://minio.dalia.fret.direct).
- * Otherwise, fall back to the S3_ENDPOINT + bucket + key pattern.
+ * Build the public URL for an object.
+ * Always uses /api/files/ proxy route so files are served over HTTPS
+ * and don't expose the internal MinIO endpoint.
+ * Format: /api/files/{key}?bucket={bucketType}
  */
 function buildPublicUrl(bucket: string, key: string): string {
-  const publicBase = process.env.S3_PUBLIC_URL || getS3Config().endpoint
-  return `${publicBase}/${bucket}/${key}`
+  // Use /api/files/ proxy — works over HTTPS and doesn't need MinIO to be publicly accessible
+  const bucketType = bucket === 'dalia-media' ? 'media'
+    : bucket === 'dalia-backups' ? 'backups'
+    : 'documents'
+  return `/api/files/${key}?bucket=${bucketType}`
 }
 
 // ─── Upload ──────────────────────────────────────────────────────────────────

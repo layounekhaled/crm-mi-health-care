@@ -72,6 +72,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/migrate-to-minio') ||  // Migration endpoint (protected by MIGRATION_SECRET bearer token)
     pathname.startsWith('/api/migrate-s3') ||  // Migration endpoint v2 (protected by MIGRATION_SECRET bearer token)
     pathname.startsWith('/api/db-migrate') ||  // DB schema migration (protected by MIGRATION_SECRET bearer token)
+    pathname.startsWith('/api/fix-urls') ||  // URL fix migration (protected by MIGRATION_SECRET bearer token)
     pathname.startsWith('/api/files/') ||  // Document links shared via email/WhatsApp must be publicly accessible
     pathname.startsWith('/_next')
   ) {
