@@ -138,3 +138,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message, partial: results }, { status: 500 })
   }
 }
+
+// GET /api/fix-urls - Show sample URLs from each table for debugging
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  const token = authHeader?.replace('Bearer ', '')
+  if (token !== (process.env.MIGRATION_SECRET || 'dalia-migrate-2024-minio-secure')) {
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+  }
+
+  const samples: Record<string, string[]> = {}
+
+  try {
+    const docs = await db.document.findMany({ take: 3, select: { id: true, fileUrl: true } })
+    samples.documents = docs.map(d => `${d.id.slice(0, 8)}... → ${d.fileUrl.slice(0, 100)}`)
+
+    const photos = await db.prospectPhoto.findMany({ take: 3, select: { id: true, url: true } })
+    samples.prospectPhotos = photos.map(p => `${p.id.slice(0, 8)}... → ${p.url.slice(0, 100)}`)
+
+    const intPhotos = await db.interactionPhoto.findMany({ take: 3, select: { id: true, url: true } })
+    samples.interactionPhotos = intPhotos.map(p => `${p.id.slice(0, 8)}... → ${p.url.slice(0, 100)}`)
+
+    const msgs = await db.chatMessage.findMany({ take: 3, orderBy: { createdAt: 'desc' }, select: { id: true, imageUrl: true, type: true } })
+    samples.chatMessages = msgs.map(m => `${m.id.slice(0, 8)}... type=${m.type} imageUrl=${(m.imageUrl || 'null').slice(0, 100)}`)
+
+    const backups = await db.backupRecord.findMany({ take: 2, select: { id: true, blobUrl: true } })
+    samples.backupRecords = backups.map(b => `${b.id.slice(0, 8)}... → ${(b.blobUrl || 'null').slice(0, 100)}`)
+
+    const charges = await db.charge.findMany({ take: 2, select: { id: true, justificatifUrl: true } })
+    samples.charges = charges.map(c => `${c.id.slice(0, 8)}... → ${(c.justificatifUrl || 'null').slice(0, 100)}`)
+
+    return NextResponse.json({ samples })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
