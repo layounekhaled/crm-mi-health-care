@@ -371,6 +371,8 @@ model ChatMessage {
   conversationId String
   expediteurId   String
   contenu        String
+  type           String   @default("text")  // "text" | "image"
+  imageUrl       String?                     // MinIO URL for image messages
   createdAt      DateTime @default(now())
 
   conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

@@ -60,6 +60,8 @@ interface Conversation {
   messages: {
     id: string
     contenu: string
+    type: string
+    imageUrl: string | null
     createdAt: string
     expediteurId: string
     expediteur: { id: string; nom: string }
@@ -77,6 +79,8 @@ interface ChatMessage {
   id: string
   conversationId: string
   contenu: string
+  type: string          // 'text' | 'image'
+  imageUrl: string | null
   createdAt: string
   expediteurId: string
   expediteur: { id: string; nom: string }
@@ -242,7 +246,11 @@ export default function ChatWidget() {
   const [showAddMembers, setShowAddMembers] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [convContextMenu, setConvContextMenu] = useState<string | null>(null)
+  const [pendingImage, setPendingImage] = useState<File | null>(null)
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null)
+  const [imageViewerSrc, setImageViewerSrc] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
@@ -340,9 +348,11 @@ export default function ChatWidget() {
 
                 const lastMsg = convMsgs[convMsgs.length - 1]
                 const senderName = lastMsg.expediteur?.nom || 'Quelqu\'un'
-                const preview = lastMsg.contenu.length > 50
-                  ? lastMsg.contenu.slice(0, 50) + '...'
-                  : lastMsg.contenu
+                const preview = lastMsg.type === 'image'
+                  ? '📷 Image'
+                  : lastMsg.contenu.length > 50
+                    ? lastMsg.contenu.slice(0, 50) + '...'
+                    : lastMsg.contenu
 
                 toast.info(`${senderName} - ${convName}`, {
                   description: preview,
@@ -384,11 +394,13 @@ export default function ChatWidget() {
         const convName = getConvNameHelper(increasedConv)
         const lastMsg = increasedConv.messages?.[0]
         const senderName = lastMsg?.expediteur?.nom || 'Quelqu\'un'
-        const preview = lastMsg?.contenu
-          ? lastMsg.contenu.length > 50
-            ? lastMsg.contenu.slice(0, 50) + '...'
-            : lastMsg.contenu
-          : 'Nouveau message'
+        const preview = lastMsg?.type === 'image'
+          ? '📷 Image'
+          : lastMsg?.contenu
+            ? lastMsg.contenu.length > 50
+              ? lastMsg.contenu.slice(0, 50) + '...'
+              : lastMsg.contenu
+            : 'Nouveau message'
 
         playNotificationSound()
 
@@ -476,33 +488,93 @@ export default function ChatWidget() {
 
   // Send message
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || isSending) return
+    if ((!newMessage.trim() && !pendingImage) || !selectedConversation || isSending) return
     setIsSending(true)
     try {
-      const res = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          conversationId: selectedConversation.id,
-          contenu: newMessage.trim(),
-        }),
-      })
+      let res: Response
+
+      if (pendingImage) {
+        // Send with image via FormData
+        const formData = new FormData()
+        formData.append('conversationId', selectedConversation.id)
+        formData.append('contenu', newMessage.trim() || '')
+        formData.append('type', 'image')
+        formData.append('image', pendingImage)
+
+        res = await fetch('/api/chat/messages', {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: formData,
+        })
+      } else {
+        // Send text message via JSON
+        res = await fetch('/api/chat/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            conversationId: selectedConversation.id,
+            contenu: newMessage.trim(),
+          }),
+        })
+      }
+
       if (res.ok) {
         const msg = await res.json()
         setMessages((prev) => [...prev, msg])
         setNewMessage('')
+        setPendingImage(null)
+        setPendingImagePreview(null)
         adjustTextareaHeight()
         fetchConversations()
       } else {
         const err = await res.json().catch(() => ({}))
         console.error('[CHAT] Erreur envoi message:', err)
+        toast.error(err.error || "Erreur lors de l'envoi")
       }
     } catch (err) {
       console.error('[CHAT] Erreur réseau envoi:', err)
+      toast.error('Erreur réseau')
     } finally {
       setIsSending(false)
     }
+  }
+
+  // Handle image selection
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate size (10 MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image trop volumineuse (max 10 MB)')
+      return
+    }
+
+    // Validate type
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowed.includes(file.type)) {
+      toast.error("Format non supporté (JPEG, PNG, WebP, GIF)")
+      return
+    }
+
+    setPendingImage(file)
+
+    // Generate preview
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      setPendingImagePreview(ev.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    // Reset input so same file can be selected again
+    e.target.value = ''
+  }
+
+  // Remove pending image
+  const removePendingImage = () => {
+    setPendingImage(null)
+    setPendingImagePreview(null)
   }
 
   // Delete message
@@ -1283,15 +1355,38 @@ export default function ChatWidget() {
                             )}
 
                             <div
-                              className={`rounded-2xl px-3.5 py-2 transition-colors ${
+                              className={`rounded-2xl transition-colors overflow-hidden ${
+                                msg.type === 'image' && !msg.contenu.replace('📷 Image', '').trim()
+                                  ? '' // no padding for image-only messages
+                                  : msg.type === 'image'
+                                    ? 'px-3.5 pt-2 pb-1' // image with caption
+                                    : 'px-3.5 py-2' // text-only messages
+                              } ${
                                 isOwn
                                   ? 'bg-gradient-to-r from-[#134885] to-[#1A5A9E] text-white rounded-br-md'
                                   : 'bg-slate-100 text-slate-800 rounded-bl-md'
                               }`}
                             >
-                              <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">
-                                {linkifyText(msg.contenu)}
-                              </p>
+                              {/* Image display */}
+                              {msg.type === 'image' && msg.imageUrl && (
+                                <div
+                                  className="mb-1 cursor-pointer rounded-lg overflow-hidden"
+                                  onClick={() => setImageViewerSrc(msg.imageUrl)}
+                                >
+                                  <img
+                                    src={msg.imageUrl}
+                                    alt="Image"
+                                    className="max-w-full max-h-64 object-contain rounded-lg hover:opacity-95 transition-opacity"
+                                    loading="lazy"
+                                  />
+                                </div>
+                              )}
+                              {/* Text content (caption for images, full text for text messages) */}
+                              {(msg.type !== 'image' || msg.contenu.replace('📷 Image', '').trim()) && (
+                                <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">
+                                  {msg.type === 'image' ? linkifyText(msg.contenu.replace('📷 Image', '').trim()) : linkifyText(msg.contenu)}
+                                </p>
+                              )}
                               <div
                                 className={`mt-0.5 flex items-center gap-1 ${
                                   isOwn ? 'justify-end' : 'justify-start'
@@ -1380,6 +1475,28 @@ export default function ChatWidget() {
                       ))}
                     </div>
                   )}
+                  {/* Image preview (pending upload) */}
+                  {pendingImagePreview && (
+                    <div className="mb-2 relative inline-block">
+                      <div className="relative rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                        <img
+                          src={pendingImagePreview}
+                          alt="Aperçu"
+                          className="max-h-32 max-w-[200px] object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={removePendingImage}
+                          className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[200px]">
+                        {pendingImage?.name}
+                      </p>
+                    </div>
+                  )}
                   <form
                     onSubmit={(e) => {
                       e.preventDefault()
@@ -1396,6 +1513,23 @@ export default function ChatWidget() {
                     >
                       <Smile className="h-5 w-5" />
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className={`shrink-0 h-9 w-9 flex items-center justify-center rounded-full transition-colors ${
+                        pendingImage ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                      }`}
+                      title="Envoyer une image"
+                    >
+                      <ImageIcon className="h-5 w-5" />
+                    </button>
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
                     <div className="flex-1 relative">
                       <textarea
                         ref={inputRef}
@@ -1410,7 +1544,7 @@ export default function ChatWidget() {
                             sendMessage()
                           }
                         }}
-                        placeholder="Écrire un message..."
+                        placeholder={pendingImage ? "Ajouter un texte..." : "Écrire un message..."}
                         rows={1}
                         className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] focus:border-[#134885] focus:ring-2 focus:ring-[#134885]/20 focus:outline-none transition-all max-h-[120px] leading-relaxed"
                         disabled={isSending}
@@ -1419,7 +1553,7 @@ export default function ChatWidget() {
                     <Button
                       type="submit"
                       size="icon"
-                      disabled={!newMessage.trim() || isSending}
+                      disabled={(!newMessage.trim() && !pendingImage) || isSending}
                       className="h-9 w-9 shrink-0 rounded-full bg-[#134885] hover:bg-[#0D3A6E] disabled:opacity-40 transition-all"
                     >
                       {isSending ? (
@@ -1703,10 +1837,16 @@ export default function ChatWidget() {
                                 <p className={`truncate text-xs ${conv.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'}`}>
                                   {lastMsg
                                     ? lastMsg.expediteurId === employeId
-                                      ? `Vous : ${lastMsg.contenu}`
+                                      ? lastMsg.type === 'image'
+                                        ? 'Vous : 📷 Image'
+                                        : `Vous : ${lastMsg.contenu}`
                                       : conv.type === 'group'
-                                        ? `${lastMsg.expediteur?.nom?.split(' ')[0] || ''} : ${lastMsg.contenu}`
-                                        : lastMsg.contenu
+                                        ? lastMsg.type === 'image'
+                                          ? `${lastMsg.expediteur?.nom?.split(' ')[0] || ''} : 📷 Image`
+                                          : `${lastMsg.expediteur?.nom?.split(' ')[0] || ''} : ${lastMsg.contenu}`
+                                        : lastMsg.type === 'image'
+                                          ? '📷 Image'
+                                          : lastMsg.contenu
                                     : conv.type === 'group'
                                       ? `${conv.participants.length} membres`
                                       : roleLabels[getConvRole(conv)] || ''
@@ -1812,6 +1952,27 @@ export default function ChatWidget() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Full-screen Image Viewer */}
+      {imageViewerSrc && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setImageViewerSrc(null)}
+        >
+          <button
+            onClick={() => setImageViewerSrc(null)}
+            className="absolute top-4 right-4 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors z-10"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={imageViewerSrc}
+            alt="Image agrandie"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </>
   )
 }
