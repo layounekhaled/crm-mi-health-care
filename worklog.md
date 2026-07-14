@@ -333,3 +333,37 @@ Stage Summary:
 - Backup format: SQL gzip (.sql.gz)
 - Backup volume: dalia-backups (persisted on server)
 - Old standalone PG (m2gr4uesqj3npja5a2exvqql) still running for CRM Prospection app (crm database)
+
+---
+Task ID: dalia-chat-images
+Agent: Super Z
+Task: Ajouter la possibilité d'envoyer des images dans le chat Dalia CRM
+
+Work Log:
+- Analyzed existing chat.tsx component (1818 lines) - messaging system with conversations, groups, direct messages
+- Added `type` (String, default "text") and `imageUrl` (String, optional) fields to ChatMessage Prisma model
+- Modified POST /api/chat/messages to handle both JSON (text) and multipart/form-data (image upload)
+- Image upload uses MinIO S3 storage (uploadFile from @/lib/storage) with bucket dalia-media, path chat-images/
+- Added image validation: max 10MB, formats JPEG/PNG/WebP/GIF
+- Added UI: image upload button (ImageIcon) next to emoji button, hidden file input, pending image preview with remove button
+- Added image display in message bubbles: clickable images with max-height 256px, caption support
+- Added full-screen image viewer modal (click to zoom, ESC/click outside to close)
+- Updated notification previews to show "📷 Image" for image messages instead of raw content
+- Updated conversation sidebar last message preview to show "📷 Image" for image messages
+- Added db-migrate API endpoint to add columns to existing ChatMessage table
+- Added /api/db-migrate to middleware public routes
+- Successfully ran migration on production: Added ChatMessage.type and ChatMessage.imageUrl columns
+- Committed and pushed: 3dc7111 (chat image feature), cde8016 (db-migrate endpoint), c3fede9 (middleware fix)
+- Triggered Coolify deployments for both Dalia CRM apps
+
+Stage Summary:
+- Chat now supports image sending alongside text messages
+- Images are stored in MinIO (dalia-media bucket) under chat-images/ prefix
+- DB schema updated with type and imageUrl columns
+- Deployment in progress on Coolify (commit c3fede99)
+- Files modified:
+  • prisma/schema.prisma (ChatMessage model: +type, +imageUrl)
+  • src/app/api/chat/messages/route.ts (multipart/form-data + image upload to MinIO)
+  • src/app/api/db-migrate/route.ts (NEW - one-time schema migration endpoint)
+  • src/middleware.ts (added /api/db-migrate to public routes)
+  • src/components/crm/chat.tsx (image upload UI, preview, display, viewer, notifications)
