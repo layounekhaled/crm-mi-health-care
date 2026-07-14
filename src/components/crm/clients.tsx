@@ -82,6 +82,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
+import { WILAYAS } from '@/lib/wilayas'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -184,38 +185,6 @@ const SPECIALITES = [
   'Rééducateur',
   'Anesthésiste',
   'Autre',
-]
-
-const WILAYAS = [
-  'Adrar',
-  'Aïn Defla',
-  'Alger',
-  'Annaba',
-  'Batna',
-  'Béjaïa',
-  'Blida',
-  'Biskra',
-  'Boumerdès',
-  'Constantine',
-  'Djelfa',
-  'Ghardaïa',
-  'Jijel',
-  'Médéa',
-  'Mostaganem',
-  'M\'Sila',
-  'Naâma',
-  'Oran',
-  'Ouargla',
-  'Saïda',
-  'Sétif',
-  'Sidi Bel Abbès',
-  'Skikda',
-  'Tamanrasset',
-  'Tiaret',
-  'Tébessa',
-  'Tipaza',
-  'Tizi Ouzou',
-  'Tlemcen',
 ]
 
 const SOURCES = [

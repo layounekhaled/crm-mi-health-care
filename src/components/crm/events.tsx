@@ -57,6 +57,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { WILAYAS } from '@/lib/wilayas'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -115,16 +116,7 @@ interface Prospect {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VILLES_ALGERIE = [
-  'Adrar', 'Alger', 'Annaba', 'Batna', 'Béjaïa', 'Blida', 'Biskra',
-  'Boumerdès', 'Constantine', 'Djelfa', 'Ghardaïa', 'Jijel', 'Médéa',
-  'Mostaganem', "M'Sila", 'Oran', 'Ouargla', 'Sétif', 'Sidi Bel Abbès',
-  'Skikda', 'Tamanrasset', 'Tlemcen', 'Tizi Ouzou', 'Tiaret', 'Tébessa',
-  'Tipaza', 'Saïda', 'Naâma', 'Aïn Defla', 'El Oued', 'Guelma',
-  'Khenchela', 'Souk Ahras', 'Mascara', 'Bordj Bou Arréridj', 'Illizi',
-  'Bouira', 'El Bayadh', 'Laghouat', 'Tindouf', 'Tissemsilt', 'Relizane',
-  'Chlef', 'Miliana', 'Oum El Bouaghi', 'Aïn Témouchent',
-]
+// VILLES_ALGERIE is now imported as WILAYAS from @/lib/wilayas (58 wilayas complètes)
 
 const EVENT_TYPES = [
   { value: 'congres', label: 'Congrès', color: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100' },
@@ -1021,9 +1013,9 @@ export default function EventsModule() {
                     <SelectValue placeholder="Sélectionner" />
                   </SelectTrigger>
                   <SelectContent>
-                    {VILLES_ALGERIE.sort().map(v => (
-                      <SelectItem key={v} value={v}>
-                        {v}
+                    {WILAYAS.map(w => (
+                      <SelectItem key={w} value={w}>
+                        {w}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1580,9 +1572,9 @@ export default function EventsModule() {
                     <SelectValue placeholder="Sélectionner" />
                   </SelectTrigger>
                   <SelectContent>
-                    {VILLES_ALGERIE.sort().map(v => (
-                      <SelectItem key={v} value={v}>
-                        {v}
+                    {WILAYAS.map(w => (
+                      <SelectItem key={w} value={w}>
+                        {w}
                       </SelectItem>
                     ))}
                   </SelectContent>

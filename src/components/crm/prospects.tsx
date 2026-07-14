@@ -79,6 +79,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AddInteractionDialog, INTERACTION_TYPES } from '@/components/crm/add-interaction-dialog'
+import { WILAYAS } from '@/lib/wilayas'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -194,38 +195,6 @@ function extractEmail(notes: string | null): string | null {
   const match = notes.match(/Email:\s*([^\s,;]+)/i)
   return match ? match[1] : null
 }
-
-const WILAYAS = [
-  'Adrar',
-  'Aïn Defla',
-  'Alger',
-  'Annaba',
-  'Batna',
-  'Béjaïa',
-  'Blida',
-  'Biskra',
-  'Boumerdès',
-  'Constantine',
-  'Djelfa',
-  'Ghardaïa',
-  'Jijel',
-  'Médéa',
-  'Mostaganem',
-  'M\'Sila',
-  'Naâma',
-  'Oran',
-  'Ouargla',
-  'Saïda',
-  'Sétif',
-  'Sidi Bel Abbès',
-  'Skikda',
-  'Tamanrasset',
-  'Tiaret',
-  'Tébessa',
-  'Tipaza',
-  'Tizi Ouzou',
-  'Tlemcen',
-]
 
 const SOURCES = [
   { value: 'événement', label: 'Événement' },
