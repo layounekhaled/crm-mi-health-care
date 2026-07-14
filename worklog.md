@@ -287,3 +287,23 @@ Stage Summary:
 - Both Dalia containers redeployed with new DB config
 - Application accessible at https://dalia.fret.direct
 - Login credentials: khaled@mihealthcare.dz / admin123
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Restore production data from Vercel Blob backup to local PostgreSQL
+
+Work Log:
+- Found 2 backup files on Vercel Blob (backup system was functional despite BLOB_READ_WRITE_TOKEN placeholder in Coolify env - the running container had the real token)
+- Downloaded the latest backup: dalia-backup-2026-07-09T14-29-22.json (3.2MB, 7463 records)
+- Created Node.js restore script that handles JSON columns (permissions, details) and disables FK checks during import
+- Truncated demo data from the local database
+- Successfully restored ALL 7463 production records with 0 errors
+- Verified data integrity: no orphaned foreign keys, all user-employee links valid
+- Restarted Dalia container, confirmed app is running
+
+Stage Summary:
+- Production data fully restored from July 9, 2026 backup
+- Data includes: 10 employees, 14 users, 6077 prospects, 44 products, 61 tasks, 106 chat messages, 583 calendar days, 33 documents, etc.
+- The July 8 backup also saved as safety copy at /home/z/my-project/download/dalia-backup-2026-07-08.json
+- App is live at https://dalia.fret.direct
