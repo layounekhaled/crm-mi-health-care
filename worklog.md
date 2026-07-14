@@ -264,3 +264,26 @@ Stage Summary:
   1. 📍 "GPS" → ouvre Google Maps à la position (pour voir le lieu)
   2. 🧭 "Itinéraire" → lance la navigation GPS vers le lieu (turn-by-turn sur mobile)
 - Déployé en production sur https://dalia.fret.direct
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Dalia CRM - database empty issue
+
+Work Log:
+- Diagnosed issue: Neon PostgreSQL database exceeded data transfer quota (free plan limit)
+- Local .env was misconfigured (SQLite format instead of PostgreSQL)
+- Found existing PostgreSQL 16 container running on Coolify server (m2gr4uesqj3npja5a2exvqql)
+- Created new `dalia` database on the local PostgreSQL instance
+- Updated Coolify environment variables (DATABASE_URL, DIRECT_URL) for both Dalia apps via API
+- Pushed Prisma schema to the new database using Docker container on the same network
+- Seeded database with initial data (5 employees, 5 users, 10 prospects, 4 events, 10 opportunities, 10 operations, 10 tasks, 5 interactions, 5 after-sales, 4 objectives, 1 chat channel)
+- Redeployed both Dalia CRM containers via Coolify API
+- Verified application is running and serving login page correctly
+
+Stage Summary:
+- Root cause: Neon free plan quota exceeded (5GB/month data transfer)
+- Solution: Migrated from Neon PostgreSQL to local PostgreSQL on Coolify server
+- New DB connection: postgresql://crm:***@m2gr4uesqj3npja5a2exvqql:5432/dalia
+- Both Dalia containers redeployed with new DB config
+- Application accessible at https://dalia.fret.direct
+- Login credentials: khaled@mihealthcare.dz / admin123
