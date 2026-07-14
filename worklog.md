@@ -307,3 +307,29 @@ Stage Summary:
 - Data includes: 10 employees, 14 users, 6077 prospects, 44 products, 61 tasks, 106 chat messages, 583 calendar days, 33 documents, etc.
 - The July 8 backup also saved as safety copy at /home/z/my-project/download/dalia-backup-2026-07-08.json
 - App is live at https://dalia.fret.direct
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Create Coolify-managed PostgreSQL database with automated backup system
+
+Work Log:
+- Created Coolify service "Dalia PostgreSQL + Backup" with docker-compose:
+  - postgresql:16-alpine (managed, auto-restart, health checks)
+  - prodrigestivill/postgres-backup-local:16-alpine (daily backups, retention: 30d/8w/6m)
+- Connected new PG to coolify Docker network for app connectivity
+- Migrated all 7463 production records from old standalone PG to new Coolify-managed PG via pg_dump
+- Updated both Dalia CRM app env vars in Coolify to point to new database
+- Redeployed both Dalia containers with new DB connection
+- Tested backup system: manual backup succeeded (1.5MB .sql.gz)
+- Verified all data intact: 6077 prospects, 10 employees, 14 users, etc.
+- Updated local .env with new DB credentials
+
+Stage Summary:
+- New Coolify-managed PostgreSQL service UUID: bwj97q1aao9793pgif71u3ou
+- DB credentials: user=705XInzPkEjPnO6Y, db=dalia
+- Backup schedule: @daily (every day at midnight)
+- Backup retention: 30 days daily, 8 weeks weekly, 6 months monthly
+- Backup format: SQL gzip (.sql.gz)
+- Backup volume: dalia-backups (persisted on server)
+- Old standalone PG (m2gr4uesqj3npja5a2exvqql) still running for CRM Prospection app (crm database)
