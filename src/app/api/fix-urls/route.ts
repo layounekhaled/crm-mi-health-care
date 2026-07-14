@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
   function convertUrl(oldUrl: string): string {
     if (!oldUrl || oldUrl.startsWith('/api/files/')) return oldUrl
 
-    // Pattern: http://HOST:9000/dalia-documents/key or http://HOST:9000/dalia-media/key
+    // Pattern: http(s)://ANY_HOST:PORT/dalia-documents/key or /dalia-media/key or /dalia-backups/key
+    // Matches both external IP (156.67.26.104:9000) and internal Docker hostname (minio-xxx:9000)
     const minioPattern = /^https?:\/\/[^/]+\/(dalia-documents|dalia-media|dalia-backups)\/(.+)$/
     const match = oldUrl.match(minioPattern)
     if (match) {
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Fix Document URLs
     const docs = await db.document.findMany({
-      where: { fileUrl: { contains: '156.67.26.104:9000' } },
+      where: { fileUrl: { contains: 'dalia-' } },
       select: { id: true, fileUrl: true, filePath: true },
     })
     for (const doc of docs) {
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Fix ProspectPhoto URLs
     const photos = await db.prospectPhoto.findMany({
-      where: { url: { contains: '156.67.26.104:9000' } },
+      where: { url: { contains: 'dalia-' } },
       select: { id: true, url: true },
     })
     for (const photo of photos) {
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Fix InteractionPhoto URLs
     const intPhotos = await db.interactionPhoto.findMany({
-      where: { url: { contains: '156.67.26.104:9000' } },
+      where: { url: { contains: 'dalia-' } },
       select: { id: true, url: true },
     })
     for (const photo of intPhotos) {
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Fix BackupRecord URLs
     const backups = await db.backupRecord.findMany({
-      where: { blobUrl: { contains: '156.67.26.104:9000' } },
+      where: { blobUrl: { contains: 'dalia-' } },
       select: { id: true, blobUrl: true },
     })
     for (const backup of backups) {
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Fix Charge URLs
     const charges = await db.charge.findMany({
-      where: { justificatifUrl: { contains: '156.67.26.104:9000' } },
+      where: { justificatifUrl: { contains: 'dalia-' } },
       select: { id: true, justificatifUrl: true },
     })
     for (const charge of charges) {
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     // 6. Fix ChatMessage URLs (image messages)
     const chatMsgs = await db.chatMessage.findMany({
-      where: { imageUrl: { contains: '156.67.26.104:9000' } },
+      where: { imageUrl: { contains: 'dalia-' } },
       select: { id: true, imageUrl: true },
     })
     for (const msg of chatMsgs) {
