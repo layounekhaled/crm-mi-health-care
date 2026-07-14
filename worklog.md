@@ -367,3 +367,31 @@ Stage Summary:
   • src/app/api/db-migrate/route.ts (NEW - one-time schema migration endpoint)
   • src/middleware.ts (added /api/db-migrate to public routes)
   • src/components/crm/chat.tsx (image upload UI, preview, display, viewer, notifications)
+
+---
+Task ID: dalia-fix-file-access
+Agent: Super Z
+Task: Fix images not visible in chat and documents not downloadable on Dalia
+
+Work Log:
+- Diagnosed root cause: MinIO buckets had no public access policy AND MinIO serves HTTP while Dalia is HTTPS → browsers block mixed content
+- Solution: Use /api/files/ proxy route instead of direct MinIO URLs
+- Updated /api/files/[...path]/route.ts to support multiple buckets via ?bucket= query param and auto-detection from path prefix
+- Updated storage.ts buildPublicUrl() to generate /api/files/ URLs instead of direct MinIO URLs
+- Updated storage-utils.ts getPublicUrl() to handle /api/files/ URLs
+- Created /api/fix-urls endpoint to convert existing MinIO URLs in DB to /api/files/ format
+- Added /api/fix-urls to middleware public routes
+- Verified all file types work via proxy: PDF documents (4MB), chat images (12KB), backups (3MB), interaction photos (207KB)
+- Discovered URLs in DB were already in /api/files/ format (the latest migration used the updated buildPublicUrl)
+
+Stage Summary:
+- All files now served via HTTPS proxy at /api/files/{key}?bucket={documents|media|backups}
+- No more mixed content errors (HTTP MinIO on HTTPS Dalia)
+- No need for MinIO public bucket policies
+- Documents viewable and downloadable, chat images visible and clickable
+- Files modified:
+  • src/app/api/files/[...path]/route.ts (multi-bucket support, auto-detect)
+  • src/lib/storage.ts (buildPublicUrl → /api/files/ proxy)
+  • src/lib/storage-utils.ts (getPublicUrl → /api/files/ proxy)
+  • src/app/api/fix-urls/route.ts (NEW - URL migration + debug endpoint)
+  • src/middleware.ts (added /api/fix-urls to public routes)
