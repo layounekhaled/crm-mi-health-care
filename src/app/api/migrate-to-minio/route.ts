@@ -5,6 +5,19 @@ export const maxDuration = 300 // 5 min timeout
 
 import { getAuthUser, isAdmin } from '@/lib/auth-helpers'
 import { db } from '@/lib/db'
+
+// Migration can be authenticated via user session OR via MIGRATION_SECRET token
+const MIGRATION_SECRET = process.env.MIGRATION_SECRET || ''
+
+function isAuthorized(request: NextRequest): boolean {
+  // Check for bearer token first
+  const authHeader = request.headers.get('authorization')
+  if (authHeader && MIGRATION_SECRET) {
+    const token = authHeader.replace('Bearer ', '')
+    if (token === MIGRATION_SECRET) return true
+  }
+  return false // Will check user auth separately
+}
 import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 
 // ─── S3 Configuration ──────────────────────────────────────────────────────
@@ -86,9 +99,13 @@ function determineBucket(pathname: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth: either MIGRATION_SECRET bearer token OR admin user session
+    const authorized = isAuthorized(request)
     const authUser = await getAuthUser(request)
-    if (!authUser || !isAdmin(authUser)) {
-      return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 })
+    const isAdminUser = authUser && isAdmin(authUser)
+    
+    if (!authorized && !isAdminUser) {
+      return NextResponse.json({ error: 'Réservé aux administrateurs. Utilisez Authorization: Bearer <MIGRATION_SECRET>' }, { status: 403 })
     }
 
     const body = await request.json().catch(() => ({}))
@@ -314,9 +331,12 @@ export async function POST(request: NextRequest) {
 
 // GET - preview mode (dry run)
 export async function GET(request: NextRequest) {
+  const authorized = isAuthorized(request)
   const authUser = await getAuthUser(request)
-  if (!authUser || !isAdmin(authUser)) {
-    return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 })
+  const isAdminUser = authUser && isAdmin(authUser)
+
+  if (!authorized && !isAdminUser) {
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
   // Count files that need migration
