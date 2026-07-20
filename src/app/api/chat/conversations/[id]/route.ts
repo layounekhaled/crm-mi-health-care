@@ -78,20 +78,17 @@ export async function GET(
       )
     }
 
-    // Mettre à jour lastReadAt du participant courant
-    await db.chatParticipant.update({
-      where: {
-        conversationId_employeId: {
-          conversationId: id,
-          employeId,
-        },
-      },
-      data: {
-        lastReadAt: new Date(),
+    // NOTE: On NE marque PAS la conversation comme lue ici.
+    // Le marquage comme lu se fait via POST /api/chat/conversations/[id]/read
+    // uniquement quand l'utilisateur a réellement ouvert la conversation,
+    // pour éviter que le compteur de non-lus soit remis à zéro
+    // alors que les messages ne sont pas encore affichés.
+
+    return NextResponse.json(conversation, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
       },
     })
-
-    return NextResponse.json(conversation)
   } catch (error) {
     console.error('[CHAT_CONVERSATION_GET]', error)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })

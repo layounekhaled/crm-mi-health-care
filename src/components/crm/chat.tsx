@@ -257,17 +257,23 @@ export default function ChatWidget() {
   const lastPollTimeRef = useRef<string>(new Date().toISOString())
   const previousConversationsRef = useRef<Map<string, { unreadCount: number; lastMessageId: string }>>(new Map())
   const hasInitializedRef = useRef(false)
+  const conversationsRef = useRef<Conversation[]>([])
+  const selectedConversationRef = useRef<Conversation | null>(null)
 
   const employeId = user?.employeId || currentUser?.employeId
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await fetch('/api/chat/conversations', { credentials: 'same-origin' })
+      const res = await fetch('/api/chat/conversations', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      })
       if (res.ok) {
         const data = await res.json()
         if (Array.isArray(data)) {
           setConversations(data)
+          conversationsRef.current = data
         }
       } else if (res.status === 401) {
         const err = await res.json().catch(() => ({}))
@@ -284,7 +290,10 @@ export default function ChatWidget() {
   // Fetch messages for a conversation
   const fetchMessages = useCallback(async (conversationId: string) => {
     try {
-      const res = await fetch(`/api/chat/conversations/${conversationId}`, { credentials: 'same-origin' })
+      const res = await fetch(`/api/chat/conversations/${conversationId}`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      })
       if (res.ok) {
         const data = await res.json()
         if (data && Array.isArray(data.messages)) {
@@ -309,7 +318,7 @@ export default function ChatWidget() {
     try {
       const res = await fetch(
         `/api/chat/messages/latest?since=${encodeURIComponent(lastPollTimeRef.current)}`,
-        { credentials: 'same-origin' }
+        { credentials: 'same-origin', cache: 'no-store' }
       )
       if (res.ok) {
         const data = await res.json()
@@ -318,9 +327,15 @@ export default function ChatWidget() {
           const otherMsgs = newMsgs.filter((m) => m.expediteurId !== employeId)
 
           if (otherMsgs.length > 0) {
-            if (isOpen && selectedConversation) {
+            // Utiliser les refs pour accéder aux valeurs les plus récentes
+            // sans recréer le callback à chaque changement d'état
+            const currentIsOpen = isOpen
+            const currentSelectedConv = selectedConversationRef.current
+            const currentConversations = conversationsRef.current
+
+            if (currentIsOpen && currentSelectedConv) {
               const relevantMsgs = otherMsgs.filter(
-                (m) => m.conversationId === selectedConversation.id
+                (m) => m.conversationId === currentSelectedConv.id
               )
               if (relevantMsgs.length > 0) {
                 setMessages((prev) => {
@@ -340,10 +355,10 @@ export default function ChatWidget() {
               })
 
               for (const [convId, convMsgs] of msgsByConv) {
-                const isCurrentConv = isOpen && selectedConversation?.id === convId
+                const isCurrentConv = currentIsOpen && currentSelectedConv?.id === convId
                 if (isCurrentConv) continue
 
-                const conv = conversations.find((c) => c.id === convId)
+                const conv = currentConversations.find((c) => c.id === convId)
                 const convName = conv ? getConvNameHelper(conv) : 'Nouvelle conversation'
 
                 const lastMsg = convMsgs[convMsgs.length - 1]
@@ -378,7 +393,7 @@ export default function ChatWidget() {
     } catch {
       // silent fail
     }
-  }, [isOpen, selectedConversation, employeId, conversations, getConvNameHelper, fetchConversations, notificationsEnabled])
+  }, [isOpen, employeId, getConvNameHelper, fetchConversations, notificationsEnabled, selectConversation])
 
   // Detect unread count changes for notifications
   useEffect(() => {
@@ -430,12 +445,22 @@ export default function ChatWidget() {
   // Mark as read when selecting a conversation
   useEffect(() => {
     if (selectedConversation && isOpen) {
-      fetch(`/api/chat/conversations/${selectedConversation.id}/read`, {
-        method: 'POST',
-        credentials: 'same-origin',
-      }).catch(() => {})
+      // Marquer comme lu après un court délai pour s'assurer que
+      // les messages sont bien affichés avant de mettre à jour lastReadAt
+      const timer = setTimeout(() => {
+        fetch(`/api/chat/conversations/${selectedConversation.id}/read`, {
+          method: 'POST',
+          credentials: 'same-origin',
+        })
+          .then(() => {
+            // Rafraîchir la liste des conversations pour mettre à jour les badges de non-lus
+            fetchConversations()
+          })
+          .catch(() => {})
+      }, 300)
+      return () => clearTimeout(timer)
     }
-  }, [selectedConversation, isOpen])
+  }, [selectedConversation, isOpen, fetchConversations])
 
   // Polling
   useEffect(() => {
@@ -691,13 +716,14 @@ export default function ChatWidget() {
     })
   }
 
-  const selectConversation = async (conv: Conversation) => {
+  const selectConversation = useCallback(async (conv: Conversation) => {
     setSelectedConversation(conv)
+    selectedConversationRef.current = conv
     setShowGroupSettings(false)
     setDeleteConfirm(false)
     setShowAddMembers(false)
     await fetchMessages(conv.id)
-  }
+  }, [fetchMessages])
 
   // Open group settings
   const openGroupSettings = () => {

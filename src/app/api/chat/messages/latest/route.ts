@@ -64,7 +64,11 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ messages })
+    return NextResponse.json({ messages }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      },
+    })
   } catch (error) {
     console.error('[CHAT_MESSAGES_LATEST_GET]', error)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
