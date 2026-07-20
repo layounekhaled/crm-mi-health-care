@@ -41,6 +41,8 @@ export async function GET(
     }
 
     // Récupérer la conversation avec ses participants et messages
+    // On récupère les 50 derniers messages (desc + take) puis on les inverse (asc)
+    // pour afficher du plus ancien au plus récent dans le chat
     const conversation = await db.chatConversation.findUnique({
       where: { id },
       include: {
@@ -57,7 +59,7 @@ export async function GET(
           },
         },
         messages: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: { createdAt: 'desc' },
           take: 50,
           include: {
             expediteur: {
@@ -77,6 +79,9 @@ export async function GET(
         { status: 404 }
       )
     }
+
+    // Inverser l'ordre des messages pour affichage chronologique (ancien → récent)
+    conversation.messages = conversation.messages.reverse()
 
     // NOTE: On NE marque PAS la conversation comme lue ici.
     // Le marquage comme lu se fait via POST /api/chat/conversations/[id]/read
