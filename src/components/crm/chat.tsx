@@ -313,6 +313,16 @@ export default function ChatWidget() {
     return other?.employe?.nom || 'Conversation'
   }, [employeId])
 
+  // Select a conversation (must be defined before pollNewMessages which references it)
+  const selectConversation = useCallback(async (conv: Conversation) => {
+    setSelectedConversation(conv)
+    selectedConversationRef.current = conv
+    setShowGroupSettings(false)
+    setDeleteConfirm(false)
+    setShowAddMembers(false)
+    await fetchMessages(conv.id)
+  }, [fetchMessages])
+
   // Poll for new messages
   const pollNewMessages = useCallback(async () => {
     try {
@@ -715,15 +725,6 @@ export default function ChatWidget() {
       return next
     })
   }
-
-  const selectConversation = useCallback(async (conv: Conversation) => {
-    setSelectedConversation(conv)
-    selectedConversationRef.current = conv
-    setShowGroupSettings(false)
-    setDeleteConfirm(false)
-    setShowAddMembers(false)
-    await fetchMessages(conv.id)
-  }, [fetchMessages])
 
   // Open group settings
   const openGroupSettings = () => {
