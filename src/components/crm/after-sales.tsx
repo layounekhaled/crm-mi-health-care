@@ -81,6 +81,7 @@ interface AfterSale {
   clientId: string
   type: string
   statut: string
+  marque?: string | null
   notes?: string | null
   date?: string | null
   employeId?: string | null
@@ -108,6 +109,23 @@ const STATUT_OPTIONS = [
   { value: 'en_cours', label: 'En cours', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300', icon: AlertCircle },
   { value: 'termine', label: 'Terminé', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300', icon: CheckCircle2 },
 ] as const
+
+// Familles de produits (marques) — cohérent avec le catalogue produits
+const MARQUES = [
+  { value: 'MIR', label: 'MIR', color: '#2563EB', bg: '#EFF6FF' },
+  { value: 'BOSO BOSCH', label: 'BOSO BOSCH', color: '#DC2626', bg: '#FEF2F2' },
+  { value: 'Löwenstein', label: 'Löwenstein', color: '#059669', bg: '#ECFDF5' },
+  { value: 'Yuwell', label: 'Yuwell', color: '#7C3AED', bg: '#F5F3FF' },
+  { value: 'Gelenke', label: 'Gelenke', color: '#D97706', bg: '#FFFBEB' },
+  { value: 'DRIVE DEVILBISS', label: 'DRIVE DEVILBISS', color: '#0D9488', bg: '#F0FDFA' },
+  { value: 'INOGEN', label: 'INOGEN', color: '#7C3AED', bg: '#F5F3FF' },
+  { value: 'Autres', label: 'Autres', color: '#6B7280', bg: '#F9FAFB' },
+]
+
+function getMarqueConfig(marque: string | null | undefined) {
+  if (!marque) return null
+  return MARQUES.find(m => m.value === marque) || { value: marque, label: marque, color: '#6B7280', bg: '#F9FAFB' }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -216,6 +234,7 @@ export default function AfterSalesModule() {
     clientId: '',
     type: 'livraison',
     statut: 'en_attente',
+    marque: 'none',
     date: '',
     employeId: '',
     notes: '',
@@ -279,6 +298,7 @@ export default function AfterSalesModule() {
       clientId: '',
       type: 'livraison',
       statut: 'en_attente',
+      marque: 'none',
       date: '',
       employeId: '',
       notes: '',
@@ -292,6 +312,7 @@ export default function AfterSalesModule() {
       clientId: item.clientId,
       type: item.type,
       statut: item.statut,
+      marque: item.marque || 'none',
       date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
       employeId: item.employeId || '',
       notes: item.notes || '',
@@ -310,6 +331,7 @@ export default function AfterSalesModule() {
         clientId: formData.clientId,
         type: formData.type,
         statut: formData.statut,
+        marque: (formData.marque && formData.marque !== 'none') ? formData.marque : null,
         date: formData.date || null,
         employeId: (formData.employeId && formData.employeId !== 'none') ? formData.employeId : null,
         notes: formData.notes || null,
@@ -366,6 +388,23 @@ export default function AfterSalesModule() {
   const enCours = afterSales.filter(a => a.statut === 'en_cours').length
   const terminees = afterSales.filter(a => a.statut === 'termine').length
   const savEnCours = afterSales.filter(a => a.type === 'sav' && a.statut === 'en_cours').length
+
+  // Statistiques par marque (famille de produits)
+  const interventionsParMarque = MARQUES
+    .map(m => {
+      const items = afterSales.filter(a => a.marque === m.value)
+      return {
+        ...m,
+        total: items.length,
+        terminees: items.filter(a => a.statut === 'termine').length,
+        enCours: items.filter(a => a.statut === 'en_cours').length,
+        enAttente: items.filter(a => a.statut === 'en_attente').length,
+      }
+    })
+    .filter(m => m.total > 0)
+    .sort((a, b) => b.total - a.total)
+  const sansMarque = afterSales.filter(a => !a.marque).length
+  const maxMarqueCount = Math.max(...interventionsParMarque.map(m => m.total), 1)
 
   const hasFilters = filterType !== 'all' || filterStatut !== 'all'
 
@@ -499,6 +538,58 @@ export default function AfterSalesModule() {
               </Card>
             </div>
 
+            {/* Statistiques par marque (famille de produits) */}
+            {interventionsParMarque.length > 0 && (
+              <Card className="mb-6 border-0 bg-white/70 shadow-sm dark:bg-slate-900/70">
+                <CardContent className="p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Package className="size-4 text-[#134885] dark:text-[#F6852A]" />
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Interventions par marque
+                    </h3>
+                    {sansMarque > 0 && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">
+                        {sansMarque} intervention{sansMarque > 1 ? 's' : ''} sans marque
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-2.5">
+                    {interventionsParMarque.map((m) => (
+                      <div key={m.value} className="flex items-center gap-3">
+                        <span
+                          className="w-28 shrink-0 truncate text-xs font-medium"
+                          style={{ color: m.color }}
+                          title={m.label}
+                        >
+                          {m.label}
+                        </span>
+                        <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
+                          <div
+                            className="flex h-full items-center justify-end rounded-md pr-2 transition-all"
+                            style={{
+                              width: `${Math.max((m.total / maxMarqueCount) * 100, 8)}%`,
+                              backgroundColor: `${m.color}22`,
+                              borderRight: `3px solid ${m.color}`,
+                            }}
+                          >
+                            <span
+                              className="text-[11px] font-bold"
+                              style={{ color: m.color }}
+                            >
+                              {m.total}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="w-40 shrink-0 text-[10px] text-muted-foreground">
+                          {m.terminees} terminée{m.terminees > 1 ? 's' : ''} · {m.enCours} en cours · {m.enAttente} en attente
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* After-Sales List */}
             {afterSales.length === 0 ? (
               <EmptyState hasFilters={hasFilters} />
@@ -508,6 +599,7 @@ export default function AfterSalesModule() {
                   {afterSales.map((item) => {
                     const typeConfig = getTypeConfig(item.type)
                     const statutConfig = getStatutConfig(item.statut)
+                    const marqueConfig = getMarqueConfig(item.marque)
                     const TypeIcon = typeConfig.icon
                     const StatutIcon = statutConfig.icon
 
@@ -523,12 +615,27 @@ export default function AfterSalesModule() {
                         <Card className="group border-0 bg-white/70 shadow-sm transition-shadow hover:shadow-md dark:bg-slate-900/70">
                           <CardContent className="p-4">
                             {/* Top row: type badge + statut */}
-                            <div className="flex items-center justify-between">
-                              <Badge variant="outline" className={`gap-1.5 text-xs font-medium ${typeConfig.color}`}>
-                                <TypeIcon className="size-3" />
-                                {typeConfig.label}
-                              </Badge>
-                              <Badge variant="outline" className={`gap-1 text-[10px] font-medium ${statutConfig.color}`}>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                <Badge variant="outline" className={`gap-1.5 text-xs font-medium ${typeConfig.color}`}>
+                                  <TypeIcon className="size-3" />
+                                  {typeConfig.label}
+                                </Badge>
+                                {marqueConfig && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] font-semibold border"
+                                    style={{
+                                      color: marqueConfig.color,
+                                      backgroundColor: marqueConfig.bg,
+                                      borderColor: `${marqueConfig.color}44`,
+                                    }}
+                                  >
+                                    {marqueConfig.label}
+                                  </Badge>
+                                )}
+                              </div>
+                              <Badge variant="outline" className={`gap-1 shrink-0 text-[10px] font-medium ${statutConfig.color}`}>
                                 <StatutIcon className="size-3" />
                                 {statutConfig.label}
                               </Badge>
@@ -722,6 +829,37 @@ export default function AfterSalesModule() {
                       </SelectItem>
                     )
                   })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Marque (famille de produits) */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">
+                Famille (Marque)
+              </Label>
+              <Select
+                value={formData.marque}
+                onValueChange={v => setFormData(f => ({ ...f, marque: v }))}
+              >
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue placeholder="Sélectionner une marque" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <span className="text-muted-foreground">Non renseignée</span>
+                  </SelectItem>
+                  {MARQUES.map(m => (
+                    <SelectItem key={m.value} value={m.value}>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block size-2 rounded-full"
+                          style={{ backgroundColor: m.color }}
+                        />
+                        {m.label}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

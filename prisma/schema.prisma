@@ -223,6 +223,7 @@ model AfterSale {
   clientId     String
   type         String   @default("livraison")
   statut       String   @default("en_attente")
+  marque       String?           // Famille de produits : MIR / BOSO BOSCH / Löwenstein / Yuwell / Gelenke / DRIVE DEVILBISS / INOGEN / Autres
   notes        String?
   date         DateTime?
   employeId    String?
@@ -236,6 +237,8 @@ model AfterSale {
   creePar    Employee? @relation("AfterSaleCreePar", fields: [creeParId], references: [id])
   modifiePar Employee? @relation("AfterSaleModifiePar", fields: [modifieParId], references: [id])
   interactions Interaction[]
+
+  @@index([marque])
 }
 
 model Employee {

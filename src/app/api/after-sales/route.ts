@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { clientId, type, statut, notes, date, employeId } = body;
+    const { clientId, type, statut, marque, notes, date, employeId } = body;
 
     if (!clientId) {
       return NextResponse.json({ error: 'clientId is required' }, { status: 400 });
@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
         clientId,
         type: type || 'livraison',
         statut: statut || 'en_attente',
+        marque: marque || null,
         notes: notes || null,
         date: date ? new Date(date) : null,
         employeId: employeId || null,

@@ -48,7 +48,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { clientId, type, statut, notes, date, employeId } = body;
+    const { clientId, type, statut, marque, notes, date, employeId } = body;
 
     const existing = await db.afterSale.findUnique({ where: { id } });
     if (!existing) {
@@ -85,6 +85,7 @@ export async function PUT(
         ...(clientId !== undefined && { clientId }),
         ...(type !== undefined && { type }),
         ...(statut !== undefined && { statut }),
+        ...(marque !== undefined && { marque: marque || null }),
         ...(notes !== undefined && { notes }),
         ...(date !== undefined && { date: date ? new Date(date) : null }),
         ...(employeId !== undefined && { employeId }),
