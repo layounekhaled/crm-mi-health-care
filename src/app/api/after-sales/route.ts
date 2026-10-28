@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const statut = searchParams.get('statut');
     const clientId = searchParams.get('clientId');
+    const numeroSerie = searchParams.get('numeroSerie');
 
     const where: Record<string, unknown> = {};
 
@@ -32,6 +33,11 @@ export async function GET(request: NextRequest) {
 
     if (clientId) {
       where.clientId = clientId;
+    }
+
+    // Recherche par numéro de série (historique machine)
+    if (numeroSerie && numeroSerie.trim().length >= 2) {
+      where.numeroSerie = { contains: numeroSerie.trim(), mode: 'insensitive' as const };
     }
 
     const afterSales = await db.afterSale.findMany({
@@ -59,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const body = await request.json();
-    const { clientId, type, statut, marque, notes, date, employeId } = body;
+    const { clientId, type, statut, marque, nomMachine, numeroSerie, dateAchat, notes, date, employeId } = body;
 
     if (!clientId) {
       return NextResponse.json({ error: 'clientId is required' }, { status: 400 });
@@ -77,6 +83,9 @@ export async function POST(request: NextRequest) {
         type: type || 'livraison',
         statut: statut || 'en_attente',
         marque: marque || null,
+        nomMachine: nomMachine || null,
+        numeroSerie: numeroSerie ? numeroSerie.trim() : null,
+        dateAchat: dateAchat ? new Date(dateAchat) : null,
         notes: notes || null,
         date: date ? new Date(date) : null,
         employeId: employeId || null,

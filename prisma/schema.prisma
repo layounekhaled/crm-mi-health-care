@@ -224,6 +224,9 @@ model AfterSale {
   type         String   @default("livraison")
   statut       String   @default("en_attente")
   marque       String?           // Famille de produits : MIR / BOSO BOSCH / Löwenstein / Yuwell / Gelenke / DRIVE DEVILBISS / INOGEN / Autres
+  nomMachine   String?           // Nom / modèle de la machine concernée
+  numeroSerie  String?           // Numéro de série de la machine (recherche historique)
+  dateAchat    DateTime?         // Date approximative d'achat de la machine
   notes        String?
   date         DateTime?
   employeId    String?
@@ -239,6 +242,7 @@ model AfterSale {
   interactions Interaction[]
 
   @@index([marque])
+  @@index([numeroSerie])
 }
 
 model Employee {
