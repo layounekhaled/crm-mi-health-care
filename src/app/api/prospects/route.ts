@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    if (!canAccess(authUser, ['admin', 'commercial'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    if (!canAccess(authUser, ['admin', 'commercial', 'technicien'])) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const source = searchParams.get('source');

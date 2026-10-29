@@ -235,7 +235,7 @@ export default function DeplacementsModule() {
         const resP = await fetch('/api/prospects?limit=500')
         if (resP.ok) {
           const dataP = await resP.json()
-          const list: ProspectLite[] = Array.isArray(dataP) ? dataP : dataP.prospects || []
+          const list: ProspectLite[] = Array.isArray(dataP) ? dataP : dataP.data || dataP.prospects || []
           setProspects(list)
         }
       } catch {
