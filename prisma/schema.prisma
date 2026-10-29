@@ -37,6 +37,7 @@ model Prospect {
   tasks         Task[]
   documentSends DocumentSend[]
   photos        ProspectPhoto[]
+  deplacements  Deplacement[]
   creePar       Employee?  @relation("ProspectCreePar", fields: [creeParId], references: [id])
   cashPayments  CashPayment[]
 }
