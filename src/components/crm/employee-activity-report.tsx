@@ -221,7 +221,11 @@ export default function EmployeeActivityReport({ employees }: { employees: Emplo
       const res = await fetch(`/api/reports/employee-activity?${params}`)
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Erreur lors du chargement du rapport')
+        throw new Error(
+          data.detail
+            ? `${data.error || 'Erreur serveur'} — ${data.detail}`
+            : (data.error || 'Erreur lors du chargement du rapport')
+        )
       }
       const data = await res.json()
       setReport(data)
