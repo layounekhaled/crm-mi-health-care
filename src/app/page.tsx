@@ -19,6 +19,7 @@ import EmailsModule from '@/components/crm/emails'
 import RHModule from '@/components/crm/rh'
 import DocumentsModule from '@/components/crm/documents'
 import ChargesModule from '@/components/crm/charges'
+import DeplacementsModule from '@/components/crm/deplacements'
 import CashManagement from '@/components/crm/cash'
 import BackupModule from '@/components/crm/backup'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -45,6 +46,7 @@ const PAGE_PERMISSION_MAP: Record<string, string> = {
   rh: 'rh',
   documents: 'documents',
   charges: 'charges',
+  deplacements: 'deplacements',
   caisse: 'caisse',
   backup: 'employees',
 }
@@ -67,6 +69,7 @@ const PREFERRED_FALLBACK_ORDER: string[] = [
   'documents',
   'rh',
   'charges',
+  'deplacements',
   'caisse',
   'backup',
   'employees',
@@ -190,6 +193,8 @@ export default function Home() {
         return <DocumentsModule />
       case 'charges':
         return <ChargesModule />
+      case 'deplacements':
+        return <DeplacementsModule />
       case 'caisse':
         return <CashManagement />
       case 'backup':

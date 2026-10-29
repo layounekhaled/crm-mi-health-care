@@ -297,6 +297,39 @@ model Employee {
   cashJournalEntries  CashJournalEntry[]
   cashAuditLogs       CashAuditLog[]
   backups             BackupRecord[]
+  deplacements        Deplacement[]  @relation("DeplacementEmploye")
+  deplacementsCrees   Deplacement[]  @relation("DeplacementCreePar")
+  deplacementsModifies Deplacement[] @relation("DeplacementModifiePar")
+}
+
+model Deplacement {
+  id             String    @id @default(cuid())
+  employeId      String              // Employé qui effectue le déplacement
+  prospectId     String?             // Médecin / établissement visité
+  motif          String    @default("visite")        // visite / formation / livraison / evenement / prospection / autre
+  statut         String    @default("planifie")      // planifie / en_cours / termine / annule
+  moyenTransport String    @default("vehicule_personnel") // vehicule_personnel / vehicule_societe / taxi / train / avion / autre
+  villeDepart    String?
+  villeArrivee   String?
+  date           DateTime                     // Date du déplacement
+  heureDepart    String?                      // Heure de départ (HH:mm)
+  heureRetour    String?                      // Heure de retour (HH:mm)
+  distanceKm     Float?                       // Distance parcourue (km)
+  montant        Float     @default(0)        // Frais totaux du déplacement (DZD)
+  notes          String?
+  creeParId      String?
+  modifieParId   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  employe    Employee   @relation("DeplacementEmploye", fields: [employeId], references: [id])
+  prospect   Prospect?  @relation(fields: [prospectId], references: [id])
+  creePar    Employee?  @relation("DeplacementCreePar", fields: [creeParId], references: [id])
+  modifiePar Employee?  @relation("DeplacementModifiePar", fields: [modifieParId], references: [id])
+
+  @@index([employeId])
+  @@index([prospectId])
+  @@index([date])
 }
 
 model Objective {

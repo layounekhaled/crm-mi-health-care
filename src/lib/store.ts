@@ -16,6 +16,7 @@ export type Page =
   | 'rh'
   | 'documents'
   | 'charges'
+  | 'deplacements'
   | 'caisse'
   | 'backup'
 
